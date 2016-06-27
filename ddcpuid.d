@@ -121,18 +121,19 @@ public string GetVendor()
         mov ecx, ECX;
         mov edx, EDX;
     }
+    // EBX, EDX, ECX
     s ~= cast(char)(ebx & 0xFF);
     s ~= cast(char)((ebx >>  8) & 0xFF);
     s ~= cast(char)((ebx >> 16) & 0xFF);
     s ~= cast(char)((ebx >> 24) & 0xFF);
-    s ~= cast(char)(ecx & 0xFF);
-    s ~= cast(char)((ecx >>  8) & 0xFF);
-    s ~= cast(char)((ecx >> 16) & 0xFF);
-    s ~= cast(char)((ecx >> 24) & 0xFF);
     s ~= cast(char)(edx & 0xFF);
     s ~= cast(char)((edx >>  8) & 0xFF);
     s ~= cast(char)((edx >> 16) & 0xFF);
     s ~= cast(char)((edx >> 24) & 0xFF);
+    s ~= cast(char)(ecx & 0xFF);
+    s ~= cast(char)((ecx >>  8) & 0xFF);
+    s ~= cast(char)((ecx >> 16) & 0xFF);
+    s ~= cast(char)((ecx >> 24) & 0xFF);
     return s;
 }
 
@@ -218,7 +219,8 @@ public int GetBrandIndex()
     }
     return e & 0xFF;
 }
-// EBX[15:08], 8 bits - CLFLUSH line size (Value ∗ 8 = cache line size in bytes; used also by CLFLUSHOPT).
+// EBX[15:08], 8 bits - CLFLUSH line size
+// (Value ∗ 8 = cache line size in bytes; used also by CLFLUSHOPT).
 public int GetClflushLineSize()
 {
     int e;
@@ -230,7 +232,8 @@ public int GetClflushLineSize()
     }
     return (e >> 8) & 0xFF;
 }
-// EBX[23:16], 8 bits - Maximum number of addressable IDs for logical processors in this physical package.
+// EBX[23:16], 8 bits - Maximum number of addressable IDs for
+// logical processors in this physical package.
 public int GetMaxNumAddressableIDs()
 {
     int e;
@@ -449,17 +452,6 @@ public bool SupportsPDCM()
     return e >> 15 & 1;
 }
 // Bit 16 - Reserved
-/*public bool Supports()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 16 & 1;
-}*/
 // Bit 17 - PCID
 public bool SupportsPCID()
 {
@@ -631,14 +623,382 @@ public bool SupportsRDRAND()
 // Bit 31 is not used, always returns 0.
 
 // EDX - Feature flags
+// Bit 00 - FPU
+public bool SupportsFPU()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e & 1;
+}
+// Bit 01 - VME
+public bool SupportsVME()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 1 & 1;
+}
+// Bit 02 - DE
+public bool SupportsDE()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 2 & 1;
+}
+// Bit 03 - PSE
+public bool SupportsPSE()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 3 & 1;
+}
+// Bit 04 - TSC
+public bool SupportsTSC()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 4 & 1;
+}
+// Bit 05 - MSR
+public bool SupportsMSR()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 5 & 1;
+}
+// Bit 06 - PAE
+public bool SupportsPAE()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 6 & 1;
+}
+// Bit 07 - MCE
+public bool SupportsMCE()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 7 & 1;
+}
+// Bit 08 - CX8
+public bool SupportsCX8()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 8 & 1;
+}
+// Bit 09 - APIC
+public bool SupportsAPIC()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 9 & 1;
+}
+// Bit 10 - Reserved
+// Bit 11 - SEP
+public bool SupportsSEP()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 11 & 1;
+}
+// Bit 12 - MTRR
+public bool SupportsMTRR()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 12 & 1;
+}
+// Bit 13 - PGE
+public bool SupportsPGE()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 13 & 1;
+}
+// Bit 14 - MCA
+public bool SupportsMCA()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 14 & 1;
+}
+// Bit 15 - CMOV
+public bool SupportsCMOV()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 15 & 1;
+}
+// Bit 16 - PAT
+public bool SupportsPAT()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 16 & 1;
+}
+// Bit 17 - PSE-36
+public bool SupportsPSE_36()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 17 & 1;
+}
+// Bit 18 - PSN
+public bool SupportsPSN()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 18 & 1;
+}
+// Bit 19 - CLFSH
+public bool SupportsCLFSH()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 19 & 1;
+}
+// Bit 20 - Reserved
+// Bit 21 - DS
+public bool SupportsDS()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 21 & 1;
+}
+// Bit 22 - ACPI
+public bool SupportsACPI()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 22 & 1;
+}
+// Bit 23 - MMX
+public bool SupportsMMX()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 23 & 1;
+}
+// Bit 24 - FXSR
+public bool SupportsFXSR()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 24 & 1;
+}
+// Bit 25 - SSE
+public bool SupportsSSE()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 25 & 1;
+}
+// Bit 26 - SSE2
+public bool SupportsSSE2()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 26 & 1;
+}
+// Bit 27 - SS
+public bool SupportsSS()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 27 & 1;
+}
+// Bit 28 - HTT
+public bool SupportsHTT()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 28 & 1;
+}
+// Bit 29 - TM
+public bool SupportsTM()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 29 & 1;
+}
+// Bit 30 - Reserved
+// Bit 31 - PBE
+public bool SupportsPBE()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, EDX;
+    }
+    return e >> 31 & 1;
+}
 
+// ----- 02H - Basic CPUID Information -----
+// EAX, EBX, ECX, EDX - Cache and TLB Information.
+//TODO: 02H
 
+// ----- 03H - Basic CPUID Information -----
+// EAX and EBX are reserved.
 
+// NOTES: (From the Intel document)
+// Processor serial number (PSN) is not supported in the Pentium 4 processor or later.
+// On all models, use the PSN flag (returned using CPUID) to check for PSN support
+// before accessing the feature.
 
+// ----- 04H - Deterministic Cache Parameters Leaf -----
+// NOTES: Leaf 04H output depends on the initial value in ECX.*
 
+/*  ECX = Cache Level
+    This Cache Size in Bytes
+    = (Ways + 1) * (Partitions + 1) * (Line_Size + 1) * (Sets + 1)
+    = (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
+*/
 
+// ----- 05H - MONITOR/MWAIT Leaf -----
 
-// 06H - Thermal and Power Management Leaf
+// ----- 06H - Thermal and Power Management Leaf -----
 
 // Bit 01 - Intel Turbo Boost Technology Available
 public bool SupportsTurboBoost()
@@ -650,13 +1010,10 @@ public bool SupportsTurboBoost()
         cpuid;
         mov e, EAX;
     }
-    return (e & 2) == 2;
+    return e >> 1 & 1;
 }
 
 // ---- Misc ----
-
-// Eventually, the information will be gathered in a batch, instead of
-// going to every method invidually.
 
 public CPU_INFO_INTEL GetIntelInfo()
 {

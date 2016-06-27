@@ -4,6 +4,8 @@ ehthumbs.db
 
 *.obj
 *.exe
+*.dll
+*.lib
 
 # Folder config file
 Desktop.ini

@@ -1,4 +1,35 @@
 import std.stdio;
+/*import core.sys.windows.windows;
+import core.sys.windows.dll;
+ 
+__gshared HINSTANCE g_hInst;
+ 
+extern (Windows)
+BOOL DllMain(HINSTANCE hInstance, ULONG ulReason, LPVOID pvReserved)
+{
+    switch (ulReason)
+    {
+	case DLL_PROCESS_ATTACH:
+	    g_hInst = hInstance;
+	    dll_process_attach( hInstance, true );
+	    break;
+ 
+	case DLL_PROCESS_DETACH:
+	    dll_process_detach( hInstance, true );
+	    break;
+ 
+	case DLL_THREAD_ATTACH:
+	    dll_thread_attach( true, true );
+	    break;
+ 
+	case DLL_THREAD_DETACH:
+	    dll_thread_detach( true, true );
+	    break;
+ 
+        default:
+    }
+    return true;
+}*/
 
 void main(string[] args)
 {
@@ -46,6 +77,9 @@ void main(string[] args)
             writefln("EBP=%-8X ESP=%-8X EDI=%-8X ESI=%-8X", _ebp, _esp, _edi, _esi);
         }
     }
+
+    // Obviously at some point, only the batch
+    // will be performed, which will improve performance
 
     writeln();
     writefln("Vendor: %s", GetVendor());
@@ -244,8 +278,358 @@ public bool SupportsPCLMULQDQ()
         cpuid;
         mov e, ECX;
     }
-    return e & 1;
+    return e >> 1 & 1;
 }
+// Bit 02 - DTES64
+public bool SupportsDTES64()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 2 & 1;
+}
+// Bit 03 - MONITOR
+public bool SupportsMONITOR()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 3 & 1;
+}
+// Bit 04 - DS-CPL
+public bool SupportsDS_CPL()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 4 & 1;
+}
+// Bit 05 - VMX
+public bool SupportsVMX()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 5 & 1;
+}
+// Bit 06 - SMX
+public bool SupportsSMX()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 6 & 1;
+}
+// Bit 07 - EIST
+public bool SupportsEIST()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 7 & 1;
+}
+// Bit 08 - TM2
+public bool SupportsTM2()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 8 & 1;
+}
+// Bit 09 - SSSE3
+public bool SupportsSSSE3()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 9 & 1;
+}
+// Bit 10 - CNXT-ID
+public bool SupportsCNXT_ID()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 10 & 1;
+}
+// Bit 11 - SDBG
+public bool SupportsSDBG()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 11 & 1;
+}
+// Bit 12 - FMA
+public bool SupportsFMA()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 12 & 1;
+}
+// Bit 13 - CMPXCHG16B
+public bool SupportsCMPXCHG16B()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 13 & 1;
+}
+// Bit 14 - xTPR Update Control
+public bool SupportsxTPRUpdateControl()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 14 & 1;
+}
+// Bit 15 - PDCM
+public bool SupportsPDCM()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 15 & 1;
+}
+// Bit 16 - Reserved
+/*public bool Supports()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 16 & 1;
+}*/
+// Bit 17 - PCID
+public bool SupportsPCID()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 17 & 1;
+}
+// Bit 18 - DCA
+public bool SupportsDCA()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 18 & 1;
+}
+// Bit 19 - SSE4.1
+public bool SupportsSSE41()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 19 & 1;
+}
+// Bit 20 - SSE4.2
+public bool SupportsSSE42()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 20 & 1;
+}
+// Bit 21 - x2APIC
+public bool Supportsx2APIC()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 21 & 1;
+}
+// Bit 22 - MOVBE
+public bool SupportsMOVBE()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 22 & 1;
+}
+// Bit 23 - POPCNT
+public bool SupportsPOPCNT()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 23 & 1;
+}
+// Bit 24 - TSC-Deadline
+public bool SupportsTSC_Deadline()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 24 & 1;
+}
+// Bit 25 - AESNI
+public bool SupportsAESNI()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 25 & 1;
+}
+// Bit 26 - XSAVE
+public bool SupportsXSAVE()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 26 & 1;
+}
+// Bit 27 - OSXSAVE
+public bool SupportsOSXSAVE()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 27 & 1;
+}
+// Bit 28 - AVX
+public bool SupportsAVX()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 28 & 1;
+}
+// Bit 29 - F16C
+public bool SupportsF16C()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 29 & 1;
+}
+// Bit 30 - RDRAND
+public bool SupportsRDRAND()
+{
+    int e;
+    asm
+    {
+        mov EAX, 1;
+        cpuid;
+        mov e, ECX;
+    }
+    return e >> 30 & 1;
+}
+// Bit 31 is not used, always returns 0.
+
 // EDX - Feature flags
 
 

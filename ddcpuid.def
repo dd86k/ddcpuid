@@ -1,0 +1,12 @@
+LIBRARY         MYDLL
+DESCRIPTION     'My DLL written in D'
+
+EXETYPE			NT
+CODE            PRELOAD DISCARDABLE
+DATA            WRITE
+
+EXPORTS
+		DllGetClassObject       @2
+		DllCanUnloadNow         @3
+		DllRegisterServer       @4
+		DllUnregisterServer     @5

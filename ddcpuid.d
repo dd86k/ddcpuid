@@ -125,15 +125,15 @@ public string GetVendor()
     s ~= cast(char)(ebx & 0xFF);
     s ~= cast(char)((ebx >>  8) & 0xFF);
     s ~= cast(char)((ebx >> 16) & 0xFF);
-    s ~= cast(char)((ebx >> 24) & 0xFF);
+    s ~= cast(char)(ebx >> 24);
     s ~= cast(char)(edx & 0xFF);
     s ~= cast(char)((edx >>  8) & 0xFF);
     s ~= cast(char)((edx >> 16) & 0xFF);
-    s ~= cast(char)((edx >> 24) & 0xFF);
+    s ~= cast(char)(edx >> 24);
     s ~= cast(char)(ecx & 0xFF);
     s ~= cast(char)((ecx >>  8) & 0xFF);
     s ~= cast(char)((ecx >> 16) & 0xFF);
-    s ~= cast(char)((ecx >> 24) & 0xFF);
+    s ~= cast(char)(ecx >> 24);
     return s;
 }
 

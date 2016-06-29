@@ -78,16 +78,21 @@ void main(string[] args)
     // will be performed, which will improve performance
 
     writefln("Vendor: %s", GetVendor());
-    // CPU Model name here
+    //TODO: CPU Model name here
     writeln();
     write("Extensions: ");
     if (SupportsSSE()) write("SSE, ");
     if (SupportsSSE2()) write("SSE2, ");
     if (SupportsSSE3()) write("SSE3, ");
     if (SupportsSSSE3()) write("SSSE3, ");
-    //if (SupportsSSE4()) write("SSE4, ");
     if (SupportsSSE41()) write("SSE4.1, ");
     if (SupportsSSE42()) write("SSE4.2, ");
+    if (SupportsAESNI()) write("AES, ");
+    if (SupportsAVX()) write("AVX, ");
+    if (_det)
+    { //TODO: Single instructions here
+        
+    }
     writeln();
     writefln("Turbo Boost Available: %s", SupportsTurboBoost());
 
@@ -99,9 +104,10 @@ void main(string[] args)
         writefln("Highest Leaf supported: %02XH", max);
         writeln();
         writefln("Processor type: %s", GetProcessorType());
-        writefln("Family %s Model %s, Stepping %s",
+        writefln("Family %s Model %s (ID: %s << 4 | E: %s), Stepping %s",
             GetFamilyID(),
             GetExtendedModelID() << 4 | GetModelID(),
+            GetExtendedModelID(), GetModelID(),
             GetSteppingID());
         writefln("Extended Family ID: %s", GetExtendedFamilyID());
         writefln("Brand Index: %s", GetBrandIndex());
@@ -127,10 +133,8 @@ void main(string[] args)
         writefln("MOVBE: %s", SupportsMOVBE());
         writefln("POPCNT: %s", SupportsPOPCNT());
         writefln("TSC-Deadline: %s", SupportsTSC_Deadline());
-        writefln("AESNI: %s", SupportsAESNI());
         writefln("XSAVE: %s", SupportsXSAVE());
         writefln("OSXSAVE: %s", SupportsOSXSAVE());
-        writefln("AVX: %s", SupportsAVX());
         writefln("F16C: %s", SupportsF16C());
         writefln("RDRAND: %s", SupportsRDRAND());
         writefln("FPU: %s", SupportsFPU());

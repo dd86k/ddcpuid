@@ -1,4 +1,5 @@
 import std.stdio;
+import std.string;
 /*import core.sys.windows.windows;
 import core.sys.windows.dll;
  
@@ -80,12 +81,13 @@ void main(string[] args)
     }
 
     int max = _oml ? 0x17 : GetHighestLeaf();
+    int emax = _oml ? 0x80000008 : GetHighestExtendedLeaf();
 
     // Obviously at some point, only the batch
     // will be performed, which will improve performance
 
     writeln("Vendor: ", GetVendor());
-    writeln("Model: ", GetProcessorBrandString());
+    writeln("Model: ", strip(GetProcessorBrandString()));
     write("Extensions: ");
     if (SupportsMMX()) write("MMX, ");
     if (SupportsSSE()) write("SSE, ");
@@ -125,7 +127,7 @@ void main(string[] args)
         writeln();
         writeln(" ----- Details -----");
         writeln();
-        writefln("Highest Leaf: %02XH | Extended: %02XH", max, GetHighestExtendedLeaf());
+        writefln("Highest Leaf: %02XH | Extended: %02XH", max, emax);
         writeln();
         writefln("Processor type: %s", GetProcessorType());
         writefln("Family %s (Extended: %s) Model %s (ID: %X, Extended: %X), Stepping %s",
@@ -188,12 +190,28 @@ void main(string[] args)
                 mov _ebx, EBX;
                 mov _ecx, ECX;
                 mov _edx, EDX;
-                mov _ebp, EBP;
-                mov _esp, ESP;
-                mov _edi, EDI;
-                mov _esi, ESI;
             }
             writefln("EAX=%02XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X", b, _eax, _ebx, _ecx, _edx);
+        }
+        for (int b = 0x80000000; b <= 0x80000008; ++b)
+        {
+            asm
+            {
+                mov EAX, b;
+                cpuid;
+                mov _eax, EAX;
+                mov _ebx, EBX;
+                mov _ecx, ECX;
+                mov _edx, EDX;
+            }
+            writefln("EAX=%08XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X", b, _eax, _ebx, _ecx, _edx);
+        }
+        asm
+        {
+            mov _ebp, EBP;
+            mov _esp, ESP;
+            mov _edi, EDI;
+            mov _esi, ESI;
         }
         writefln("EBP=%-8X ESP=%-8X EDI=%-8X ESI=%-8X", _ebp, _esp, _edi, _esi);
         writeln();

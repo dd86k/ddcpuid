@@ -31,6 +31,8 @@ BOOL DllMain(HINSTANCE hInstance, ULONG ulReason, LPVOID pvReserved)
     return true;
 }*/
 
+const string ver = "0.0.0";
+
 void main(string[] args)
 {
     bool _dbg = false; // Debug
@@ -40,10 +42,28 @@ void main(string[] args)
     {
         switch(s)
         {
+            case "--help":
+                writeln(" ddcpuid [<Options>]");
+                writeln();
+                writeln(" --details, -D  Gets more details.");
+                writeln(" --debug        Gets debugging information.");
+                writeln();
+                writeln(" --help     Prints help and quit.");
+                writeln(" --version  Prints version and quit.");
+                return;
+
+            case "--version":
+                writeln("ddcpuid v", ver);
+                writeln("Copyright (c) guitarxhero 2016");
+                writeln("License: MIT License <http://opensource.org/licenses/MIT>");
+                writeln("Project page: <https://github.com/guitarxhero/ddcpuid>");
+                return;
+
             case "--debug":
                 _dbg = true;
                 break;
 
+            case "-D":
             case "--detailed":
                 _det = true;
                 break;
@@ -53,6 +73,70 @@ void main(string[] args)
     }
 
     int max = GetHighestLeaf();
+
+    // Obviously at some point, only the batch
+    // will be performed, which will improve performance
+
+    writefln("Vendor: %s", GetVendor());
+    // CPU Model name here
+    writeln();
+    write("Extensions: ");
+    if (SupportsSSE()) write("SSE, ");
+    if (SupportsSSE2()) write("SSE2, ");
+    if (SupportsSSE3()) write("SSE3, ");
+    if (SupportsSSSE3()) write("SSSE3, ");
+    //if (SupportsSSE4()) write("SSE4, ");
+    if (SupportsSSE41()) write("SSE4.1, ");
+    if (SupportsSSE42()) write("SSE4.2, ");
+    writeln();
+    writefln("Turbo Boost Available: %s", SupportsTurboBoost());
+
+    if (_det)
+    {
+        writeln();
+        writeln(" ----- Details -----");
+        writeln();
+        writefln("Highest Leaf supported: %02XH", GetHighestLeaf());
+        writeln();
+        writefln("Processor type: %s", GetProcessorType());
+        writefln("Family %s Model %s, Stepping %s",
+            GetFamilyID(),
+            GetExtendedModelID() << 4 | GetModelID(),
+            GetSteppingID());
+        writefln("Extended Family ID: %s", GetExtendedFamilyID());
+        writefln("Brand Index: %s", GetBrandIndex());
+        writefln("CLFLUSH Line Size: %s", GetClflushLineSize());
+        writefln("Max # of addressable IDs: %s", GetMaxNumAddressableIDs());
+        writefln("Initial APIC ID: %s", GetInitialAPICID());
+        writefln("PCLMULQDQ: %s", SupportsPCLMULQDQ());
+        writefln("DTES64: %s", SupportsDTES64());
+        writefln("MONITOR: %s", SupportsMONITOR());
+        writefln("DS-CPL: %s", SupportsDS_CPL());
+        writefln("VMX: %s", SupportsVMX());
+        writefln("SMX: %s", SupportsSMX());
+        writefln("EIST: %s", SupportsEIST());
+        writefln("TM2: %s", SupportsTM2());
+        writefln("CNXT-ID: %s", SupportsCNXT_ID());
+        writefln("FMA: %s", SupportsFMA());
+        writefln("CMPXCHG16B: %s", SupportsCMPXCHG16B());
+        writefln("xTPR Update Control: %s", SupportsxTPRUpdateControl());
+        writefln("PDCM: %s", SupportsPDCM());
+        writefln("PCID: %s", SupportsPCID());
+        writefln("DCA: %s", SupportsDCA());
+        writefln("x2APIC: %s", Supportsx2APIC());
+        writefln("MOVBE: %s", SupportsMOVBE());
+        writefln("POPCNT: %s", SupportsPOPCNT());
+        writefln("TSC-Deadline: %s", SupportsTSC_Deadline());
+        writefln("AESNI: %s", SupportsAESNI());
+        writefln("XSAVE: %s", SupportsXSAVE());
+        writefln("OSXSAVE: %s", SupportsOSXSAVE());
+        writefln("AVX: %s", SupportsAVX());
+        writefln("F16C: %s", SupportsF16C());
+        writefln("RDRAND: %s", SupportsRDRAND());
+        writefln("FPU: %s", SupportsFPU());
+        writefln("VMW: %s", SupportsVME());
+        // ...
+    }
 
     if (_dbg)
     {
@@ -72,18 +156,11 @@ void main(string[] args)
                 mov _edi, EDI;
                 mov _esi, ESI;
             }
-            writefln("----- EAX=%XH -----", b);
-            writefln("EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X", _eax, _ebx, _ecx, _edx);
-            writefln("EBP=%-8X ESP=%-8X EDI=%-8X ESI=%-8X", _ebp, _esp, _edi, _esi);
+            writefln("EAX=%02XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X", b, _eax, _ebx, _ecx, _edx);
         }
+        writefln("EBP=%-8X ESP=%-8X EDI=%-8X ESI=%-8X", _ebp, _esp, _edi, _esi);
+        writeln();
     }
-
-    // Obviously at some point, only the batch
-    // will be performed, which will improve performance
-
-    writeln();
-    writefln("Vendor: %s", GetVendor());
-    writefln("Turbo Boost Available: %s", SupportsTurboBoost());
 }
 
 // ----- 00H - Basic CPUID Information -----
@@ -105,10 +182,6 @@ public int GetHighestLeaf()
 /// <summary>
 /// Gets the CPU Vendor string.
 /// </summay>
-/// <remarks>
-/// Intel=GenuintelineI
-/// AMD=
-/// </remarks>
 public string GetVendor()
 {
     string s;
@@ -183,7 +256,7 @@ public int GetFamilyID() // EAX[11:8] - 4 bits
     }
     return (e >> 8) & 0xF;
 }
-public int GetModel() // EAX[7:4] - 4 bits 
+public int GetModelID() // EAX[7:4] - 4 bits 
 {
     int e;
     asm

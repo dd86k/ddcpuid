@@ -37,6 +37,7 @@ void main(string[] args)
 {
     bool _dbg = false; // Debug
     bool _det = false; // Detailed output
+    bool _oml = false; // Override max leaf
 
     foreach(s; args)
     {
@@ -45,8 +46,9 @@ void main(string[] args)
             case "--help":
                 writeln(" ddcpuid [<Options>]");
                 writeln();
-                writeln(" --details, -D  Gets more details.");
-                writeln(" --debug        Gets debugging information.");
+                writeln(" --details, -D    Gets more details.");
+                writeln(" --override, -O   Overrides the maximum leaf to 17H.");
+                writeln(" --debug          Gets debugging information.");
                 writeln();
                 writeln(" --help     Prints help and quit.");
                 writeln(" --version  Prints version and quit.");
@@ -59,20 +61,25 @@ void main(string[] args)
                 writeln("Project page: <https://github.com/guitarxhero/ddcpuid>");
                 return;
 
-            case "--debug":
-                _dbg = true;
-                break;
-
             case "-D":
             case "--details":
                 _det = true;
                 break;
 
-            default: break;
+            case "-O":
+            case "--override":
+                _oml = true;
+                break;
+
+            case "--debug":
+                _dbg = true;
+                break;
+
+            default:
         }
     }
 
-    int max = GetHighestLeaf();
+    int max = _oml ? 0x17 : GetHighestLeaf();
 
     // Obviously at some point, only the batch
     // will be performed, which will improve performance
@@ -81,17 +88,26 @@ void main(string[] args)
     //TODO: CPU Model name here
     writeln();
     write("Extensions: ");
+    if (SupportsMMX()) write("MMX, ");
     if (SupportsSSE()) write("SSE, ");
     if (SupportsSSE2()) write("SSE2, ");
     if (SupportsSSE3()) write("SSE3, ");
     if (SupportsSSSE3()) write("SSSE3, ");
     if (SupportsSSE41()) write("SSE4.1, ");
     if (SupportsSSE42()) write("SSE4.2, ");
-    if (SupportsAESNI()) write("AES, ");
+    if (SupportsAESNI()) write("AESNI, ");
     if (SupportsAVX()) write("AVX, ");
     if (_det)
-    { //TODO: Single instructions here
-        
+    {
+        if (SupportsDS_CPL()) write("DS-CPL, ");
+        if (SupportsFMA()) write("FMA, ");
+        if (SupportsDS_CPL()) write("DS-CPL, ");
+        writeln();
+        write("[ ");
+        //TODO: Single instructions here
+        if (SupportsPCLMULQDQ()) write("PCLMULQDQ, ");
+        if (SupportsCMPXCHG16B()) write("CMPXCHG16B, ");
+        write("]");
     }
     writeln();
     writefln("Turbo Boost Available: %s", SupportsTurboBoost());
@@ -104,27 +120,23 @@ void main(string[] args)
         writefln("Highest Leaf supported: %02XH", max);
         writeln();
         writefln("Processor type: %s", GetProcessorType());
-        writefln("Family %s Model %s (ID: %s << 4 | E: %s), Stepping %s",
-            GetFamilyID(),
+        writefln("Family %s (E: %s) Model %s (ID: %X, E: %X), Stepping %s",
+            GetFamilyID(), GetExtendedFamilyID(),
             GetExtendedModelID() << 4 | GetModelID(),
             GetExtendedModelID(), GetModelID(),
             GetSteppingID());
-        writefln("Extended Family ID: %s", GetExtendedFamilyID());
         writefln("Brand Index: %s", GetBrandIndex());
         writefln("CLFLUSH Line Size: %s", GetClflushLineSize());
         writefln("Max # of addressable IDs: %s", GetMaxNumAddressableIDs());
         writefln("Initial APIC ID: %s", GetInitialAPICID());
-        writefln("PCLMULQDQ: %s", SupportsPCLMULQDQ());
         writefln("DTES64: %s", SupportsDTES64());
         writefln("MONITOR: %s", SupportsMONITOR());
-        writefln("DS-CPL: %s", SupportsDS_CPL());
         writefln("VMX: %s", SupportsVMX());
         writefln("SMX: %s", SupportsSMX());
         writefln("EIST: %s", SupportsEIST());
         writefln("TM2: %s", SupportsTM2());
         writefln("CNXT-ID: %s", SupportsCNXT_ID());
         writefln("FMA: %s", SupportsFMA());
-        writefln("CMPXCHG16B: %s", SupportsCMPXCHG16B());
         writefln("xTPR Update Control: %s", SupportsxTPRUpdateControl());
         writefln("PDCM: %s", SupportsPDCM());
         writefln("PCID: %s", SupportsPCID());
@@ -139,7 +151,28 @@ void main(string[] args)
         writefln("RDRAND: %s", SupportsRDRAND());
         writefln("FPU: %s", SupportsFPU());
         writefln("VME: %s", SupportsVME());
-        // ...
+        writefln("DE: %s", SupportsDE());
+        writefln("TSC: %s", SupportsTSC());
+        writefln("PAE: %s", SupportsPAE());
+        writefln("MCE: %s", SupportsMCE());
+        writefln("CX8: %s", SupportsCX8());
+        writefln("APIC: %s", SupportsAPIC());
+        writefln("SEP: %s", SupportsSEP());
+        writefln("MTRR: %s", SupportsMTRR());
+        writefln("PGE: %s", SupportsPGE());
+        writefln("MCA: %s", SupportsMCA());
+        writefln("CMOV: %s", SupportsCMOV());
+        writefln("PAT: %s", SupportsPAT());
+        writefln("PSE-36: %s", SupportsPSE_36());
+        writefln("PSN: %s", SupportsPSN());
+        writefln("CLFSH: %s", SupportsCLFSH());
+        writefln("DS: %s", SupportsDS());
+        writefln("ACPI: %s", SupportsACPI());
+        writefln("FXSR: %s", SupportsFXSR());
+        writefln("SS: %s", SupportsSS());
+        writefln("HTT: %s", SupportsHTT());
+        writefln("RDRAND: %s", SupportsTM());
+        writefln("PBE: %s", SupportsPBE());
     }
 
     if (_dbg)
@@ -284,7 +317,7 @@ public int GetSteppingID() // EAX[3:0] - 4 bits
 }
 
 // EBX - Brand Index, CLFLUSH, Max addressable IDs, Initial APIC ID
-// EBX[07:00] - Brand Index.
+// EBX[7:0] - Brand Index.
 public int GetBrandIndex()
 {
     int e;
@@ -296,7 +329,7 @@ public int GetBrandIndex()
     }
     return e & 0xFF;
 }
-// EBX[15:08], 8 bits - CLFLUSH line size
+// EBX[15:8], 8 bits - CLFLUSH line size
 // (Value ∗ 8 = cache line size in bytes; used also by CLFLUSHOPT).
 public int GetClflushLineSize()
 {

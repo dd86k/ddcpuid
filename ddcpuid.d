@@ -64,7 +64,7 @@ void main(string[] args)
                 break;
 
             case "-D":
-            case "--detailed":
+            case "--details":
                 _det = true;
                 break;
 
@@ -96,7 +96,7 @@ void main(string[] args)
         writeln();
         writeln(" ----- Details -----");
         writeln();
-        writefln("Highest Leaf supported: %02XH", GetHighestLeaf());
+        writefln("Highest Leaf supported: %02XH", max);
         writeln();
         writefln("Processor type: %s", GetProcessorType());
         writefln("Family %s Model %s, Stepping %s",
@@ -134,7 +134,7 @@ void main(string[] args)
         writefln("F16C: %s", SupportsF16C());
         writefln("RDRAND: %s", SupportsRDRAND());
         writefln("FPU: %s", SupportsFPU());
-        writefln("VMW: %s", SupportsVME());
+        writefln("VME: %s", SupportsVME());
         // ...
     }
 

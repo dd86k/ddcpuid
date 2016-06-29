@@ -86,7 +86,6 @@ void main(string[] args)
 
     writefln("Vendor: %s", GetVendor());
     //TODO: CPU Model name here
-    writeln();
     write("Extensions: ");
     if (SupportsMMX()) write("MMX, ");
     if (SupportsSSE()) write("SSE, ");

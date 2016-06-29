@@ -11,4 +11,7 @@ Progress:
 - Intel: 02H
 - AMD: --
 
+## Compiling
+You must use the Digital Mars D (dmd) compiler, since the GNU D Compiler (gdc) does not support inline assembly. 
+
 License: [MIT License](LICENSE)

@@ -100,12 +100,21 @@ void main(string[] args)
     {
         if (SupportsDS_CPL()) write("DS-CPL, ");
         if (SupportsFMA()) write("FMA, ");
-        if (SupportsDS_CPL()) write("DS-CPL, ");
+        if (SupportsPOPCNT()) write("POPCNT, ");
+        if (SupportsXSAVE()) write("XSAVE, ");
+        if (SupportsOSXSAVE()) write("OSXSAVE, ");
+        if (SupportsF16C()) write("F16C, ");
+        if (SupportsMSR()) write("MSR, ");
         writeln();
         write("[ ");
         //TODO: Single instructions here
         if (SupportsPCLMULQDQ()) write("PCLMULQDQ, ");
         if (SupportsCMPXCHG16B()) write("CMPXCHG16B, ");
+        if (SupportsMOVBE()) write("MOVBE, ");
+        if (SupportsRDRAND()) write("RDRAND, ");
+        if (SupportsTSC()) write("RDTSC, ");
+        if (SupportsCMOV()) write("CMOV, ");
+        if (SupportsCLFSH()) write("CLFLUSH, ");
         write("]");
     }
     writeln();
@@ -141,17 +150,11 @@ void main(string[] args)
         writefln("PCID: %s", SupportsPCID());
         writefln("DCA: %s", SupportsDCA());
         writefln("x2APIC: %s", Supportsx2APIC());
-        writefln("MOVBE: %s", SupportsMOVBE());
         writefln("POPCNT: %s", SupportsPOPCNT());
         writefln("TSC-Deadline: %s", SupportsTSC_Deadline());
-        writefln("XSAVE: %s", SupportsXSAVE());
-        writefln("OSXSAVE: %s", SupportsOSXSAVE());
-        writefln("F16C: %s", SupportsF16C());
-        writefln("RDRAND: %s", SupportsRDRAND());
         writefln("FPU: %s", SupportsFPU());
         writefln("VME: %s", SupportsVME());
         writefln("DE: %s", SupportsDE());
-        writefln("TSC: %s", SupportsTSC());
         writefln("PAE: %s", SupportsPAE());
         writefln("MCE: %s", SupportsMCE());
         writefln("CX8: %s", SupportsCX8());

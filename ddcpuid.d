@@ -84,8 +84,8 @@ void main(string[] args)
     // Obviously at some point, only the batch
     // will be performed, which will improve performance
 
-    writefln("Vendor: %s", GetVendor());
-    //TODO: CPU Model name here
+    writeln("Vendor: ", GetVendor());
+    writeln("Model: ", GetProcessorBrandString());
     write("Extensions: ");
     if (SupportsMMX()) write("MMX, ");
     if (SupportsSSE()) write("SSE, ");
@@ -110,7 +110,7 @@ void main(string[] args)
         //TODO: Single instructions here
         if (SupportsPCLMULQDQ()) write("PCLMULQDQ, ");
         if (SupportsCMPXCHG16B()) write("CMPXCHG16B, ");
-        if (SupportsMOVBE()) write("MOVBE, ");
+        if (SupportsMOVBE()) write("MOVBE, "); // Intel Atom only!
         if (SupportsRDRAND()) write("RDRAND, ");
         if (SupportsTSC()) write("RDTSC, ");
         if (SupportsCMOV()) write("CMOV, ");
@@ -125,10 +125,10 @@ void main(string[] args)
         writeln();
         writeln(" ----- Details -----");
         writeln();
-        writefln("Highest Leaf supported: %02XH", max);
+        writefln("Highest Leaf: %02XH | Extended: %02XH", max, GetHighestExtendedLeaf());
         writeln();
         writefln("Processor type: %s", GetProcessorType());
-        writefln("Family %s (E: %s) Model %s (ID: %X, E: %X), Stepping %s",
+        writefln("Family %s (Extended: %s) Model %s (ID: %X, Extended: %X), Stepping %s",
             GetFamilyID(), GetExtendedFamilyID(),
             GetExtendedModelID() << 4 | GetModelID(),
             GetExtendedModelID(), GetModelID(),
@@ -163,11 +163,9 @@ void main(string[] args)
         writefln("MTRR: %s", SupportsMTRR());
         writefln("PGE: %s", SupportsPGE());
         writefln("MCA: %s", SupportsMCA());
-        writefln("CMOV: %s", SupportsCMOV());
         writefln("PAT: %s", SupportsPAT());
         writefln("PSE-36: %s", SupportsPSE_36());
         writefln("PSN: %s", SupportsPSN());
-        writefln("CLFSH: %s", SupportsCLFSH());
         writefln("DS: %s", SupportsDS());
         writefln("ACPI: %s", SupportsACPI());
         writefln("FXSR: %s", SupportsFXSR());
@@ -1123,6 +1121,76 @@ public bool SupportsTurboBoost()
         mov e, EAX;
     }
     return e >> 1 & 1;
+}
+
+// ----- 80000000H - Extended Function CPUID Information -----
+// EAX - Maximum Input Value for Extended Function CPUID Information.
+public int GetHighestExtendedLeaf()
+{
+    int e;
+    asm
+    {
+        mov EAX, 0x80000000;
+        cpuid;
+        mov e, EAX;
+    }
+    return e;
+}
+
+// ----- 80000001H - Extended Function CPUID Information -----
+// EAX - Extended Processor Signature and Feature Bits.
+
+// EBX - Reserved
+
+// ECX
+// Bit 00 - LAHF/SAHF available in 64-bit mode.
+
+// Bit 04~01 - Reserved
+// Bit 05 - LZCNT
+
+// Bit 07~06 - Reserved
+// Bit 08 - PREFETCHW
+
+// Bit 31~09 - Reserved
+
+// EDX
+
+
+// ----- 80000002H~80000004H - Processor Brand String -----
+public string GetProcessorBrandString()
+{
+    string s;
+    for (int i = 0x80000002; i <= 0x80000004; ++i)
+    {
+        int eax, ebx, ecx, edx;
+        asm
+        {
+            mov EAX, i;
+            cpuid;
+            mov eax, EAX;
+            mov ebx, EBX;
+            mov ecx, ECX;
+            mov edx, EDX;
+        }
+        // EAX, EBX, ECX, EDX
+        s ~= cast(char)(eax & 0xFF);
+        s ~= cast(char)((eax >>  8) & 0xFF);
+        s ~= cast(char)((eax >> 16) & 0xFF);
+        s ~= cast(char)(eax >> 24);
+        s ~= cast(char)(ebx & 0xFF);
+        s ~= cast(char)((ebx >>  8) & 0xFF);
+        s ~= cast(char)((ebx >> 16) & 0xFF);
+        s ~= cast(char)(ebx >> 24);
+        s ~= cast(char)(ecx & 0xFF);
+        s ~= cast(char)((ecx >>  8) & 0xFF);
+        s ~= cast(char)((ecx >> 16) & 0xFF);
+        s ~= cast(char)(ecx >> 24);
+        s ~= cast(char)(edx & 0xFF);
+        s ~= cast(char)((edx >>  8) & 0xFF);
+        s ~= cast(char)((edx >> 16) & 0xFF);
+        s ~= cast(char)(edx >> 24);
+    }
+    return s;
 }
 
 // ---- Misc ----

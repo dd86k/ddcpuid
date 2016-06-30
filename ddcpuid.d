@@ -1,5 +1,4 @@
-import std.stdio;
-import std.string;
+import std.stdio, std.string;
 /*import core.sys.windows.windows;
 import core.sys.windows.dll;
  
@@ -10,29 +9,29 @@ BOOL DllMain(HINSTANCE hInstance, ULONG ulReason, LPVOID pvReserved)
 {
     switch (ulReason)
     {
-	case DLL_PROCESS_ATTACH:
-	    g_hInst = hInstance;
-	    dll_process_attach( hInstance, true );
-	    break;
- 
-	case DLL_PROCESS_DETACH:
-	    dll_process_detach( hInstance, true );
-	    break;
- 
-	case DLL_THREAD_ATTACH:
-	    dll_thread_attach( true, true );
-	    break;
- 
-	case DLL_THREAD_DETACH:
-	    dll_thread_detach( true, true );
-	    break;
+        case DLL_PROCESS_ATTACH:
+            g_hInst = hInstance;
+            dll_process_attach( hInstance, true );
+            break;
+    
+        case DLL_PROCESS_DETACH:
+            dll_process_detach( hInstance, true );
+            break;
+    
+        case DLL_THREAD_ATTACH:
+            dll_thread_attach( true, true );
+            break;
+    
+        case DLL_THREAD_DETACH:
+            dll_thread_detach( true, true );
+            break;
  
         default:
     }
     return true;
 }*/
 
-const string ver = "0.0.0";
+const string ver = "0.0.2";
 
 void main(string[] args)
 {
@@ -80,7 +79,9 @@ void main(string[] args)
         }
     }
 
+    // Maximum leaf
     int max = _oml ? 0x17 : GetHighestLeaf();
+    // Maximum extended leaf
     int emax = _oml ? 0x80000008 : GetHighestExtendedLeaf();
 
     // Obviously at some point, only the batch
@@ -102,21 +103,21 @@ void main(string[] args)
     {
         if (SupportsDS_CPL()) write("DS-CPL, ");
         if (SupportsFMA()) write("FMA, ");
-        if (SupportsPOPCNT()) write("POPCNT, ");
         if (SupportsXSAVE()) write("XSAVE, ");
         if (SupportsOSXSAVE()) write("OSXSAVE, ");
         if (SupportsF16C()) write("F16C, ");
         if (SupportsMSR()) write("MSR, ");
         writeln();
         write("[ ");
-        //TODO: Single instructions here
         if (SupportsPCLMULQDQ()) write("PCLMULQDQ, ");
+        if (SupportsCX8()) write("CMPXCHG8B, ");
         if (SupportsCMPXCHG16B()) write("CMPXCHG16B, ");
         if (SupportsMOVBE()) write("MOVBE, "); // Intel Atom only!
         if (SupportsRDRAND()) write("RDRAND, ");
-        if (SupportsTSC()) write("RDTSC, ");
+        if (SupportsTSC()) writef("RDTSC (Deadline: %s), ", SupportsTSC_Deadline());
         if (SupportsCMOV()) write("CMOV, ");
-        if (SupportsCLFSH()) write("CLFLUSH, ");
+        if (SupportsCLFSH()) writef("CLFLUSH (Size: %d), ", GetClflushLineSize() * 8);
+        if (SupportsPOPCNT()) write("POPCNT, ");
         write("]");
     }
     writeln();
@@ -129,38 +130,41 @@ void main(string[] args)
         writeln();
         writefln("Highest Leaf: %02XH | Extended: %02XH", max, emax);
         writeln();
-        writefln("Processor type: %s", GetProcessorType());
+        write("Processor type: ");
+        switch (GetProcessorType()) // 2 bits value
+        {
+            case 0: writeln("Original OEM Processor"); break;
+            case 1: writeln("Intel OverDrive Processor"); break;
+            case 2: writeln("Dual processor"); break;
+            case 3: writeln("Intel reserved"); break;
+            default:
+        }
         writefln("Family %s (Extended: %s) Model %s (ID: %X, Extended: %X), Stepping %s",
             GetFamilyID(), GetExtendedFamilyID(),
             GetExtendedModelID() << 4 | GetModelID(),
             GetExtendedModelID(), GetModelID(),
             GetSteppingID());
         writefln("Brand Index: %s", GetBrandIndex());
-        writefln("CLFLUSH Line Size: %s", GetClflushLineSize());
         writefln("Max # of addressable IDs: %s", GetMaxNumAddressableIDs());
-        writefln("Initial APIC ID: %s", GetInitialAPICID());
+        writefln("APIC: %s (ID: %s)", SupportsAPIC(), GetInitialAPICID());
+        writefln("x2APIC: %s", Supportsx2APIC());
         writefln("DTES64: %s", SupportsDTES64());
         writefln("MONITOR: %s", SupportsMONITOR());
         writefln("VMX: %s", SupportsVMX());
         writefln("SMX: %s", SupportsSMX());
         writefln("EIST: %s", SupportsEIST());
+        writefln("TM: %s", SupportsTM());
         writefln("TM2: %s", SupportsTM2());
         writefln("CNXT-ID: %s", SupportsCNXT_ID());
-        writefln("FMA: %s", SupportsFMA());
         writefln("xTPR Update Control: %s", SupportsxTPRUpdateControl());
         writefln("PDCM: %s", SupportsPDCM());
         writefln("PCID: %s", SupportsPCID());
         writefln("DCA: %s", SupportsDCA());
-        writefln("x2APIC: %s", Supportsx2APIC());
-        writefln("POPCNT: %s", SupportsPOPCNT());
-        writefln("TSC-Deadline: %s", SupportsTSC_Deadline());
         writefln("FPU: %s", SupportsFPU());
         writefln("VME: %s", SupportsVME());
         writefln("DE: %s", SupportsDE());
         writefln("PAE: %s", SupportsPAE());
         writefln("MCE: %s", SupportsMCE());
-        writefln("CX8: %s", SupportsCX8());
-        writefln("APIC: %s", SupportsAPIC());
         writefln("SEP: %s", SupportsSEP());
         writefln("MTRR: %s", SupportsMTRR());
         writefln("PGE: %s", SupportsPGE());
@@ -173,7 +177,6 @@ void main(string[] args)
         writefln("FXSR: %s", SupportsFXSR());
         writefln("SS: %s", SupportsSS());
         writefln("HTT: %s", SupportsHTT());
-        writefln("RDRAND: %s", SupportsTM());
         writefln("PBE: %s", SupportsPBE());
     }
 

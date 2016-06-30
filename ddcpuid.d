@@ -43,6 +43,7 @@ void main(string[] args)
     {
         switch(s)
         {
+            case "-h":
             case "--help":
                 writeln(" ddcpuid [<Options>]");
                 writeln();
@@ -108,7 +109,7 @@ void main(string[] args)
         if (SupportsF16C()) write("F16C, ");
         if (SupportsMSR()) write("MSR, ");
         writeln();
-        write("[ ");
+        write("Single instructions: [ ");
         if (SupportsPCLMULQDQ()) write("PCLMULQDQ, ");
         if (SupportsCX8()) write("CMPXCHG8B, ");
         if (SupportsCMPXCHG16B()) write("CMPXCHG16B, ");
@@ -131,7 +132,7 @@ void main(string[] args)
         writefln("Highest Leaf: %02XH | Extended: %02XH", max, emax);
         writeln();
         write("Processor type: ");
-        switch (GetProcessorType()) // 2 bits value
+        switch (GetProcessorType()) // 2 bit value
         {
             case 0: writeln("Original OEM Processor"); break;
             case 1: writeln("Intel OverDrive Processor"); break;
@@ -194,7 +195,7 @@ void main(string[] args)
                 mov _ecx, ECX;
                 mov _edx, EDX;
             }
-            writefln("EAX=%02XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X", b, _eax, _ebx, _ecx, _edx);
+            writefln("EAX=%08XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X", b, _eax, _ebx, _ecx, _edx);
         }
         for (int b = 0x80000000; b <= 0x80000008; ++b)
         {
@@ -1130,6 +1131,8 @@ public bool SupportsPBE()
 // ----- 05H - MONITOR/MWAIT Leaf -----
 
 // ----- 06H - Thermal and Power Management Leaf -----
+// EAX
+// Bit 00 - 
 
 // Bit 01 - Intel Turbo Boost Technology Available
 public bool SupportsTurboBoost()
@@ -1216,31 +1219,38 @@ public string GetProcessorBrandString()
 
 // ---- Misc ----
 
-public CPU_INFO_INTEL GetIntelInfo()
+public CPU_INFO GetCpuInfo()
 {
-    CPU_INFO_INTEL i;
+    CPU_INFO i = new CPU_INFO;
+
+    i.Intel = new IntelFeatures;
+    i.Amd = new AmdFeatures;
 
     //TODO: GetIntelInfo() -> Batch info
 
     return i;
 }
 
-public class CPU_INFO_INTEL
+/// <summary>
+/// Provides a set of information about the processor.
+/// </summary>
+public class CPU_INFO
+{
+    public string Vendor;
+    public string ProcessorBrandString;
+
+    public IntelFeatures Intel;
+    public AmdFeatures Amd;
+}
+
+// Intel specific features
+public class IntelFeatures
 {
     public bool SupportsTurboBoostTechnology;
-    public string Vendor;
 }
 
-public CPU_INFO_INTEL GetAmdInfo()
+// AMD specific features
+public class AmdFeatures
 {
-    CPU_INFO_INTEL i;
-
-    //TODO: GetAmdInfo() -> Batch info
-
-    return i;
-}
-
-public class CPU_INFO_AMD
-{
-
+    
 }

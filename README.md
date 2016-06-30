@@ -6,8 +6,10 @@ This small utility will reveal everything through `CPUID` -- A CPU instruction t
 It is planned to probably do a GUI version as well, there is a nice list of [libraries](https://wiki.dlang.org/Libraries_and_Frameworks) for it too.
 
 Progress:
-- Intel: ~25% 
+- Intel: ~25%
 - AMD: --
+
+If you have any questions, don't hesitate to ask.
 
 ## Notes
 This is Intel centered for now, AMD specific features will come one day.

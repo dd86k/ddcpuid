@@ -31,7 +31,7 @@ BOOL DllMain(HINSTANCE hInstance, ULONG ulReason, LPVOID pvReserved)
     return true;
 }*/
 
-const string ver = "0.0.2";
+const string ver = "0.1.0";
 
 void main(string[] args)
 {
@@ -87,6 +87,9 @@ void main(string[] args)
 
     // Obviously at some point, only the batch
     // will be performed, which will improve performance
+    CPU_INFO c = GetCpuInfo();
+    writeln("Family: ", c.Family);
+    writeln("Model: ", c.Model);
 
     writeln("Vendor: ", GetVendor());
     writeln("Model: ", strip(GetProcessorBrandString()));
@@ -1226,7 +1229,54 @@ public CPU_INFO GetCpuInfo()
     i.Intel = new IntelFeatures;
     i.Amd = new AmdFeatures;
 
-    //TODO: GetIntelInfo() -> Batch info
+    i.Vendor = GetVendor();
+    i.ProcessorBrandString = GetProcessorBrandString();
+
+    int a, b, c, d;
+    int max = GetHighestLeaf();
+    for(int leaf = 1; leaf <= max; ++leaf)
+    {
+        asm
+        {
+            mov EAX, leaf;
+            cpuid;
+            mov a, EAX;
+            mov b, EBX;
+            mov c, ECX;
+            mov d, EDX;
+        }
+
+        switch (leaf)
+        {
+            case 1:
+                // EAX
+                //         Extended ID      | ID
+                i.Family = (a >> 16 & 0xF0) | (a >> 8 & 0xF);
+                i.Model  = (a >> 12 & 0xF0) | (a >> 4 & 0xF);
+
+                i.ProcessorType = (a >> 12) & 3;
+                i.Stepping = a & 0xF;
+
+                // EBX
+                break;
+
+            default:
+        }
+    }
+
+    // Vendor specific features.
+    /*switch (i.Vendor)
+    {
+        case "GenuineIntel":
+
+        break;
+
+        case "AuthenticAMD":
+
+        break;
+
+        default:
+    }*/
 
     return i;
 }
@@ -1238,6 +1288,24 @@ public class CPU_INFO
 {
     public string Vendor;
     public string ProcessorBrandString;
+
+    public bool MMX;
+    public bool SSE;
+    public bool SSE2;
+    public bool SSE3;
+    public bool SSSE3;
+    public bool SSE41;
+    public bool SSE42;
+    public bool AESNI;
+    public bool AVX;
+    public bool AVX2;
+
+    // Includes FamilyID and ExtendedFamilyID
+    public int Family;
+    // Includes ModelID and ExtendedModelID
+    public int Model;
+    public int ProcessorType;
+    public int Stepping;
 
     public IntelFeatures Intel;
     public AmdFeatures Amd;

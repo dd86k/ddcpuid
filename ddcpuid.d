@@ -87,9 +87,9 @@ void main(string[] args)
 
     // Obviously at some point, only the batch
     // will be performed, which will improve performance
-    CPU_INFO c = GetCpuInfo();
+    /*CPU_INFO c = GetCpuInfo();
     writeln("Family: ", c.Family);
-    writeln("Model: ", c.Model);
+    writeln("Model: ", c.Model);*/
 
     writeln("Vendor: ", GetVendor());
     writeln("Model: ", strip(GetProcessorBrandString()));
@@ -256,19 +256,22 @@ public string GetVendor()
         mov ecx, ECX;
         mov edx, EDX;
     }
+    char* pebx = cast(char*)&ebx,
+          pecx = cast(char*)&ecx,
+          pedx = cast(char*)&edx;
     // EBX, EDX, ECX
-    s ~= cast(char)(ebx & 0xFF);
-    s ~= cast(char)((ebx >>  8) & 0xFF);
-    s ~= cast(char)((ebx >> 16) & 0xFF);
-    s ~= cast(char)(ebx >> 24);
-    s ~= cast(char)(edx & 0xFF);
-    s ~= cast(char)((edx >>  8) & 0xFF);
-    s ~= cast(char)((edx >> 16) & 0xFF);
-    s ~= cast(char)(edx >> 24);
-    s ~= cast(char)(ecx & 0xFF);
-    s ~= cast(char)((ecx >>  8) & 0xFF);
-    s ~= cast(char)((ecx >> 16) & 0xFF);
-    s ~= cast(char)(ecx >> 24);
+    s ~= *pebx;
+    s ~= *(pebx + 1);
+    s ~= *(pebx + 2);
+    s ~= *(pebx + 3);
+    s ~= *pedx;
+    s ~= *(pedx + 1);
+    s ~= *(pedx + 2);
+    s ~= *(pedx + 3);
+    s ~= *pecx;
+    s ~= *(pecx + 1);
+    s ~= *(pecx + 2);
+    s ~= *(pecx + 3);
     return s;
 }
 
@@ -1199,23 +1202,27 @@ public string GetProcessorBrandString()
             mov ecx, ECX;
             mov edx, EDX;
         }
+        char* peax = cast(char*)&eax, 
+              pebx = cast(char*)&ebx,
+              pecx = cast(char*)&ecx,
+              pedx = cast(char*)&edx;
         // EAX, EBX, ECX, EDX
-        s ~= cast(char)(eax & 0xFF);
-        s ~= cast(char)((eax >>  8) & 0xFF);
-        s ~= cast(char)((eax >> 16) & 0xFF);
-        s ~= cast(char)(eax >> 24);
-        s ~= cast(char)(ebx & 0xFF);
-        s ~= cast(char)((ebx >>  8) & 0xFF);
-        s ~= cast(char)((ebx >> 16) & 0xFF);
-        s ~= cast(char)(ebx >> 24);
-        s ~= cast(char)(ecx & 0xFF);
-        s ~= cast(char)((ecx >>  8) & 0xFF);
-        s ~= cast(char)((ecx >> 16) & 0xFF);
-        s ~= cast(char)(ecx >> 24);
-        s ~= cast(char)(edx & 0xFF);
-        s ~= cast(char)((edx >>  8) & 0xFF);
-        s ~= cast(char)((edx >> 16) & 0xFF);
-        s ~= cast(char)(edx >> 24);
+        s ~= *peax;
+        s ~= *(peax + 1);
+        s ~= *(peax + 2);
+        s ~= *(peax + 3);
+        s ~= *pebx;
+        s ~= *(pebx + 1);
+        s ~= *(pebx + 2);
+        s ~= *(pebx + 3);
+        s ~= *pecx;
+        s ~= *(pecx + 1);
+        s ~= *(pecx + 2);
+        s ~= *(pecx + 3);
+        s ~= *pedx;
+        s ~= *(pedx + 1);
+        s ~= *(pedx + 2);
+        s ~= *(pedx + 3);
     }
     return s;
 }

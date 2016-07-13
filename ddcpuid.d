@@ -83,106 +83,7 @@ void main(string[] args)
     // Maximum leaf
     int max = _oml ? 0x17 : GetHighestLeaf();
     // Maximum extended leaf
-    int emax = _oml ? 0x80000008 : GetHighestExtendedLeaf();
-
-    // Obviously at some point, only the batch
-    // will be performed, which will improve performance
-    /*CPU_INFO c = GetCpuInfo();
-    writeln("Family: ", c.Family);
-    writeln("Model: ", c.Model);*/
-
-    writeln("Vendor: ", GetVendor());
-    writeln("Model: ", strip(GetProcessorBrandString()));
-    write("Extensions: ");
-    if (SupportsMMX()) write("MMX, ");
-    if (SupportsSSE()) write("SSE, ");
-    if (SupportsSSE2()) write("SSE2, ");
-    if (SupportsSSE3()) write("SSE3, ");
-    if (SupportsSSSE3()) write("SSSE3, ");
-    if (SupportsSSE41()) write("SSE4.1, ");
-    if (SupportsSSE42()) write("SSE4.2, ");
-    if (SupportsAESNI()) write("AESNI, ");
-    if (SupportsAVX()) write("AVX, ");
-    if (_det)
-    {
-        if (SupportsDS_CPL()) write("DS-CPL, ");
-        if (SupportsFMA()) write("FMA, ");
-        if (SupportsXSAVE()) write("XSAVE, ");
-        if (SupportsOSXSAVE()) write("OSXSAVE, ");
-        if (SupportsF16C()) write("F16C, ");
-        if (SupportsMSR()) write("MSR, ");
-        writeln();
-        write("Single instructions: [ ");
-        if (SupportsPCLMULQDQ()) write("PCLMULQDQ, ");
-        if (SupportsCX8()) write("CMPXCHG8B, ");
-        if (SupportsCMPXCHG16B()) write("CMPXCHG16B, ");
-        if (SupportsMOVBE()) write("MOVBE, "); // Intel Atom only!
-        if (SupportsRDRAND()) write("RDRAND, ");
-        if (SupportsTSC()) writef("RDTSC (Deadline: %s), ", SupportsTSC_Deadline());
-        if (SupportsCMOV()) write("CMOV, ");
-        if (SupportsCLFSH()) writef("CLFLUSH (Size: %d), ", GetClflushLineSize() * 8);
-        if (SupportsPOPCNT()) write("POPCNT, ");
-        write("]");
-    }
-    writeln();
-    writefln("Turbo Boost Available: %s", SupportsTurboBoost());
-
-    if (_det)
-    {
-        writeln();
-        writeln(" ----- Details -----");
-        writeln();
-        writefln("Highest Leaf: %02XH | Extended: %02XH", max, emax);
-        writeln();
-        write("Processor type: ");
-        switch (GetProcessorType()) // 2 bit value
-        {
-            case 0: writeln("Original OEM Processor"); break;
-            case 1: writeln("Intel OverDrive Processor"); break;
-            case 2: writeln("Dual processor"); break;
-            case 3: writeln("Intel reserved"); break;
-            default:
-        }
-        writefln("Family %s (Extended: %s) Model %s (ID: %X, Extended: %X), Stepping %s",
-            GetFamilyID(), GetExtendedFamilyID(),
-            GetExtendedModelID() << 4 | GetModelID(),
-            GetExtendedModelID(), GetModelID(),
-            GetSteppingID());
-        writefln("Brand Index: %s", GetBrandIndex());
-        writefln("Max # of addressable IDs: %s", GetMaxNumAddressableIDs());
-        writefln("APIC: %s (ID: %s)", SupportsAPIC(), GetInitialAPICID());
-        writefln("x2APIC: %s", Supportsx2APIC());
-        writefln("DTES64: %s", SupportsDTES64());
-        writefln("MONITOR: %s", SupportsMONITOR());
-        writefln("VMX: %s", SupportsVMX());
-        writefln("SMX: %s", SupportsSMX());
-        writefln("EIST: %s", SupportsEIST());
-        writefln("TM: %s", SupportsTM());
-        writefln("TM2: %s", SupportsTM2());
-        writefln("CNXT-ID: %s", SupportsCNXT_ID());
-        writefln("xTPR Update Control: %s", SupportsxTPRUpdateControl());
-        writefln("PDCM: %s", SupportsPDCM());
-        writefln("PCID: %s", SupportsPCID());
-        writefln("DCA: %s", SupportsDCA());
-        writefln("FPU: %s", SupportsFPU());
-        writefln("VME: %s", SupportsVME());
-        writefln("DE: %s", SupportsDE());
-        writefln("PAE: %s", SupportsPAE());
-        writefln("MCE: %s", SupportsMCE());
-        writefln("SEP: %s", SupportsSEP());
-        writefln("MTRR: %s", SupportsMTRR());
-        writefln("PGE: %s", SupportsPGE());
-        writefln("MCA: %s", SupportsMCA());
-        writefln("PAT: %s", SupportsPAT());
-        writefln("PSE-36: %s", SupportsPSE_36());
-        writefln("PSN: %s", SupportsPSN());
-        writefln("DS: %s", SupportsDS());
-        writefln("ACPI: %s", SupportsACPI());
-        writefln("FXSR: %s", SupportsFXSR());
-        writefln("SS: %s", SupportsSS());
-        writefln("HTT: %s", SupportsHTT());
-        writefln("PBE: %s", SupportsPBE());
-    }
+    int emax = _oml ? 0x8000_0008 : GetHighestExtendedLeaf();
 
     if (_dbg)
     {
@@ -200,7 +101,7 @@ void main(string[] args)
             }
             writefln("EAX=%08XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X", b, _eax, _ebx, _ecx, _edx);
         }
-        for (int b = 0x80000000; b <= 0x80000008; ++b)
+        for (int b = 0x8000_0000; b <= emax; ++b)
         {
             asm
             {
@@ -222,6 +123,107 @@ void main(string[] args)
         }
         writefln("EBP=%-8X ESP=%-8X EDI=%-8X ESI=%-8X", _ebp, _esp, _edi, _esi);
         writeln();
+    }
+    else
+    {
+        // Obviously at some point, only the batch
+        // will be performed, which will improve performance
+        CPU_INFO c = GetCpuInfo();
+        writeln("Family: ", c.Family);
+        writeln("Model: ", c.Model);
+
+        writeln("Vendor: ", c.Vendor);
+        writeln("Model: ", strip(c.GetProcessorBrandString);
+        write("Extensions: ");
+        if (SupportsMMX()) write("MMX, ");
+        if (SupportsSSE()) write("SSE, ");
+        if (SupportsSSE2()) write("SSE2, ");
+        if (SupportsSSE3()) write("SSE3, ");
+        if (SupportsSSSE3()) write("SSSE3, ");
+        if (SupportsSSE41()) write("SSE4.1, ");
+        if (SupportsSSE42()) write("SSE4.2, ");
+        if (SupportsAESNI()) write("AESNI, ");
+        if (SupportsAVX()) write("AVX, ");
+        if (_det)
+        {
+            if (SupportsDS_CPL()) write("DS-CPL, ");
+            if (SupportsFMA()) write("FMA, ");
+            if (SupportsXSAVE()) write("XSAVE, ");
+            if (SupportsOSXSAVE()) write("OSXSAVE, ");
+            if (SupportsF16C()) write("F16C, ");
+            if (SupportsMSR()) write("MSR, ");
+            writeln();
+            write("Single instructions: [ ");
+            if (SupportsPCLMULQDQ()) write("PCLMULQDQ, ");
+            if (SupportsCX8()) write("CMPXCHG8B, ");
+            if (SupportsCMPXCHG16B()) write("CMPXCHG16B, ");
+            if (SupportsMOVBE()) write("MOVBE, "); // Intel Atom only!
+            if (SupportsRDRAND()) write("RDRAND, ");
+            if (SupportsTSC()) writef("RDTSC (Deadline: %s), ", SupportsTSC_Deadline());
+            if (SupportsCMOV()) write("CMOV, ");
+            if (SupportsCLFSH()) writef("CLFLUSH (Size: %d), ", GetClflushLineSize() * 8);
+            if (SupportsPOPCNT()) write("POPCNT, ");
+            write("]");
+        }
+        writeln();
+        writefln("Turbo Boost Available: %s", SupportsTurboBoost());
+
+        if (_det)
+        {
+            writeln();
+            writeln(" ----- Details -----");
+            writeln();
+            writefln("Highest Leaf: %02XH | Extended: %02XH", max, emax);
+            writeln();
+            write("Processor type: ");
+            switch (GetProcessorType()) // 2 bit value
+            {
+                case 0: writeln("Original OEM Processor"); break;
+                case 1: writeln("Intel OverDrive Processor"); break;
+                case 2: writeln("Dual processor"); break;
+                case 3: writeln("Intel reserved"); break;
+                default:
+            }
+            writefln("Family %s (Extended: %s) Model %s (ID: %X, Extended: %X), Stepping %s",
+                GetFamilyID(), GetExtendedFamilyID(),
+                GetExtendedModelID() << 4 | GetModelID(),
+                GetExtendedModelID(), GetModelID(),
+                GetSteppingID());
+            writefln("Brand Index: %s", GetBrandIndex());
+            writefln("Max # of addressable IDs: %s", GetMaxNumAddressableIDs());
+            writefln("APIC: %s (ID: %s)", SupportsAPIC(), GetInitialAPICID());
+            writefln("x2APIC: %s", Supportsx2APIC());
+            writefln("DTES64: %s", SupportsDTES64());
+            writefln("MONITOR: %s", SupportsMONITOR());
+            writefln("VMX: %s", SupportsVMX());
+            writefln("SMX: %s", SupportsSMX());
+            writefln("EIST: %s", SupportsEIST());
+            writefln("TM: %s", SupportsTM());
+            writefln("TM2: %s", SupportsTM2());
+            writefln("CNXT-ID: %s", SupportsCNXT_ID());
+            writefln("xTPR Update Control: %s", SupportsxTPRUpdateControl());
+            writefln("PDCM: %s", SupportsPDCM());
+            writefln("PCID: %s", SupportsPCID());
+            writefln("DCA: %s", SupportsDCA());
+            writefln("FPU: %s", SupportsFPU());
+            writefln("VME: %s", SupportsVME());
+            writefln("DE: %s", SupportsDE());
+            writefln("PAE: %s", SupportsPAE());
+            writefln("MCE: %s", SupportsMCE());
+            writefln("SEP: %s", SupportsSEP());
+            writefln("MTRR: %s", SupportsMTRR());
+            writefln("PGE: %s", SupportsPGE());
+            writefln("MCA: %s", SupportsMCA());
+            writefln("PAT: %s", SupportsPAT());
+            writefln("PSE-36: %s", SupportsPSE_36());
+            writefln("PSN: %s", SupportsPSN());
+            writefln("DS: %s", SupportsDS());
+            writefln("ACPI: %s", SupportsACPI());
+            writefln("FXSR: %s", SupportsFXSR());
+            writefln("SS: %s", SupportsSS());
+            writefln("HTT: %s", SupportsHTT());
+            writefln("PBE: %s", SupportsPBE());
+        }
     }
 }
 
@@ -1321,7 +1323,7 @@ public class CPU_INFO
 // Intel specific features
 public class IntelFeatures
 {
-    public bool SupportsTurboBoostTechnology;
+    public bool HasTurboBoostTechnology;
 }
 
 // AMD specific features

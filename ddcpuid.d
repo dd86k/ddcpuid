@@ -165,9 +165,8 @@ void main(string[] args)
                 write("OSXSAVE, ");
             if (c.F16C)
                 write("F16C, ");
-            if (c.MSR)
-                write("MSR, ");
             writeln();
+
             write("Single instructions: [ ");
             if (c.PCLMULQDQ)
                 write("PCLMULQDQ, ");
@@ -179,14 +178,22 @@ void main(string[] args)
                 write("MOVBE, "); // Intel Atom only!
             if (c.RDRAND)
                 write("RDRAND, ");
+            if (c.MSR)
+                write("RDMSR, WRMSR, ");
+            if (c.SEP)
+                write("SYSENTER, SYSEXIT, ");
             if (c.TSC)
                 writef("RDTSC (Deadline: %s), ", c.TSC_Deadline);
             if (c.CMOV)
                 write("CMOV, ");
+            if (c.FPU && c.CMOV)
+                write("FCOMI, FCMOV, ");
             if (c.CLFSH)
-                writef("CLFLUSH, ");
+                write("CLFLUSH, ");
             if (c.POPCNT)
                 write("POPCNT, ");
+            if (c.FXSR)
+                write("FXSAVE, FXRSTOR, ");
             write("]");
         }
         writeln();
@@ -202,18 +209,18 @@ void main(string[] args)
             write("Processor type: ");
             final switch (c.ProcessorType) // 2 bit value
             {
-            case 0:
-                writeln("Original OEM Processor");
-                break;
-            case 1:
-                writeln("Intel OverDrive Processor");
-                break;
-            case 2:
-                writeln("Dual processor");
-                break;
-            case 3:
-                writeln("Intel reserved");
-                break;
+                case 0:
+                    writeln("Original OEM Processor");
+                    break;
+                case 1:
+                    writeln("Intel OverDrive Processor");
+                    break;
+                case 2:
+                    writeln("Dual processor");
+                    break;
+                case 3:
+                    writeln("Intel reserved");
+                    break;
             }
 
             //TODO: Floating point section
@@ -240,7 +247,6 @@ void main(string[] args)
             writefln("DE: %s", c.DE);
             writefln("PAE: %s", c.PAE);
             writefln("MCE: %s", c.MCE);
-            writefln("SEP: %s", c.SEP);
             writefln("MTRR: %s", c.MTRR);
             writefln("PGE: %s", c.PGE);
             writefln("MCA: %s", c.MCA);
@@ -249,7 +255,6 @@ void main(string[] args)
             writefln("PSN: %s", c.PSN);
             writefln("DS: %s", c.DS);
             writefln("APCI: %s", c.APCI);
-            writefln("FXSR: %s", c.FXSR);
             writefln("SS: %s", c.SS);
             writefln("HTT: %s", c.HTT);
             writefln("PBE: %s", c.PBE);
@@ -418,12 +423,10 @@ public string GetProcessorBrandString()
 
 // ---- Misc ----
 
+/// Returns a CPU_INFO object.
 public CPU_INFO GetCpuInfo()
 {
     CPU_INFO i = new CPU_INFO;
-
-    i.Intel = new IntelFeatures;
-    i.Amd = new AmdFeatures;
 
     i.Vendor = GetVendor();
     i.ProcessorBrandString = GetProcessorBrandString();
@@ -443,84 +446,90 @@ public CPU_INFO GetCpuInfo()
             mov d, EDX;
         }
 
-        final switch (leaf)
+        switch (leaf)
         {
-        case 1: // 01H - Basic CPUID Information
-            // EAX
-            // Full  = Extended ID      | ID
-            //         EAX[27:20]       | EAX[11:8]
-            i.Family = (a >> 16 & 0xF0) | (a >> 8 & 0xF);
-            //         EAX[19:16]       | EAX[7:4]
-            i.Model = (a >> 12 & 0xF0) | (a >> 4 & 0xF);
-            i.ProcessorType = (a >> 12) & 3; // EAX[13:12]
-            i.Stepping = a & 0xF; // EAX[3:0]
-            // EBX
-            i.BrandIndex = b & 0xFF; // EBX[7:0]
-            i.CLFLUSHLineSize = b >> 8 & 0xFF; // EBX[15:8]
-            i.MaximumNumberOfAddressableIDs = b >> 16 & 0xFF; // EBX[23:16]
-            i.InitialAPICID = b >> 24 & 0xFF; // EBX[31:24]
-            // ECX
-            i.SSE3         = c & 1;
-            i.PCLMULQDQ    = c >> 1 & 1;
-            i.DTES64       = c >> 2 & 1;
-            i.MONITOR      = c >> 3 & 1;
-            i.DS_CPL       = c >> 4 & 1;
-            i.VMX          = c >> 5 & 1;
-            i.SMX          = c >> 6 & 1;
-            i.EIST         = c >> 7 & 1;
-            i.TM2          = c >> 8 & 1;
-            i.SSSE3        = c >> 9 & 1;
-            i.CNXT_ID      = c >> 10 & 1;
-            i.SDBG         = c >> 11 & 1;
-            i.FMA          = c >> 12 & 1;
-            i.CMPXCHG16B   = c >> 13 & 1;
-            i.xTPR         = c >> 14 & 1;
-            i.PDCM         = c >> 15 & 1;
-            i.PCID         = c >> 17 & 1;
-            i.DCA          = c >> 18 & 1;
-            i.SSE41        = c >> 19 & 1;
-            i.SSE42        = c >> 20 & 1;
-            i.x2APIC       = c >> 21 & 1;
-            i.MOVBE        = c >> 22 & 1;
-            i.POPCNT       = c >> 23 & 1;
-            i.TSC_Deadline = c >> 24 & 1;
-            i.AESNI        = c >> 25 & 1;
-            i.XSAVE        = c >> 26 & 1;
-            i.OSXSAVE      = c >> 27 & 1;
-            i.AVX          = c >> 28 & 1;
-            i.F16C         = c >> 29 & 1;
-            i.RDRAND       = c >> 30 & 1;
-            // EDX
-            i.FPU    = d & 1;
-            i.VME    = d >>  1 & 1;
-            i.DE     = d >>  2 & 1;
-            i.PSE    = d >>  3 & 1;
-            i.TSC    = d >>  4 & 1;
-            i.MSR    = d >>  5 & 1;
-            i.PAE    = d >>  6 & 1;
-            i.MCE    = d >>  7 & 1;
-            i.CX8    = d >>  8 & 1;
-            i.APIC   = d >>  9 & 1;
-            i.SEP    = d >> 11 & 1;
-            i.MTRR   = d >> 12 & 1;
-            i.PGE    = d >> 13 & 1;
-            i.MCA    = d >> 14 & 1;
-            i.CMOV   = d >> 15 & 1;
-            i.PAT    = d >> 16 & 1;
-            i.PSE_36 = d >> 17 & 1;
-            i.PSN    = d >> 18 & 1;
-            i.CLFSH  = d >> 19 & 1;
-            i.DS     = d >> 21 & 1;
-            i.APCI   = d >> 22 & 1;
-            i.MMX    = d >> 23 & 1;
-            i.FXSR   = d >> 24 & 1;
-            i.SSE    = d >> 25 & 1;
-            i.SSE2   = d >> 26 & 1;
-            i.SS     = d >> 27 & 1;
-            i.HTT    = d >> 28 & 1;
-            i.TM     = d >> 29 & 1;
-            i.PBE    = d >> 31 & 1;
-            break;
+            case 1: // 01H -- Basic CPUID Information
+                // EAX
+                // Full  = Extended ID      | ID
+                //         EAX[27:20]       | EAX[11:8]
+                i.Family = (a >> 16 & 0xF0) | (a >> 8 & 0xF);
+                //         EAX[19:16]       | EAX[7:4]
+                i.Model = (a >> 12 & 0xF0) | (a >> 4 & 0xF);
+                i.ProcessorType = (a >> 12) & 3; // EAX[13:12]
+                i.Stepping = a & 0xF; // EAX[3:0]
+                // EBX
+                i.BrandIndex = b & 0xFF; // EBX[7:0]
+                i.CLFLUSHLineSize = b >> 8 & 0xFF; // EBX[15:8]
+                i.MaximumNumberOfAddressableIDs = b >> 16 & 0xFF; // EBX[23:16]
+                i.InitialAPICID = b >> 24 & 0xFF; // EBX[31:24]
+                // ECX
+                i.SSE3         = c & 1;
+                i.PCLMULQDQ    = c >> 1 & 1;
+                i.DTES64       = c >> 2 & 1;
+                i.MONITOR      = c >> 3 & 1;
+                i.DS_CPL       = c >> 4 & 1;
+                i.VMX          = c >> 5 & 1;
+                i.SMX          = c >> 6 & 1;
+                i.EIST         = c >> 7 & 1;
+                i.TM2          = c >> 8 & 1;
+                i.SSSE3        = c >> 9 & 1;
+                i.CNXT_ID      = c >> 10 & 1;
+                i.SDBG         = c >> 11 & 1;
+                i.FMA          = c >> 12 & 1;
+                i.CMPXCHG16B   = c >> 13 & 1;
+                i.xTPR         = c >> 14 & 1;
+                i.PDCM         = c >> 15 & 1;
+                i.PCID         = c >> 17 & 1;
+                i.DCA          = c >> 18 & 1;
+                i.SSE41        = c >> 19 & 1;
+                i.SSE42        = c >> 20 & 1;
+                i.x2APIC       = c >> 21 & 1;
+                i.MOVBE        = c >> 22 & 1;
+                i.POPCNT       = c >> 23 & 1;
+                i.TSC_Deadline = c >> 24 & 1;
+                i.AESNI        = c >> 25 & 1;
+                i.XSAVE        = c >> 26 & 1;
+                i.OSXSAVE      = c >> 27 & 1;
+                i.AVX          = c >> 28 & 1;
+                i.F16C         = c >> 29 & 1;
+                i.RDRAND       = c >> 30 & 1;
+                // EDX
+                i.FPU    = d & 1;
+                i.VME    = d >>  1 & 1;
+                i.DE     = d >>  2 & 1;
+                i.PSE    = d >>  3 & 1;
+                i.TSC    = d >>  4 & 1;
+                i.MSR    = d >>  5 & 1;
+                i.PAE    = d >>  6 & 1;
+                i.MCE    = d >>  7 & 1;
+                i.CX8    = d >>  8 & 1;
+                i.APIC   = d >>  9 & 1;
+                i.SEP    = d >> 11 & 1;
+                i.MTRR   = d >> 12 & 1;
+                i.PGE    = d >> 13 & 1;
+                i.MCA    = d >> 14 & 1;
+                i.CMOV   = d >> 15 & 1;
+                i.PAT    = d >> 16 & 1;
+                i.PSE_36 = d >> 17 & 1;
+                i.PSN    = d >> 18 & 1;
+                i.CLFSH  = d >> 19 & 1;
+                i.DS     = d >> 21 & 1;
+                i.APCI   = d >> 22 & 1;
+                i.MMX    = d >> 23 & 1;
+                i.FXSR   = d >> 24 & 1;
+                i.SSE    = d >> 25 & 1;
+                i.SSE2   = d >> 26 & 1;
+                i.SS     = d >> 27 & 1;
+                i.HTT    = d >> 28 & 1;
+                i.TM     = d >> 29 & 1;
+                i.PBE    = d >> 31 & 1;
+                break;
+
+                case 2: // 02h -- Basic CPUID Information
+
+                break;
+
+                default:
         }
     }
 
@@ -546,104 +555,181 @@ public CPU_INFO GetCpuInfo()
 /// </summary>
 public class CPU_INFO
 {
-    // Basic information
+    //TODO: Default constructor for CPU_INFO
+    //this() { ... }
+
+    // ---- Basic information ----
+    /// Processor vendor.
     public string Vendor;
+    /// Processor brand string.
     public string ProcessorBrandString;
 
+    /// Maximum leaf supported by this processor.
     public int MaximumLeaf;
+    /// Maximum extended leaf supported by this processor.
     public int MaximumExtendedLeaf;
 
-    public ubyte Family; // ID and extended ID
-    public ubyte Model; // ID and extended ID
+    /// Processor family. ID and extended ID included.
+    public ubyte Family;
+    /// Processor model. ID and extended ID included.
+    public ubyte Model;
+    /// Processor type.**1
     public ubyte ProcessorType;
+    /// Processor stepping.
     public ubyte Stepping;
 
-    // Instruction extensions
+    // ---- Instruction extensions ----
+    /// Intel MMX Technology.
     public bool MMX;
+    /// Streaming SIMD Extensions.
     public bool SSE;
+    /// Streaming SIMD Extensions 2.
     public bool SSE2;
+    /// Streaming SIMD Extensions 3.
     public bool SSE3;
+    /// Supplemental Streaming SIMD Extensions 3 (SSSE3).
     public bool SSSE3;
+    /// Streaming SIMD Extensions 4.1.
     public bool SSE41;
+    /// Streaming SIMD Extensions 4.2.
     public bool SSE42;
+    /// AESNI instruction extensions.
     public bool AESNI;
+    /// AVX instruction extensions.
     public bool AVX;
+    /// AVX2 instruction extensions.
     public bool AVX2;
 
     // Single instructions -- todo
 
     //TODO: Document every member (///)
 
-    // -- 01h --
-    // EBX
+    // ---- 01h : Basic CPUID Information ----
+    // -- EBX --
+    /// Brand index. Probably unsused. E.g. Intel Core i7
     public ubyte BrandIndex;
+    /// The CLFLUSH line size. Multiply by 8 to get its size in bytes.
     public ubyte CLFLUSHLineSize;
+    /// Maximum number of addressable IDs for logical processors in this physical package.*1
     public ubyte MaximumNumberOfAddressableIDs;
+    /// Initial APIC ID for this processor.
     public ubyte InitialAPICID;
-    // ECX
-    public bool PCLMULQDQ; // 0
+    // -- ECX --
+    /// PCLMULQDQ instruction.
+    public bool PCLMULQDQ; // 1
+    /// 64-bit DS Area (64-bit layout). 
     public bool DTES64;
+    /// MONITOR/MWAIT.
     public bool MONITOR;
+    /// CPL Qualified Debug Store.
     public bool DS_CPL;
+    /// Virtual Machine Extensions.
     public bool VMX;
+    /// Safer Mode Extensions.
     public bool SMX;
+    /// Enhanced Intel SpeedStep® technology.
     public bool EIST;
+    /// Thermal Monitor 2.
     public bool TM2;
+    /// L1 Context ID. If true, the L1 data cache mode can be set to either adaptive or shared mode. 
     public bool CNXT_ID;
+    /// Indicates the processor supports IA32_DEBUG_INTERFACE MSR for silicon debug.
     public bool SDBG;
+    /// FMA extensions using YMM state.
     public bool FMA;
+    /// CMPXCHG16B instruction.
     public bool CMPXCHG16B;
+    /// xTPR Update Control.
     public bool xTPR;
+    /// Perfmon and Debug Capability.
     public bool PDCM;
+    /// Process-context identifiers.
     public bool PCID;
+    /// Indicates if the processor supports the ability to prefetch data from a memory mapped device.
     public bool DCA;
+    /// x2APIC feature (Intel programmable interrupt controller).
     public bool x2APIC;
+    /// MOVBE instruction.
     public bool MOVBE;
+    /// POPCNT instruction.
     public bool POPCNT;
+    /// Indicates if the APIC timer supports one-shot operation using a TSC deadline value.
     public bool TSC_Deadline;
+    /// Indicates the support of the XSAVE/XRSTOR extended states feature, XSETBV/XGETBV instructions, and XCR0.
     public bool XSAVE;
+    /// Indicates if the OS has set CR4.OSXSAVE[bit 18] to enable XSETBV/XGETBV instructions for XCR0 and XSAVE.
     public bool OSXSAVE;
+    /// 16-bit floating-point conversion instructions.
     public bool F16C;
+    /// RDRAND instruction.
     public bool RDRAND; // 30
-    // EDX
-    public bool FPU;
+    // -- EDX --
+    /// Floating Point Unit On-Chip. The processor contains an x87 FPU.
+    public bool FPU; // 0
+    /// Virtual 8086 Mode Enhancements.
     public bool VME;
+    /// Debugging Extensions.
     public bool DE;
+    /// Page Size Extension.
     public bool PSE;
+    /// Time Stamp Counter.
     public bool TSC;
+    /// Model Specific Registers RDMSR and WRMSR Instructions. 
     public bool MSR;
+    /// Physical Address Extension.
     public bool PAE;
+    /// Machine Check Exception.
     public bool MCE;
+    /// CMPXCHG8B Instruction.
     public bool CX8;
+    /// Indicates if the processor contains an Advanced Programmable Interrupt Controller.
     public bool APIC;
+    /// SYSENTER and SYSEXIT Instructions.
     public bool SEP;
+    /// Memory Type Range Registers.
     public bool MTRR;
+    /// Page Global Bit.
     public bool PGE;
+    /// Machine Check Architecture.
     public bool MCA;
+    /// Conditional Move Instructions.
     public bool CMOV;
+    /// Page Attribute Table.
     public bool PAT;
+    /// 36-Bit Page Size Extension.
     public bool PSE_36;
+    /// Processor Serial Number. 
     public bool PSN;
+    /// CLFLUSH Instruction.
     public bool CLFSH;
+    /// Debug Store.
     public bool DS;
+    /// Thermal Monitor and Software Controlled Clock Facilities.
     public bool APCI;
+    /// FXSAVE and FXRSTOR Instructions.
     public bool FXSR;
+    /// Self Snoop.
     public bool SS;
+    /// Max APIC IDs reserved field is Valid.
     public bool HTT;
+    /// Thermal Monitor.
     public bool TM;
-    public bool PBE;
+    /// Pending Break Enable.
+    public bool PBE; // 31
 
+    /// Intel specific features.
     public IntelFeatures Intel;
+    /// AMD specific features.
     public AmdFeatures Amd;
 }
 
-// Intel specific features
+/// Intel specific features
 public class IntelFeatures
 {
     public bool TurboBoostTechnology;
 }
 
-// AMD specific features
+/// AMD specific features
 public class AmdFeatures
 {
 

@@ -1,4 +1,5 @@
 import std.stdio, std.string;
+
 /*import core.sys.windows.windows;
 import core.sys.windows.dll;
  
@@ -39,44 +40,44 @@ void main(string[] args)
     bool _det = false; // Detailed output
     bool _oml = false; // Override max leaf
 
-    foreach(s; args)
+    foreach (s; args)
     {
-        switch(s)
+        switch (s)
         {
-            case "-h":
-            case "--help":
-                writeln(" ddcpuid [<Options>]");
-                writeln();
-                writeln(" --details, -D    Gets more details.");
-                writeln(" --override, -O   Overrides the maximum leaf to 17H.");
-                writeln(" --debug          Gets debugging information.");
-                writeln();
-                writeln(" --help     Prints help and quit.");
-                writeln(" --version  Prints version and quit.");
-                return;
+        case "-h":
+        case "--help":
+            writeln(" ddcpuid [<Options>]");
+            writeln();
+            writeln(" --details, -D    Gets more details.");
+            writeln(" --override, -O   Overrides the maximum leaf to 17H.");
+            writeln(" --debug          Gets debugging information.");
+            writeln();
+            writeln(" --help      Prints help and quit.");
+            writeln(" --version   Prints version and quit.");
+            return;
 
-            case "--version":
-                writeln("ddcpuid v", ver);
-                writeln("Copyright (c) guitarxhero 2016");
-                writeln("License: MIT License <http://opensource.org/licenses/MIT>");
-                writeln("Project page: <https://github.com/guitarxhero/ddcpuid>");
-                return;
+        case "--version":
+            writeln("ddcpuid v", ver);
+            writeln("Copyright (c) guitarxhero 2016");
+            writeln("License: MIT License <http://opensource.org/licenses/MIT>");
+            writeln("Project page: <https://github.com/guitarxhero/ddcpuid>");
+            return;
 
-            case "-D":
-            case "--details":
-                _det = true;
-                break;
+        case "-D":
+        case "--details":
+            _det = true;
+            break;
 
-            case "-O":
-            case "--override":
-                _oml = true;
-                break;
+        case "-O":
+        case "--override":
+            _oml = true;
+            break;
 
-            case "--debug":
-                _dbg = true;
-                break;
+        case "--debug":
+            _dbg = true;
+            break;
 
-            default:
+        default:
         }
     }
 
@@ -99,7 +100,8 @@ void main(string[] args)
                 mov _ecx, ECX;
                 mov _edx, EDX;
             }
-            writefln("EAX=%08XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X", b, _eax, _ebx, _ecx, _edx);
+            writefln("EAX=%08XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X", b,
+                _eax, _ebx, _ecx, _edx);
         }
         for (int b = 0x8000_0000; b <= emax; ++b)
         {
@@ -112,7 +114,8 @@ void main(string[] args)
                 mov _ecx, ECX;
                 mov _edx, EDX;
             }
-            writefln("EAX=%08XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X", b, _eax, _ebx, _ecx, _edx);
+            writefln("EAX=%08XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X", b,
+                _eax, _ebx, _ecx, _edx);
         }
         asm
         {
@@ -126,43 +129,64 @@ void main(string[] args)
     }
     else
     {
-        // Obviously at some point, only the batch
-        // will be performed, which will improve performance
         CPU_INFO c = GetCpuInfo();
-        writeln("Family: ", c.Family);
-        writeln("Model: ", c.Model);
 
         writeln("Vendor: ", c.Vendor);
-        writeln("Model: ", strip(c.GetProcessorBrandString);
+        writeln("Model: ", strip(c.ProcessorBrandString));
         write("Extensions: ");
-        if (SupportsMMX()) write("MMX, ");
-        if (SupportsSSE()) write("SSE, ");
-        if (SupportsSSE2()) write("SSE2, ");
-        if (SupportsSSE3()) write("SSE3, ");
-        if (SupportsSSSE3()) write("SSSE3, ");
-        if (SupportsSSE41()) write("SSE4.1, ");
-        if (SupportsSSE42()) write("SSE4.2, ");
-        if (SupportsAESNI()) write("AESNI, ");
-        if (SupportsAVX()) write("AVX, ");
+        if (c.MMX)
+            write("MMX, ");
+        if (SupportsSSE())
+            write("SSE, ");
+        if (SupportsSSE2())
+            write("SSE2, ");
+        if (c.SSE3)
+            write("SSE3, ");
+        if (c.SSSE3)
+            write("SSSE3, ");
+        if (c.SSE41)
+            write("SSE4.1, ");
+        if (c.SSE42)
+            write("SSE4.2, ");
+        if (c.AESNI)
+            write("AESNI, ");
+        if (c.AVX)
+            write("AVX, ");
+
         if (_det)
         {
-            if (SupportsDS_CPL()) write("DS-CPL, ");
-            if (SupportsFMA()) write("FMA, ");
-            if (SupportsXSAVE()) write("XSAVE, ");
-            if (SupportsOSXSAVE()) write("OSXSAVE, ");
-            if (SupportsF16C()) write("F16C, ");
-            if (SupportsMSR()) write("MSR, ");
+            if (c.DS_CPL)
+                write("DS-CPL, ");
+            if (c.FMA)
+                write("FMA, ");
+            if (c.XSAVE)
+                write("XSAVE, ");
+            if (c.OSXSAVE)
+                write("OSXSAVE, ");
+            if (c.F16C)
+                write("F16C, ");
+            if (c.MSR)
+                write("MSR, ");
             writeln();
             write("Single instructions: [ ");
-            if (SupportsPCLMULQDQ()) write("PCLMULQDQ, ");
-            if (SupportsCX8()) write("CMPXCHG8B, ");
-            if (SupportsCMPXCHG16B()) write("CMPXCHG16B, ");
-            if (SupportsMOVBE()) write("MOVBE, "); // Intel Atom only!
-            if (SupportsRDRAND()) write("RDRAND, ");
-            if (SupportsTSC()) writef("RDTSC (Deadline: %s), ", SupportsTSC_Deadline());
-            if (SupportsCMOV()) write("CMOV, ");
-            if (SupportsCLFSH()) writef("CLFLUSH (Size: %d), ", GetClflushLineSize() * 8);
-            if (SupportsPOPCNT()) write("POPCNT, ");
+            if (c.PCLMULQDQ)
+                write("PCLMULQDQ, ");
+            if (c.CX8)
+                write("CMPXCHG8B, ");
+            if (c.CMPXCHG16B)
+                write("CMPXCHG16B, ");
+            if (c.MOVBE)
+                write("MOVBE, "); // Intel Atom only!
+            if (c.RDRAND)
+                write("RDRAND, ");
+            if (c.TSC)
+                writef("RDTSC (Deadline: %s), ", c.TSC_Deadline);
+            if (SupportsCMOV())
+                write("CMOV, ");
+            if (SupportsCLFSH())
+                writef("CLFLUSH, ");
+            if (c.POPCNT)
+                write("POPCNT, ");
             write("]");
         }
         writeln();
@@ -176,42 +200,48 @@ void main(string[] args)
             writefln("Highest Leaf: %02XH | Extended: %02XH", max, emax);
             writeln();
             write("Processor type: ");
-            switch (GetProcessorType()) // 2 bit value
+            final switch (c.ProcessorType) // 2 bit value
             {
-                case 0: writeln("Original OEM Processor"); break;
-                case 1: writeln("Intel OverDrive Processor"); break;
-                case 2: writeln("Dual processor"); break;
-                case 3: writeln("Intel reserved"); break;
-                default:
+            case 0:
+                writeln("Original OEM Processor");
+                break;
+            case 1:
+                writeln("Intel OverDrive Processor");
+                break;
+            case 2:
+                writeln("Dual processor");
+                break;
+            case 3:
+                writeln("Intel reserved");
+                break;
             }
-            writefln("Family %s (Extended: %s) Model %s (ID: %X, Extended: %X), Stepping %s",
-                GetFamilyID(), GetExtendedFamilyID(),
-                GetExtendedModelID() << 4 | GetModelID(),
-                GetExtendedModelID(), GetModelID(),
-                GetSteppingID());
-            writefln("Brand Index: %s", GetBrandIndex());
-            writefln("Max # of addressable IDs: %s", GetMaxNumAddressableIDs());
-            writefln("APIC: %s (ID: %s)", SupportsAPIC(), GetInitialAPICID());
-            writefln("x2APIC: %s", Supportsx2APIC());
-            writefln("DTES64: %s", SupportsDTES64());
-            writefln("MONITOR: %s", SupportsMONITOR());
-            writefln("VMX: %s", SupportsVMX());
-            writefln("SMX: %s", SupportsSMX());
-            writefln("EIST: %s", SupportsEIST());
+
+            //TODO: Floating point section
+
+            writefln("Family %s Model %s Stepping %s", c.Family, c.Model, c.Stepping);
+            writefln("Brand Index: %s", c.BrandIndex);
+            writefln("Max # of addressable IDs: %s", c.MaximumNumberOfAddressableIDs);
+            writefln("APIC: %s (Initial ID: %s)", c.APIC, c.InitialAPICID);
+            writefln("x2APIC: %s", c.x2APIC);
+            writefln("DTES64: %s", c.DTES64);
+            writefln("MONITOR: %s", c.MONITOR);
+            writefln("VMX: %s", c.VMX);
+            writefln("SMX: %s", c.SMX);
+            writefln("EIST: %s", c.EIST);
             writefln("TM: %s", SupportsTM());
-            writefln("TM2: %s", SupportsTM2());
-            writefln("CNXT-ID: %s", SupportsCNXT_ID());
-            writefln("xTPR Update Control: %s", SupportsxTPRUpdateControl());
-            writefln("PDCM: %s", SupportsPDCM());
-            writefln("PCID: %s", SupportsPCID());
-            writefln("DCA: %s", SupportsDCA());
-            writefln("FPU: %s", SupportsFPU());
-            writefln("VME: %s", SupportsVME());
-            writefln("DE: %s", SupportsDE());
-            writefln("PAE: %s", SupportsPAE());
-            writefln("MCE: %s", SupportsMCE());
-            writefln("SEP: %s", SupportsSEP());
-            writefln("MTRR: %s", SupportsMTRR());
+            writefln("TM2: %s", c.TM2);
+            writefln("CNXT-ID: %s", c.CNXT_ID);
+            writefln("xTPR Update Control: %s", c.xTPR);
+            writefln("PDCM: %s", c.PDCM);
+            writefln("PCID: %s", c.PCID);
+            writefln("DCA: %s", c.DCA);
+            writefln("FPU: %s", c.FPU);
+            writefln("VME: %s", c.VME);
+            writefln("DE: %s", c.DE);
+            writefln("PAE: %s", c.PAE);
+            writefln("MCE: %s", c.MCE);
+            writefln("SEP: %s", c.SEP);
+            writefln("MTRR: %s", c.MTRR);
             writefln("PGE: %s", SupportsPGE());
             writefln("MCA: %s", SupportsMCA());
             writefln("PAT: %s", SupportsPAT());
@@ -258,9 +288,7 @@ public string GetVendor()
         mov ecx, ECX;
         mov edx, EDX;
     }
-    char* pebx = cast(char*)&ebx,
-          pecx = cast(char*)&ecx,
-          pedx = cast(char*)&edx;
+    char* pebx = cast(char*)&ebx, pecx = cast(char*)&ecx, pedx = cast(char*)&edx;
     // EBX, EDX, ECX
     s ~= *pebx;
     s ~= *(pebx + 1);
@@ -275,844 +303,6 @@ public string GetVendor()
     s ~= *(pecx + 2);
     s ~= *(pecx + 3);
     return s;
-}
-
-// ----- 01H - Basic CPUID Information -----
-// EAX - Type, Family, Model, and Stepping ID 
-public int GetExtendedFamilyID() // EAX[27:20] - 8 bits
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EAX;
-    }
-    return (e >> 20) & 0xFF;
-}
-public int GetExtendedModelID() // EAX[19:16] - 4 bits
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EAX;
-    }
-    return (e >> 16) & 0xF;
-}
-public int GetProcessorType() // EAX[13:12] - 2 bits
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EAX;
-    }
-    return (e >> 12) & 3;
-}
-public int GetFamilyID() // EAX[11:8] - 4 bits
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EAX;
-    }
-    return (e >> 8) & 0xF;
-}
-public int GetModelID() // EAX[7:4] - 4 bits 
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EAX;
-    }
-    return (e >> 4) & 0xF;
-}
-public int GetSteppingID() // EAX[3:0] - 4 bits
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EAX;
-    }
-    return e & 0xF;
-}
-
-// EBX - Brand Index, CLFLUSH, Max addressable IDs, Initial APIC ID
-// EBX[7:0] - Brand Index.
-public int GetBrandIndex()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EBX;
-    }
-    return e & 0xFF;
-}
-// EBX[15:8], 8 bits - CLFLUSH line size
-// (Value ∗ 8 = cache line size in bytes; used also by CLFLUSHOPT).
-public int GetClflushLineSize()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EBX;
-    }
-    return (e >> 8) & 0xFF;
-}
-// EBX[23:16], 8 bits - Maximum number of addressable IDs for
-// logical processors in this physical package.
-public int GetMaxNumAddressableIDs()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EBX;
-    }
-    return (e >> 16) & 0xFF;
-}
-// EBX[31:24], 8 bits - Initial APIC ID.
-public int GetInitialAPICID()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EBX;
-    }
-    return (e >> 24) & 0xFF;
-}
-
-// ECX - Feature flags
-// Bit 00 - SSE3
-public bool SupportsSSE3()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e & 1;
-}
-// Bit 01 - PCLMULQDQ
-public bool SupportsPCLMULQDQ()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 1 & 1;
-}
-// Bit 02 - DTES64
-public bool SupportsDTES64()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 2 & 1;
-}
-// Bit 03 - MONITOR
-public bool SupportsMONITOR()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 3 & 1;
-}
-// Bit 04 - DS-CPL
-public bool SupportsDS_CPL()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 4 & 1;
-}
-// Bit 05 - VMX
-public bool SupportsVMX()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 5 & 1;
-}
-// Bit 06 - SMX
-public bool SupportsSMX()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 6 & 1;
-}
-// Bit 07 - EIST
-public bool SupportsEIST()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 7 & 1;
-}
-// Bit 08 - TM2
-public bool SupportsTM2()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 8 & 1;
-}
-// Bit 09 - SSSE3
-public bool SupportsSSSE3()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 9 & 1;
-}
-// Bit 10 - CNXT-ID
-public bool SupportsCNXT_ID()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 10 & 1;
-}
-// Bit 11 - SDBG
-public bool SupportsSDBG()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 11 & 1;
-}
-// Bit 12 - FMA
-public bool SupportsFMA()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 12 & 1;
-}
-// Bit 13 - CMPXCHG16B
-public bool SupportsCMPXCHG16B()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 13 & 1;
-}
-// Bit 14 - xTPR Update Control
-public bool SupportsxTPRUpdateControl()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 14 & 1;
-}
-// Bit 15 - PDCM
-public bool SupportsPDCM()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 15 & 1;
-}
-// Bit 16 - Reserved
-// Bit 17 - PCID
-public bool SupportsPCID()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 17 & 1;
-}
-// Bit 18 - DCA
-public bool SupportsDCA()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 18 & 1;
-}
-// Bit 19 - SSE4.1
-public bool SupportsSSE41()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 19 & 1;
-}
-// Bit 20 - SSE4.2
-public bool SupportsSSE42()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 20 & 1;
-}
-// Bit 21 - x2APIC
-public bool Supportsx2APIC()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 21 & 1;
-}
-// Bit 22 - MOVBE
-public bool SupportsMOVBE()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 22 & 1;
-}
-// Bit 23 - POPCNT
-public bool SupportsPOPCNT()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 23 & 1;
-}
-// Bit 24 - TSC-Deadline
-public bool SupportsTSC_Deadline()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 24 & 1;
-}
-// Bit 25 - AESNI
-public bool SupportsAESNI()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 25 & 1;
-}
-// Bit 26 - XSAVE
-public bool SupportsXSAVE()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 26 & 1;
-}
-// Bit 27 - OSXSAVE
-public bool SupportsOSXSAVE()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 27 & 1;
-}
-// Bit 28 - AVX
-public bool SupportsAVX()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 28 & 1;
-}
-// Bit 29 - F16C
-public bool SupportsF16C()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 29 & 1;
-}
-// Bit 30 - RDRAND
-public bool SupportsRDRAND()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, ECX;
-    }
-    return e >> 30 & 1;
-}
-// Bit 31 is not used, always returns 0.
-
-// EDX - Feature flags
-// Bit 00 - FPU
-public bool SupportsFPU()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e & 1;
-}
-// Bit 01 - VME
-public bool SupportsVME()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 1 & 1;
-}
-// Bit 02 - DE
-public bool SupportsDE()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 2 & 1;
-}
-// Bit 03 - PSE
-public bool SupportsPSE()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 3 & 1;
-}
-// Bit 04 - TSC
-public bool SupportsTSC()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 4 & 1;
-}
-// Bit 05 - MSR
-public bool SupportsMSR()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 5 & 1;
-}
-// Bit 06 - PAE
-public bool SupportsPAE()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 6 & 1;
-}
-// Bit 07 - MCE
-public bool SupportsMCE()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 7 & 1;
-}
-// Bit 08 - CX8
-public bool SupportsCX8()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 8 & 1;
-}
-// Bit 09 - APIC
-public bool SupportsAPIC()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 9 & 1;
-}
-// Bit 10 - Reserved
-// Bit 11 - SEP
-public bool SupportsSEP()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 11 & 1;
-}
-// Bit 12 - MTRR
-public bool SupportsMTRR()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 12 & 1;
-}
-// Bit 13 - PGE
-public bool SupportsPGE()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 13 & 1;
-}
-// Bit 14 - MCA
-public bool SupportsMCA()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 14 & 1;
-}
-// Bit 15 - CMOV
-public bool SupportsCMOV()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 15 & 1;
-}
-// Bit 16 - PAT
-public bool SupportsPAT()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 16 & 1;
-}
-// Bit 17 - PSE-36
-public bool SupportsPSE_36()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 17 & 1;
-}
-// Bit 18 - PSN
-public bool SupportsPSN()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 18 & 1;
-}
-// Bit 19 - CLFSH
-public bool SupportsCLFSH()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 19 & 1;
-}
-// Bit 20 - Reserved
-// Bit 21 - DS
-public bool SupportsDS()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 21 & 1;
-}
-// Bit 22 - ACPI
-public bool SupportsACPI()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 22 & 1;
-}
-// Bit 23 - MMX
-public bool SupportsMMX()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 23 & 1;
-}
-// Bit 24 - FXSR
-public bool SupportsFXSR()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 24 & 1;
-}
-// Bit 25 - SSE
-public bool SupportsSSE()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 25 & 1;
-}
-// Bit 26 - SSE2
-public bool SupportsSSE2()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 26 & 1;
-}
-// Bit 27 - SS
-public bool SupportsSS()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 27 & 1;
-}
-// Bit 28 - HTT
-public bool SupportsHTT()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 28 & 1;
-}
-// Bit 29 - TM
-public bool SupportsTM()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 29 & 1;
-}
-// Bit 30 - Reserved
-// Bit 31 - PBE
-public bool SupportsPBE()
-{
-    int e;
-    asm
-    {
-        mov EAX, 1;
-        cpuid;
-        mov e, EDX;
-    }
-    return e >> 31 & 1;
 }
 
 // ----- 02H - Basic CPUID Information -----
@@ -1187,7 +377,6 @@ public int GetHighestExtendedLeaf()
 
 // EDX
 
-
 // ----- 80000002H~80000004H - Processor Brand String -----
 public string GetProcessorBrandString()
 {
@@ -1204,10 +393,8 @@ public string GetProcessorBrandString()
             mov ecx, ECX;
             mov edx, EDX;
         }
-        char* peax = cast(char*)&eax, 
-              pebx = cast(char*)&ebx,
-              pecx = cast(char*)&ecx,
-              pedx = cast(char*)&edx;
+        char* peax = cast(char*)&eax, pebx = cast(char*)&ebx,
+            pecx = cast(char*)&ecx, pedx = cast(char*)&edx;
         // EAX, EBX, ECX, EDX
         s ~= *peax;
         s ~= *(peax + 1);
@@ -1241,9 +428,10 @@ public CPU_INFO GetCpuInfo()
     i.Vendor = GetVendor();
     i.ProcessorBrandString = GetProcessorBrandString();
 
+    i.MaximumLeaf = GetHighestLeaf();
+
     int a, b, c, d;
-    int max = GetHighestLeaf();
-    for(int leaf = 1; leaf <= max; ++leaf)
+    for (int leaf = 1; leaf <= i.MaximumLeaf; ++leaf)
     {
         asm
         {
@@ -1255,21 +443,84 @@ public CPU_INFO GetCpuInfo()
             mov d, EDX;
         }
 
-        switch (leaf)
+        final switch (leaf)
         {
-            case 1:
-                // EAX
-                //         Extended ID      | ID
-                i.Family = (a >> 16 & 0xF0) | (a >> 8 & 0xF);
-                i.Model  = (a >> 12 & 0xF0) | (a >> 4 & 0xF);
-
-                i.ProcessorType = (a >> 12) & 3;
-                i.Stepping = a & 0xF;
-
-                // EBX
-                break;
-
-            default:
+        case 1: // 01H - Basic CPUID Information
+            // EAX
+            // Full  = Extended ID      | ID
+            //         EAX[27:20]       | EAX[11:8]
+            i.Family = (a >> 16 & 0xF0) | (a >> 8 & 0xF);
+            //         EAX[19:16]       | EAX[7:4]
+            i.Model = (a >> 12 & 0xF0) | (a >> 4 & 0xF);
+            i.ProcessorType = (a >> 12) & 3; // EAX[13:12]
+            i.Stepping = a & 0xF; // EAX[3:0]
+            // EBX
+            i.BrandIndex = b & 0xFF; // EBX[7:0]
+            i.CLFLUSHLineSize = b >> 8 & 0xFF; // EBX[15:8]
+            i.MaximumNumberOfAddressableIDs = b >> 16 & 0xFF; // EBX[23:16]
+            i.InitialAPICID = b >> 24 & 0xFF; // EBX[31:24]
+            // ECX
+            i.SSE3         = c & 1;
+            i.PCLMULQDQ    = c >> 1 & 1;
+            i.DTES64       = c >> 2 & 1;
+            i.MONITOR      = c >> 3 & 1;
+            i.DS_CPL       = c >> 4 & 1;
+            i.VMX          = c >> 5 & 1;
+            i.SMX          = c >> 6 & 1;
+            i.EIST         = c >> 7 & 1;
+            i.TM2          = c >> 8 & 1;
+            i.SSSE3        = c >> 9 & 1;
+            i.CNXT_ID      = c >> 10 & 1;
+            i.SDBG         = c >> 11 & 1;
+            i.FMA          = c >> 12 & 1;
+            i.CMPXCHG16B   = c >> 13 & 1;
+            i.xTPR         = c >> 14 & 1;
+            i.PDCM         = c >> 15 & 1;
+            i.PCID         = c >> 17 & 1;
+            i.DCA          = c >> 18 & 1;
+            i.SSE41        = c >> 19 & 1;
+            i.SSE42        = c >> 20 & 1;
+            i.x2APIC       = c >> 21 & 1;
+            i.MOVBE        = c >> 22 & 1;
+            i.POPCNT       = c >> 23 & 1;
+            i.TSC_Deadline = c >> 24 & 1;
+            i.AESNI        = c >> 25 & 1;
+            i.XSAVE        = c >> 26 & 1;
+            i.OSXSAVE      = c >> 27 & 1;
+            i.AVX          = c >> 28 & 1;
+            i.F16C         = c >> 29 & 1;
+            i.RDRAND       = c >> 30 & 1;
+            // EDX
+            i.FPU    = d & 1;
+            i.VME    = d >>  1 & 1;
+            i.DE     = d >>  2 & 1;
+            i.PSE    = d >>  3 & 1;
+            i.TSC    = d >>  4 & 1;
+            i.MSR    = d >>  5 & 1;
+            i.PAE    = d >>  6 & 1;
+            i.MCE    = d >>  7 & 1;
+            i.CX8    = d >>  8 & 1;
+            i.APIC   = d >>  9 & 1;
+            i.SEP    = d >> 11 & 1;
+            i.MTRR   = d >> 12 & 1;
+            i.PGE    = d >> 13 & 1;
+            i.MCA    = d >> 14 & 1;
+            i.CMOV   = d >> 15 & 1;
+            i.PAT    = d >> 16 & 1;
+            i.PSE_36 = d >> 17 & 1;
+            i.PSN    = d >> 18 & 1;
+            i.CLFSH  = d >> 19 & 1;
+            i.DS     = d >> 21 & 1;
+            i.ACPI   = d >> 22 & 1;
+            i.MMX    = d >> 23 & 1;
+            i.FXSR   = d >> 24 & 1;
+            i.SSE    = d >> 25 & 1;
+            i.SSE2   = d >> 26 & 1;
+            i.SS     = d >> 27 & 1;
+            i.HTT    = d >> 28 & 1;
+            i.TM     = d >> 29 & 1;
+            i.PBE    = d >> 31 & 1;
+            break;
         }
     }
 
@@ -1295,9 +546,19 @@ public CPU_INFO GetCpuInfo()
 /// </summary>
 public class CPU_INFO
 {
+    // Basic information
     public string Vendor;
     public string ProcessorBrandString;
 
+    public int MaximumLeaf;
+    public int MaximumExtendedLeaf;
+
+    public ubyte Family; // ID and extended ID
+    public ubyte Model; // ID and extended ID
+    public ubyte ProcessorType;
+    public ubyte Stepping;
+
+    // Instruction extensions
     public bool MMX;
     public bool SSE;
     public bool SSE2;
@@ -1309,12 +570,68 @@ public class CPU_INFO
     public bool AVX;
     public bool AVX2;
 
-    // Includes FamilyID and ExtendedFamilyID
-    public int Family;
-    // Includes ModelID and ExtendedModelID
-    public int Model;
-    public int ProcessorType;
-    public int Stepping;
+    // Single instructions -- todo
+
+    //TODO: Document every member (///)
+
+    // -- 01h --
+    // EBX
+    public ubyte BrandIndex;
+    public ubyte CLFLUSHLineSize;
+    public ubyte MaximumNumberOfAddressableIDs;
+    public ubyte InitialAPICID;
+    // ECX
+    public bool PCLMULQDQ; // 0
+    public bool DTES64;
+    public bool MONITOR;
+    public bool DS_CPL;
+    public bool VMX;
+    public bool SMX;
+    public bool EIST;
+    public bool TM2;
+    public bool CNXT_ID;
+    public bool SDBG;
+    public bool FMA;
+    public bool CMPXCHG16B;
+    public bool xTPR;
+    public bool PDCM;
+    public bool PCID;
+    public bool DCA;
+    public bool x2APIC;
+    public bool MOVBE;
+    public bool POPCNT;
+    public bool TSC_Deadline;
+    public bool XSAVE;
+    public bool OSXSAVE;
+    public bool F16C;
+    public bool RDRAND; // 30
+    // EDX
+    public bool FPU;
+    public bool VME;
+    public bool DE;
+    public bool PSE;
+    public bool TSC;
+    public bool MSR;
+    public bool PAE;
+    public bool MCE;
+    public bool CX8;
+    public bool APIC;
+    public bool SEP;
+    public bool MTRR;
+    public bool PGE;
+    public bool MCA;
+    public bool CMOV;
+    public bool PAT;
+    public bool PSE_36;
+    public bool PSN;
+    public bool CLFSH;
+    public bool DS;
+    public bool APCI;
+    public bool FXSR;
+    public bool SS;
+    public bool HTT;
+    public bool TM;
+    public bool PBE;
 
     public IntelFeatures Intel;
     public AmdFeatures Amd;
@@ -1323,11 +640,11 @@ public class CPU_INFO
 // Intel specific features
 public class IntelFeatures
 {
-    public bool HasTurboBoostTechnology;
+    public bool TurboBoostTechnology;
 }
 
 // AMD specific features
 public class AmdFeatures
 {
-    
+
 }

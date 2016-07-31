@@ -136,9 +136,9 @@ void main(string[] args)
         write("Extensions: ");
         if (c.MMX)
             write("MMX, ");
-        if (SupportsSSE())
+        if (c.SSE)
             write("SSE, ");
-        if (SupportsSSE2())
+        if (c.SSE2)
             write("SSE2, ");
         if (c.SSE3)
             write("SSE3, ");
@@ -181,9 +181,9 @@ void main(string[] args)
                 write("RDRAND, ");
             if (c.TSC)
                 writef("RDTSC (Deadline: %s), ", c.TSC_Deadline);
-            if (SupportsCMOV())
+            if (c.CMOV)
                 write("CMOV, ");
-            if (SupportsCLFSH())
+            if (c.CLFSH)
                 writef("CLFLUSH, ");
             if (c.POPCNT)
                 write("POPCNT, ");
@@ -228,7 +228,7 @@ void main(string[] args)
             writefln("VMX: %s", c.VMX);
             writefln("SMX: %s", c.SMX);
             writefln("EIST: %s", c.EIST);
-            writefln("TM: %s", SupportsTM());
+            writefln("TM: %s", c.TM);
             writefln("TM2: %s", c.TM2);
             writefln("CNXT-ID: %s", c.CNXT_ID);
             writefln("xTPR Update Control: %s", c.xTPR);
@@ -242,17 +242,17 @@ void main(string[] args)
             writefln("MCE: %s", c.MCE);
             writefln("SEP: %s", c.SEP);
             writefln("MTRR: %s", c.MTRR);
-            writefln("PGE: %s", SupportsPGE());
-            writefln("MCA: %s", SupportsMCA());
-            writefln("PAT: %s", SupportsPAT());
-            writefln("PSE-36: %s", SupportsPSE_36());
-            writefln("PSN: %s", SupportsPSN());
-            writefln("DS: %s", SupportsDS());
-            writefln("ACPI: %s", SupportsACPI());
-            writefln("FXSR: %s", SupportsFXSR());
-            writefln("SS: %s", SupportsSS());
-            writefln("HTT: %s", SupportsHTT());
-            writefln("PBE: %s", SupportsPBE());
+            writefln("PGE: %s", c.PGE);
+            writefln("MCA: %s", c.MCA);
+            writefln("PAT: %s", c.PAT);
+            writefln("PSE-36: %s", c.PSE_36);
+            writefln("PSN: %s", c.PSN);
+            writefln("DS: %s", c.DS);
+            writefln("APCI: %s", c.APCI);
+            writefln("FXSR: %s", c.FXSR);
+            writefln("SS: %s", c.SS);
+            writefln("HTT: %s", c.HTT);
+            writefln("PBE: %s", c.PBE);
         }
     }
 }
@@ -511,7 +511,7 @@ public CPU_INFO GetCpuInfo()
             i.PSN    = d >> 18 & 1;
             i.CLFSH  = d >> 19 & 1;
             i.DS     = d >> 21 & 1;
-            i.ACPI   = d >> 22 & 1;
+            i.APCI   = d >> 22 & 1;
             i.MMX    = d >> 23 & 1;
             i.FXSR   = d >> 24 & 1;
             i.SSE    = d >> 25 & 1;

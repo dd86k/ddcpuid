@@ -154,9 +154,9 @@ void main(string[] args)
         if (c.AVX)
             write("AVX, ");
         if (c.VMX)
-            write("VMX");
+            write("VMX, ");
         if (c.SMX)
-            write("SMX");
+            write("SMX, ");
         if (c.DS_CPL)
             write("DS-CPL, ");
         if (c.FMA)
@@ -437,11 +437,40 @@ public CPU_INFO GetCpuInfo()
             // case 0 already has been handled (max leaf and vendor).
             case 1: // 01H -- Basic CPUID Information
                 // EAX
-                // Full  = Extended ID      | ID
-                //         EAX[27:20]       | EAX[11:8]
-                i.Family = (a >> 16 & 0xF0) | (a >> 8 & 0xF);
-                //         EAX[19:16]       | EAX[7:4]
-                i.Model =  (a >> 12 & 0xF0) | (a >> 4 & 0xF);
+                const ubyte family  = a >>  8 &  0xF; // Base FamilyID     | EAX[11:8]
+                const ubyte efamily = a >> 20 & 0xFF; // Extended FamilyID | EAX[27:20]
+                const ubyte model   = a >>  4 &  0xF; // Base ModelID
+                const ubyte emodel  = a >> 12 & 0xF0; // Extended ModelID  | 
+                switch (i.Vendor)
+                {
+                    case "AuthenticAMD":
+                    if (family < 0xF)
+                        i.Family = family;
+                    else
+                        i.Family = cast(ubyte)(family + efamily);
+
+                    if (family < 0xF)
+                        i.Model = cast(ubyte)(emodel << 4 | model);
+                    else
+                        i.Model = model;
+                    break;
+                    
+                    case "GenuineIntel":
+                    if (family != 0) // If Family_ID ≠ 0FH
+                        i.Family = family; // DisplayFamily = Family_ID;
+                    else // ELSE DisplayFamily = Extended_Family_ID + Family_ID;
+                        i.Family = cast(ubyte)(family + efamily);
+
+                    if (family == 6 || family == 0) // IF (Family_ID = 06H or Family_ID = 0FH)
+                    //  DisplayModel = (Extended_Model_ID « 4) + Model_ID;
+                        i.Model = model + emodel;
+                    else // DisplayModel = Model_ID;
+                        i.Model = model;
+                    break;
+
+                    default:
+                }
+
                 i.ProcessorType = (a >> 12) & 3; // EAX[13:12]
                 i.Stepping = a & 0xF; // EAX[3:0]
                 // EBX

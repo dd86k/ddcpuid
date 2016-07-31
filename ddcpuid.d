@@ -44,6 +44,7 @@ void main(string[] args)
     {
         switch (s)
         {
+        case "/?":
         case "-h":
         case "--help":
             writeln(" ddcpuid [<Options>]");
@@ -55,7 +56,7 @@ void main(string[] args)
             writeln(" --help      Prints help and quit.");
             writeln(" --version   Prints version and quit.");
             return;
-
+ 
         case "--version":
             writeln("ddcpuid v", ver);
             writeln("Copyright (c) guitarxhero 2016");
@@ -152,22 +153,23 @@ void main(string[] args)
             write("AESNI, ");
         if (c.AVX)
             write("AVX, ");
+        if (c.DS_CPL)
+            write("DS-CPL, ");
+        if (c.FMA)
+            write("FMA, ");
+        if (c.XSAVE)
+            write("XSAVE, ");
+        if (c.OSXSAVE)
+            write("OSXSAVE, ");
+        if (c.F16C)
+            write("F16C, ");
+        writeln();
 
         if (_det)
         {
-            if (c.DS_CPL)
-                write("DS-CPL, ");
-            if (c.FMA)
-                write("FMA, ");
-            if (c.XSAVE)
-                write("XSAVE, ");
-            if (c.OSXSAVE)
-                write("OSXSAVE, ");
-            if (c.F16C)
-                write("F16C, ");
-            writeln();
-
             write("Single instructions: [ ");
+            if (c.MONITOR)
+                write("MONITOR/MWAIT, ");
             if (c.PCLMULQDQ)
                 write("PCLMULQDQ, ");
             if (c.CX8)
@@ -179,25 +181,27 @@ void main(string[] args)
             if (c.RDRAND)
                 write("RDRAND, ");
             if (c.MSR)
-                write("RDMSR, WRMSR, ");
+                write("RDMSR/WRMSR, ");
             if (c.SEP)
-                write("SYSENTER, SYSEXIT, ");
+                write("SYSENTER/SYSEXIT, ");
             if (c.TSC)
                 writef("RDTSC (Deadline: %s), ", c.TSC_Deadline);
             if (c.CMOV)
                 write("CMOV, ");
             if (c.FPU && c.CMOV)
-                write("FCOMI, FCMOV, ");
+                write("FCOMI/FCMOV, ");
             if (c.CLFSH)
                 write("CLFLUSH, ");
             if (c.POPCNT)
                 write("POPCNT, ");
             if (c.FXSR)
-                write("FXSAVE, FXRSTOR, ");
-            write("]");
+                write("FXSAVE/FXRSTOR, ");
+            writeln("]");
         }
-        writeln();
+
+        writefln("Hyper-Threading Technology: %s", c.HTT);
         writefln("Turbo Boost Available: %s", SupportsTurboBoost());
+        writefln("Enhanced Intel SpeedStep technology: %s", c.EIST);
 
         if (_det)
         {
@@ -205,7 +209,6 @@ void main(string[] args)
             writeln(" ----- Details -----");
             writeln();
             writefln("Highest Leaf: %02XH | Extended: %02XH", max, emax);
-            writeln();
             write("Processor type: ");
             final switch (c.ProcessorType) // 2 bit value
             {
@@ -224,17 +227,18 @@ void main(string[] args)
             }
 
             //TODO: Floating point section
+            //TODO: Virtualization section
+            //TODO: Memory handling section
 
             writefln("Family %s Model %s Stepping %s", c.Family, c.Model, c.Stepping);
             writefln("Brand Index: %s", c.BrandIndex);
+            // MaximumNumberOfAddressableIDs / 2 (if HTT) for # cores?
             writefln("Max # of addressable IDs: %s", c.MaximumNumberOfAddressableIDs);
             writefln("APIC: %s (Initial ID: %s)", c.APIC, c.InitialAPICID);
             writefln("x2APIC: %s", c.x2APIC);
             writefln("DTES64: %s", c.DTES64);
-            writefln("MONITOR: %s", c.MONITOR);
             writefln("VMX: %s", c.VMX);
             writefln("SMX: %s", c.SMX);
-            writefln("EIST: %s", c.EIST);
             writefln("TM: %s", c.TM);
             writefln("TM2: %s", c.TM2);
             writefln("CNXT-ID: %s", c.CNXT_ID);
@@ -256,7 +260,6 @@ void main(string[] args)
             writefln("DS: %s", c.DS);
             writefln("APCI: %s", c.APCI);
             writefln("SS: %s", c.SS);
-            writefln("HTT: %s", c.HTT);
             writefln("PBE: %s", c.PBE);
         }
     }
@@ -399,7 +402,7 @@ public string GetProcessorBrandString()
             mov edx, EDX;
         }
         char* peax = cast(char*)&eax, pebx = cast(char*)&ebx,
-            pecx = cast(char*)&ecx, pedx = cast(char*)&edx;
+              pecx = cast(char*)&ecx, pedx = cast(char*)&edx;
         // EAX, EBX, ECX, EDX
         s ~= *peax;
         s ~= *(peax + 1);
@@ -448,13 +451,14 @@ public CPU_INFO GetCpuInfo()
 
         switch (leaf)
         {
+            // case 0 already has been handled (max leaf and vendor).
             case 1: // 01H -- Basic CPUID Information
                 // EAX
                 // Full  = Extended ID      | ID
                 //         EAX[27:20]       | EAX[11:8]
                 i.Family = (a >> 16 & 0xF0) | (a >> 8 & 0xF);
                 //         EAX[19:16]       | EAX[7:4]
-                i.Model = (a >> 12 & 0xF0) | (a >> 4 & 0xF);
+                i.Model =  (a >> 12 & 0xF0) | (a >> 4 & 0xF);
                 i.ProcessorType = (a >> 12) & 3; // EAX[13:12]
                 i.Stepping = a & 0xF; // EAX[3:0]
                 // EBX
@@ -525,7 +529,7 @@ public CPU_INFO GetCpuInfo()
                 i.PBE    = d >> 31 & 1;
                 break;
 
-                case 2: // 02h -- Basic CPUID Information
+            case 2: // 02h -- Cache and TLB Information.
 
                 break;
 
@@ -600,9 +604,7 @@ public class CPU_INFO
     /// AVX2 instruction extensions.
     public bool AVX2;
 
-    // Single instructions -- todo
-
-    //TODO: Document every member (///)
+    //TODO: Single instructions
 
     // ---- 01h : Basic CPUID Information ----
     // -- EBX --
@@ -618,7 +620,7 @@ public class CPU_INFO
     /// PCLMULQDQ instruction.
     public bool PCLMULQDQ; // 1
     /// 64-bit DS Area (64-bit layout). 
-    public bool DTES64;
+    public bool DTES64; // EM64T ??
     /// MONITOR/MWAIT.
     public bool MONITOR;
     /// CPL Qualified Debug Store.
@@ -710,7 +712,7 @@ public class CPU_INFO
     public bool FXSR;
     /// Self Snoop.
     public bool SS;
-    /// Max APIC IDs reserved field is Valid.
+    /// Hyper-threading technology.
     public bool HTT;
     /// Thermal Monitor.
     public bool TM;

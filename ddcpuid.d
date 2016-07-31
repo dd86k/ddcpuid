@@ -440,7 +440,7 @@ public CPU_INFO GetCpuInfo()
                 const ubyte family  = a >>  8 &  0xF; // Base FamilyID     | EAX[11:8]
                 const ubyte efamily = a >> 20 & 0xFF; // Extended FamilyID | EAX[27:20]
                 const ubyte model   = a >>  4 &  0xF; // Base ModelID      | EAX[7:4]
-                const ubyte emodel  = a >> 12 & 0xF0; // Extended ModelID  | EAX[19:16]
+                const ubyte emodel  = a >> 16 &  0xF; // Extended ModelID  | EAX[19:16]
                 switch (i.Vendor)
                 {
                     case "AuthenticAMD":
@@ -450,9 +450,9 @@ public CPU_INFO GetCpuInfo()
                         i.Family = cast(ubyte)(family + efamily);
 
                     if (family < 0xF)
-                        i.Model = cast(ubyte)(emodel << 4 | model);
-                    else
                         i.Model = model;
+                    else
+                        i.Model = cast(ubyte)(emodel << 4 | model);
                     break;
                     
                     case "GenuineIntel":
@@ -463,7 +463,7 @@ public CPU_INFO GetCpuInfo()
 
                     if (family == 6 || family == 0) // IF (Family_ID = 06H or Family_ID = 0FH)
                     //  DisplayModel = (Extended_Model_ID « 4) + Model_ID;
-                        i.Model = model + emodel;
+                        i.Model = cast(ubyte)(emodel << 4 | model);
                     else // DisplayModel = Model_ID;
                         i.Model = model;
                     break;

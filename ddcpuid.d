@@ -439,8 +439,8 @@ public CPU_INFO GetCpuInfo()
                 // EAX
                 const ubyte family  = a >>  8 &  0xF; // Base FamilyID     | EAX[11:8]
                 const ubyte efamily = a >> 20 & 0xFF; // Extended FamilyID | EAX[27:20]
-                const ubyte model   = a >>  4 &  0xF; // Base ModelID
-                const ubyte emodel  = a >> 12 & 0xF0; // Extended ModelID  | 
+                const ubyte model   = a >>  4 &  0xF; // Base ModelID      | EAX[7:4]
+                const ubyte emodel  = a >> 12 & 0xF0; // Extended ModelID  | EAX[19:16]
                 switch (i.Vendor)
                 {
                     case "AuthenticAMD":

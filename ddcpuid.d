@@ -101,8 +101,8 @@ void main(string[] args)
                 mov _ecx, ECX;
                 mov _edx, EDX;
             }
-            writefln("EAX=%08XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X", b,
-                _eax, _ebx, _ecx, _edx);
+            writefln("EAX=%08XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X",
+                b, _eax, _ebx, _ecx, _edx);
         }
         for (int b = 0x8000_0000; b <= emax; ++b)
         {
@@ -115,8 +115,8 @@ void main(string[] args)
                 mov _ecx, ECX;
                 mov _edx, EDX;
             }
-            writefln("EAX=%08XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X", b,
-                _eax, _ebx, _ecx, _edx);
+            writefln("EAX=%08XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X",
+                b, _eax, _ebx, _ecx, _edx);
         }
         asm
         {
@@ -153,6 +153,10 @@ void main(string[] args)
             write("AESNI, ");
         if (c.AVX)
             write("AVX, ");
+        if (c.VMX)
+            write("VMX");
+        if (c.SMX)
+            write("SMX");
         if (c.DS_CPL)
             write("DS-CPL, ");
         if (c.FMA)
@@ -191,7 +195,7 @@ void main(string[] args)
             if (c.FPU && c.CMOV)
                 write("FCOMI/FCMOV, ");
             if (c.CLFSH)
-                write("CLFLUSH, ");
+                writef("CLFLUSH (Lines: %s), ", c.CLFLUSHLineSize);
             if (c.POPCNT)
                 write("POPCNT, ");
             if (c.FXSR)
@@ -200,7 +204,7 @@ void main(string[] args)
         }
 
         writefln("Hyper-Threading Technology: %s", c.HTT);
-        writefln("Turbo Boost Available: %s", SupportsTurboBoost());
+        writefln("Turbo Boost Available: %s", c.TurboBoost);
         writefln("Enhanced Intel SpeedStep technology: %s", c.EIST);
 
         if (_det)
@@ -236,31 +240,29 @@ void main(string[] args)
             writefln("Max # of addressable IDs: %s", c.MaximumNumberOfAddressableIDs);
             writefln("APIC: %s (Initial ID: %s)", c.APIC, c.InitialAPICID);
             writefln("x2APIC: %s", c.x2APIC);
-            writefln("DTES64: %s", c.DTES64);
-            writefln("VMX: %s", c.VMX);
-            writefln("SMX: %s", c.SMX);
-            writefln("TM: %s", c.TM);
-            writefln("TM2: %s", c.TM2);
-            writefln("CNXT-ID: %s", c.CNXT_ID);
-            writefln("xTPR Update Control: %s", c.xTPR);
-            writefln("PDCM: %s", c.PDCM);
-            writefln("PCID: %s", c.PCID);
-            writefln("DCA: %s", c.DCA);
-            writefln("FPU: %s", c.FPU);
-            writefln("VME: %s", c.VME);
-            writefln("DE: %s", c.DE);
-            writefln("PAE: %s", c.PAE);
-            writefln("MCE: %s", c.MCE);
-            writefln("MTRR: %s", c.MTRR);
-            writefln("PGE: %s", c.PGE);
-            writefln("MCA: %s", c.MCA);
-            writefln("PAT: %s", c.PAT);
-            writefln("PSE-36: %s", c.PSE_36);
-            writefln("PSN: %s", c.PSN);
-            writefln("DS: %s", c.DS);
-            writefln("APCI: %s", c.APCI);
-            writefln("SS: %s", c.SS);
-            writefln("PBE: %s", c.PBE);
+            writefln("64-bit DS Area [DTES64]: %s", c.DTES64);
+            writefln("Thermal Monitor [TM]: %s", c.TM);
+            writefln("Thermal Monitor 2 [TM2]: %s", c.TM2);
+            writefln("L1 Context ID [CNXT-ID]: %s", c.CNXT_ID);
+            writefln("xTPR Update Control [xTPR]: %s", c.xTPR);
+            writefln("Perfmon and Debug Capability [PDCM]: %s", c.PDCM);
+            writefln("Process-context identifiers [PCID]: %s", c.PCID);
+            writefln("Direct Cache Access [DCA]: %s", c.DCA);
+            writefln("Floating Point Unit [FPU]: %s", c.FPU);
+            writefln("Virtual 8086 Mode Enhancements [VME]: %s", c.VME);
+            writefln("Debugging Extensions [DE]: %s", c.DE);
+            writefln("Page Size Extension [PAE]: %s", c.PAE);
+            writefln("Machine Check Exception [MCE]: %s", c.MCE);
+            writefln("Memory Type Range Registers [MTRR]: %s", c.MTRR);
+            writefln("Page Global Bit [PGE]: %s", c.PGE);
+            writefln("Machine Check Architecture [MCA]: %s", c.MCA);
+            writefln("Page Attribute Table [PAT]: %s", c.PAT);
+            writefln("36-Bit Page Size Extension [PSE-36]: %s", c.PSE_36);
+            writefln("Processor Serial Number [PSN]: %s", c.PSN);
+            writefln("Debug Store [DS]: %s", c.DS);
+            writefln("Thermal Monitor and Software Controlled Clock Facilities [APCI]: %s", c.APCI);
+            writefln("Self Snoop [SS]: %s", c.SS);
+            writefln("Pending Break Enable [PBE]: %s", c.PBE);
         }
     }
 }
@@ -333,25 +335,6 @@ public string GetVendor()
     = (Ways + 1) * (Partitions + 1) * (Line_Size + 1) * (Sets + 1)
     = (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
 */
-
-// ----- 05H - MONITOR/MWAIT Leaf -----
-
-// ----- 06H - Thermal and Power Management Leaf -----
-// EAX
-// Bit 00 - 
-
-// Bit 01 - Intel Turbo Boost Technology Available
-public bool SupportsTurboBoost()
-{
-    int e;
-    asm
-    {
-        mov EAX, 6;
-        cpuid;
-        mov e, EAX;
-    }
-    return e >> 1 & 1;
-}
 
 // ----- 80000000H - Extended Function CPUID Information -----
 // EAX - Maximum Input Value for Extended Function CPUID Information.
@@ -529,27 +512,17 @@ public CPU_INFO GetCpuInfo()
                 i.PBE    = d >> 31 & 1;
                 break;
 
-            case 2: // 02h -- Cache and TLB Information.
+            case 2: // 02h -- Cache and TLB Information. | AMD: Reserved
 
+                break;
+
+            case 6: // 06h -- Thermal and Power Management Leaf | AMD: Reversed
+                i.TurboBoost = a >> 1 & 1;
                 break;
 
                 default:
         }
     }
-
-    // Vendor specific features.
-    /*switch (i.Vendor)
-    {
-        case "GenuineIntel":
-
-        break;
-
-        case "AuthenticAMD":
-
-        break;
-
-        default:
-    }*/
 
     return i;
 }
@@ -559,8 +532,9 @@ public CPU_INFO GetCpuInfo()
 /// </summary>
 public class CPU_INFO
 {
-    //TODO: Default constructor for CPU_INFO
+    //TODO: Default constructor for CPU_INFO which will query information.
     //this() { ... }
+    //this(bool query = true) { ... }
 
     // ---- Basic information ----
     /// Processor vendor.
@@ -583,7 +557,7 @@ public class CPU_INFO
     public ubyte Stepping;
 
     // ---- Instruction extensions ----
-    /// Intel MMX Technology.
+    /// MMX Technology.
     public bool MMX;
     /// Streaming SIMD Extensions.
     public bool SSE;
@@ -647,7 +621,7 @@ public class CPU_INFO
     public bool PDCM;
     /// Process-context identifiers.
     public bool PCID;
-    /// Indicates if the processor supports the ability to prefetch data from a memory mapped device.
+    /// Direct Cache Access.
     public bool DCA;
     /// x2APIC feature (Intel programmable interrupt controller).
     public bool x2APIC;
@@ -719,20 +693,9 @@ public class CPU_INFO
     /// Pending Break Enable.
     public bool PBE; // 31
 
-    /// Intel specific features.
-    public IntelFeatures Intel;
-    /// AMD specific features.
-    public AmdFeatures Amd;
-}
 
-/// Intel specific features
-public class IntelFeatures
-{
-    public bool TurboBoostTechnology;
-}
 
-/// AMD specific features
-public class AmdFeatures
-{
-
+    // ---- 06h - Thermal and Power Management Leaf ----
+    /// Turbo Boost Technology
+    public bool TurboBoost;
 }

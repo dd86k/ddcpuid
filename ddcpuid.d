@@ -50,7 +50,7 @@ void main(string[] args)
             writeln(" ddcpuid [<Options>]");
             writeln();
             writeln(" --details, -D    Gets more details.");
-            writeln(" --override, -O   Overrides the maximum leaf to 17H.");
+            writeln(" --override, -O   Overrides the maximum leaf and extended leaf.");
             writeln(" --debug          Gets debugging information.");
             writeln();
             writeln(" --help      Prints help and quit.");
@@ -85,7 +85,7 @@ void main(string[] args)
     // Maximum leaf
     int max = _oml ? 0x17 : GetHighestLeaf();
     // Maximum extended leaf
-    int emax = _oml ? 0x8000_0008 : GetHighestExtendedLeaf();
+    int emax = _oml ? 0x8000_0020 : GetHighestExtendedLeaf();
 
     if (_dbg)
     {
@@ -437,33 +437,33 @@ public CPU_INFO GetCpuInfo()
             // case 0 already has been handled (max leaf and vendor).
             case 1: // 01H -- Basic CPUID Information
                 // EAX
-                const ubyte family  = a >>  8 &  0xF; // Base FamilyID     | EAX[11:8]
-                const ubyte efamily = a >> 20 & 0xFF; // Extended FamilyID | EAX[27:20]
-                const ubyte model   = a >>  4 &  0xF; // Base ModelID      | EAX[7:4]
-                const ubyte emodel  = a >> 16 &  0xF; // Extended ModelID  | EAX[19:16]
+                const ubyte family  = a >>  8 &  0xF; // BaseFamilyID     | EAX[11:8]
+                const ubyte efamily = a >> 20 & 0xFF; // ExtendedFamilyID | EAX[27:20]
+                const ubyte model   = a >>  4 &  0xF; // BaseModelID      | EAX[7:4]
+                const ubyte emodel  = a >> 16 &  0xF; // ExtendedModelID  | EAX[19:16]
                 switch (i.Vendor)
                 {
                     case "AuthenticAMD":
                     if (family < 0xF)
                         i.Family = family;
                     else
-                        i.Family = cast(ubyte)(family + efamily);
+                        i.Family = cast(ubyte)(efamily + family);
 
                     if (family < 0xF)
                         i.Model = model;
                     else
-                        i.Model = cast(ubyte)(emodel << 4 | model);
+                        i.Model = cast(ubyte)((emodel << 4) + model);
                     break;
                     
                     case "GenuineIntel":
                     if (family != 0) // If Family_ID ≠ 0FH
                         i.Family = family; // DisplayFamily = Family_ID;
                     else // ELSE DisplayFamily = Extended_Family_ID + Family_ID;
-                        i.Family = cast(ubyte)(family + efamily);
+                        i.Family = cast(ubyte)(efamily + family);
 
                     if (family == 6 || family == 0) // IF (Family_ID = 06H or Family_ID = 0FH)
                     //  DisplayModel = (Extended_Model_ID « 4) + Model_ID;
-                        i.Model = cast(ubyte)(emodel << 4 | model);
+                        i.Model = cast(ubyte)((emodel << 4) + model);
                     else // DisplayModel = Model_ID;
                         i.Model = model;
                     break;

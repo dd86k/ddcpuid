@@ -135,6 +135,14 @@ void main(string[] args)
 
         writeln("Vendor: ", c.Vendor);
         writeln("Model: ", strip(c.ProcessorBrandString));
+        writefln("Identification: Family %s Model %s Stepping %s", c.Family, c.Model, c.Stepping);
+
+        if (_det)
+        {
+            writefln("BaseFamily: %s, ExtendedFamily: %s, BaseModel: %s, ExtendedModel: %s",
+                c.BaseFamily, c.ExtendedFamily, c.BaseModel, c.ExtendedModel);
+        }
+
         write("Extensions: ");
         if (c.MMX)
             write("MMX, ");
@@ -235,7 +243,6 @@ void main(string[] args)
             //TODO: Virtualization section
             //TODO: Memory handling section
 
-            writefln("Family %s Model %s Stepping %s", c.Family, c.Model, c.Stepping);
             writefln("Brand Index: %s", c.BrandIndex);
             // MaximumNumberOfAddressableIDs / 2 (if HTT) for # cores?
             writefln("Max # of addressable IDs: %s", c.MaximumNumberOfAddressableIDs);
@@ -445,28 +452,28 @@ public CPU_INFO GetCpuInfo()
                 switch (i.Vendor)
                 {
                     case "AuthenticAMD":
-                    if (family < 0xF)
-                        i.Family = family;
+                    if (i.BaseFamily < 0xF)
+                        i.Family = i.BaseFamily;
                     else
-                        i.Family = cast(ubyte)(efamily + family);
+                        i.Family = cast(ubyte)(i.ExtendedFamily + i.BaseFamily);
 
-                    if (family < 0xF)
-                        i.Model = model;
+                    if (i.BaseFamily < 0xF)
+                        i.Model = i.BaseModel;
                     else
-                        i.Model = cast(ubyte)((emodel << 4) + model);
+                        i.Model = cast(ubyte)((i.ExtendedModel << 4) + i.BaseModel);
                     break;
                     
                     case "GenuineIntel":
-                    if (family != 0) // If Family_ID ≠ 0FH
-                        i.Family = family; // DisplayFamily = Family_ID;
+                    if (i.BaseFamily != 0) // If Family_ID ≠ 0FH
+                        i.Family = i.BaseFamily; // DisplayFamily = Family_ID;
                     else // ELSE DisplayFamily = Extended_Family_ID + Family_ID;
-                        i.Family = cast(ubyte)(efamily + family);
+                        i.Family = cast(ubyte)(i.ExtendedFamily + i.BaseFamily);
 
-                    if (family == 6 || family == 0) // IF (Family_ID = 06H or Family_ID = 0FH)
+                    if (i.BaseFamily == 6 || i.BaseFamily == 0) // IF (Family_ID = 06H or Family_ID = 0FH)
                     //  DisplayModel = (Extended_Model_ID « 4) + Model_ID;
-                        i.Model = cast(ubyte)((emodel << 4) + model);
+                        i.Model = cast(ubyte)((i.ExtendedModel << 4) + i.BaseModel);
                     else // DisplayModel = Model_ID;
-                        i.Model = model;
+                        i.Model = i.BaseModel;
                     break;
 
                     default:

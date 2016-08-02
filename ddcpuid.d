@@ -135,12 +135,17 @@ void main(string[] args)
 
         writeln("Vendor: ", c.Vendor);
         writeln("Model: ", strip(c.ProcessorBrandString));
-        writefln("Identification: Family %s Model %s Stepping %s", c.Family, c.Model, c.Stepping);
+        writefln("Identification: Family %s [%X] Model %s [%X] Stepping %s [%X]",
+            c.Family, c.Family, c.Model, c.Model, c.Stepping, c.Stepping);
 
         if (_det)
         {
-            writefln("BaseFamily: %s, ExtendedFamily: %s, BaseModel: %s, ExtendedModel: %s",
-                c.BaseFamily, c.ExtendedFamily, c.BaseModel, c.ExtendedModel);
+            writefln(
+                "BaseFamily: %s [%X], Extended: %s [%X], BaseModel: %s [%X], Extended: %s [%X]",
+                c.BaseFamily, c.BaseFamily,
+                c.ExtendedFamily, c.ExtendedFamily,
+                c.BaseModel, c.BaseModel,
+                c.ExtendedModel, c.ExtendedModel);
         }
 
         write("Extensions: ");
@@ -198,7 +203,12 @@ void main(string[] args)
             if (c.SEP)
                 write("SYSENTER/SYSEXIT, ");
             if (c.TSC)
-                writef("RDTSC (Deadline: %s), ", c.TSC_Deadline);
+            {
+                write("RDTSC");
+                if (c.TSC_Deadline)
+                    write(" (TSC-Deadline)");
+                write(", ");
+            }
             if (c.CMOV)
                 write("CMOV, ");
             if (c.FPU && c.CMOV)
@@ -452,11 +462,15 @@ public CPU_INFO GetCpuInfo()
                 switch (i.Vendor)
                 {
                     case "AuthenticAMD":
+                    // If BaseFamily[3:0] is less than Fh, then ExtFamily is
+                    // reserved and Family is equal to BaseFamily[3:0].
                     if (i.BaseFamily < 0xF)
                         i.Family = i.BaseFamily;
                     else
                         i.Family = cast(ubyte)(i.ExtendedFamily + i.BaseFamily);
 
+                    // If BaseFamily[3:0] is less than 0Fh, then ExtModel is
+                    // reserved and Model is equal to BaseModel[3:0].
                     if (i.BaseFamily < 0xF)
                         i.Model = i.BaseModel;
                     else
@@ -488,15 +502,15 @@ public CPU_INFO GetCpuInfo()
                 i.InitialAPICID = b >> 24 & 0xFF; // EBX[31:24]
                 // ECX
                 i.SSE3         = c & 1;
-                i.PCLMULQDQ    = c >> 1 & 1;
-                i.DTES64       = c >> 2 & 1;
-                i.MONITOR      = c >> 3 & 1;
-                i.DS_CPL       = c >> 4 & 1;
-                i.VMX          = c >> 5 & 1;
-                i.SMX          = c >> 6 & 1;
-                i.EIST         = c >> 7 & 1;
-                i.TM2          = c >> 8 & 1;
-                i.SSSE3        = c >> 9 & 1;
+                i.PCLMULQDQ    = c >>  1 & 1;
+                i.DTES64       = c >>  2 & 1;
+                i.MONITOR      = c >>  3 & 1;
+                i.DS_CPL       = c >>  4 & 1;
+                i.VMX          = c >>  5 & 1;
+                i.SMX          = c >>  6 & 1;
+                i.EIST         = c >>  7 & 1;
+                i.TM2          = c >>  8 & 1;
+                i.SSSE3        = c >>  9 & 1;
                 i.CNXT_ID      = c >> 10 & 1;
                 i.SDBG         = c >> 11 & 1;
                 i.FMA          = c >> 12 & 1;

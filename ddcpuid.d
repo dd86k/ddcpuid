@@ -32,6 +32,7 @@ BOOL DllMain(HINSTANCE hInstance, ULONG ulReason, LPVOID pvReserved)
     return true;
 }*/
 
+/// Version
 const string ver = "0.1.0";
 
 void main(string[] args)
@@ -437,10 +438,10 @@ public CPU_INFO GetCpuInfo()
             // case 0 already has been handled (max leaf and vendor).
             case 1: // 01H -- Basic CPUID Information
                 // EAX
-                const ubyte family  = a >>  8 &  0xF; // BaseFamilyID     | EAX[11:8]
-                const ubyte efamily = a >> 20 & 0xFF; // ExtendedFamilyID | EAX[27:20]
-                const ubyte model   = a >>  4 &  0xF; // BaseModelID      | EAX[7:4]
-                const ubyte emodel  = a >> 16 &  0xF; // ExtendedModelID  | EAX[19:16]
+                i.BaseFamily     = a >>  8 &  0xF; // EAX[11:8]
+                i.ExtendedFamily = a >> 20 & 0xFF; // EAX[27:20]
+                i.BaseModel      = a >>  4 &  0xF; // EAX[7:4]
+                i.ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
                 switch (i.Vendor)
                 {
                     case "AuthenticAMD":
@@ -577,13 +578,21 @@ public class CPU_INFO
     public int MaximumExtendedLeaf;
 
     /// Processor family. ID and extended ID included.
-    public ubyte Family;
+    public ushort Family;
+    /// Base Family ID
+    public ubyte BaseFamily;
+    /// Extended Family ID
+    public ubyte ExtendedFamily;
     /// Processor model. ID and extended ID included.
     public ubyte Model;
-    /// Processor type.**1
-    public ubyte ProcessorType;
+    /// Base Model ID
+    public ubyte BaseModel;
+    /// Extended Model ID
+    public ubyte ExtendedModel;
     /// Processor stepping.
     public ubyte Stepping;
+    /// Processor type.**1
+    public ubyte ProcessorType;
 
     // ---- Instruction extensions ----
     /// MMX Technology.

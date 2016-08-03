@@ -131,7 +131,7 @@ void main(string[] args)
     }
     else
     {
-        CPU_INFO c = GetCpuInfo();
+        CPU_INFO c = new CPU_INFO(true);
 
         writeln("Vendor: ", c.Vendor);
         writeln("Model: ", strip(c.ProcessorBrandString));
@@ -425,174 +425,23 @@ public string GetProcessorBrandString()
     return s;
 }
 
-// ---- Misc ----
-
-/// Returns a CPU_INFO object.
-public CPU_INFO GetCpuInfo()
-{
-    CPU_INFO i = new CPU_INFO;
-
-    i.Vendor = GetVendor();
-    i.ProcessorBrandString = GetProcessorBrandString();
-
-    i.MaximumLeaf = GetHighestLeaf();
-
-    int a, b, c, d;
-    for (int leaf = 1; leaf <= i.MaximumLeaf; ++leaf)
-    {
-        asm
-        {
-            mov EAX, leaf;
-            cpuid;
-            mov a, EAX;
-            mov b, EBX;
-            mov c, ECX;
-            mov d, EDX;
-        }
-
-        switch (leaf)
-        {
-            // case 0 already has been handled (max leaf and vendor).
-            case 1: // 01H -- Basic CPUID Information
-                // EAX
-                i.BaseFamily     = a >>  8 &  0xF; // EAX[11:8]
-                i.ExtendedFamily = a >> 20 & 0xFF; // EAX[27:20]
-                i.BaseModel      = a >>  4 &  0xF; // EAX[7:4]
-                i.ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
-                switch (i.Vendor)
-                {
-                    case "AuthenticAMD":
-                    // If BaseFamily[3:0] is less than Fh, then ExtFamily is
-                    // reserved and Family is equal to BaseFamily[3:0].
-                    if (i.BaseFamily < 0xF)
-                        i.Family = i.BaseFamily;
-                    else
-                        i.Family = cast(ubyte)(i.ExtendedFamily + i.BaseFamily);
-
-                    // If BaseFamily[3:0] is less than 0Fh, then ExtModel is
-                    // reserved and Model is equal to BaseModel[3:0].
-                    if (i.BaseFamily < 0xF)
-                        i.Model = i.BaseModel;
-                    else
-                        i.Model = cast(ubyte)((i.ExtendedModel << 4) + i.BaseModel);
-                    break;
-                    
-                    case "GenuineIntel":
-                    if (i.BaseFamily != 0) // If Family_ID ≠ 0FH
-                        i.Family = i.BaseFamily; // DisplayFamily = Family_ID;
-                    else // ELSE DisplayFamily = Extended_Family_ID + Family_ID;
-                        i.Family = cast(ubyte)(i.ExtendedFamily + i.BaseFamily);
-
-                    if (i.BaseFamily == 6 || i.BaseFamily == 0) // IF (Family_ID = 06H or Family_ID = 0FH)
-                    //  DisplayModel = (Extended_Model_ID « 4) + Model_ID;
-                        i.Model = cast(ubyte)((i.ExtendedModel << 4) + i.BaseModel);
-                    else // DisplayModel = Model_ID;
-                        i.Model = i.BaseModel;
-                    break;
-
-                    default:
-                }
-
-                i.ProcessorType = (a >> 12) & 3; // EAX[13:12]
-                i.Stepping = a & 0xF; // EAX[3:0]
-                // EBX
-                i.BrandIndex = b & 0xFF; // EBX[7:0]
-                i.CLFLUSHLineSize = b >> 8 & 0xFF; // EBX[15:8]
-                i.MaximumNumberOfAddressableIDs = b >> 16 & 0xFF; // EBX[23:16]
-                i.InitialAPICID = b >> 24 & 0xFF; // EBX[31:24]
-                // ECX
-                i.SSE3         = c & 1;
-                i.PCLMULQDQ    = c >>  1 & 1;
-                i.DTES64       = c >>  2 & 1;
-                i.MONITOR      = c >>  3 & 1;
-                i.DS_CPL       = c >>  4 & 1;
-                i.VMX          = c >>  5 & 1;
-                i.SMX          = c >>  6 & 1;
-                i.EIST         = c >>  7 & 1;
-                i.TM2          = c >>  8 & 1;
-                i.SSSE3        = c >>  9 & 1;
-                i.CNXT_ID      = c >> 10 & 1;
-                i.SDBG         = c >> 11 & 1;
-                i.FMA          = c >> 12 & 1;
-                i.CMPXCHG16B   = c >> 13 & 1;
-                i.xTPR         = c >> 14 & 1;
-                i.PDCM         = c >> 15 & 1;
-                i.PCID         = c >> 17 & 1;
-                i.DCA          = c >> 18 & 1;
-                i.SSE41        = c >> 19 & 1;
-                i.SSE42        = c >> 20 & 1;
-                i.x2APIC       = c >> 21 & 1;
-                i.MOVBE        = c >> 22 & 1;
-                i.POPCNT       = c >> 23 & 1;
-                i.TSC_Deadline = c >> 24 & 1;
-                i.AESNI        = c >> 25 & 1;
-                i.XSAVE        = c >> 26 & 1;
-                i.OSXSAVE      = c >> 27 & 1;
-                i.AVX          = c >> 28 & 1;
-                i.F16C         = c >> 29 & 1;
-                i.RDRAND       = c >> 30 & 1;
-                // EDX
-                i.FPU    = d & 1;
-                i.VME    = d >>  1 & 1;
-                i.DE     = d >>  2 & 1;
-                i.PSE    = d >>  3 & 1;
-                i.TSC    = d >>  4 & 1;
-                i.MSR    = d >>  5 & 1;
-                i.PAE    = d >>  6 & 1;
-                i.MCE    = d >>  7 & 1;
-                i.CX8    = d >>  8 & 1;
-                i.APIC   = d >>  9 & 1;
-                i.SEP    = d >> 11 & 1;
-                i.MTRR   = d >> 12 & 1;
-                i.PGE    = d >> 13 & 1;
-                i.MCA    = d >> 14 & 1;
-                i.CMOV   = d >> 15 & 1;
-                i.PAT    = d >> 16 & 1;
-                i.PSE_36 = d >> 17 & 1;
-                i.PSN    = d >> 18 & 1;
-                i.CLFSH  = d >> 19 & 1;
-                i.DS     = d >> 21 & 1;
-                i.APCI   = d >> 22 & 1;
-                i.MMX    = d >> 23 & 1;
-                i.FXSR   = d >> 24 & 1;
-                i.SSE    = d >> 25 & 1;
-                i.SSE2   = d >> 26 & 1;
-                i.SS     = d >> 27 & 1;
-                i.HTT    = d >> 28 & 1;
-                i.TM     = d >> 29 & 1;
-                i.PBE    = d >> 31 & 1;
-                break;
-
-            case 2: // 02h -- Cache and TLB Information. | AMD: Reserved
-
-                break;
-
-            case 6: // 06h -- Thermal and Power Management Leaf | AMD: Reversed
-                i.TurboBoost = a >> 1 & 1;
-                break;
-
-                default:
-        }
-    }
-
-    return i;
-}
+/***********
+ * Classes *
+ ***********/
 
 /// <summary>
 /// Provides a set of information about the processor.
 /// </summary>
 public class CPU_INFO
 {
-    this()
-    {
-
-    }
-
+    /// Initiates a CPU_INFO without fetching CPU info.
     this(bool fetch = false)
     {
-
+        if (fetch)
+            FetchInfo();
     }
 
+    /// Fetches the information 
     public void FetchInfo()
     {
         Vendor = GetVendor();

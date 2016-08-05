@@ -16,7 +16,7 @@ The `--debug` switch is provided for debugging purposes.
 ## Compiling
 I highly recommend the Digital Mars D (dmd) compiler, since the GNU D Compiler (gdc) does not support the Intel-like syntax.
 
-LLVM D Compiler (ldc) supports the Intel-like syntax, the GCC syntax, and the LLVM inline IR ([LDC](https://wiki.dlang.org/LDC_inline_IR)), but requires MinGW for Windows.
+The LLVM D Compiler (ldc2) supports the Intel-like syntax, the GCC syntax, and the LLVM inline IR ([Wiki.dlang.org](https://wiki.dlang.org/LDC_inline_IR)), but requires MinGW for Windows.
 
 This project uses the standard library (Phobos) and runtime (druntime).
 

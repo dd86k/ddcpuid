@@ -1,5 +1,4 @@
 import std.stdio, std.string;
-
 /*import core.sys.windows.windows;
 import core.sys.windows.dll;
  
@@ -496,7 +495,7 @@ public class CPU_INFO
                             Family = cast(ubyte)(ExtendedFamily + BaseFamily);
 
                         if (BaseFamily == 6 || BaseFamily == 0) // IF (Family_ID = 06H or Family_ID = 0FH)
-                        //  DisplayModel = (Extended_Model_ID « 4) + Model_ID;
+                        // DisplayModel = (Extended_Model_ID « 4) + Model_ID;
                             Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
                         else // DisplayModel = Model_ID;
                             Model = BaseModel;

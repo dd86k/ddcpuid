@@ -20,6 +20,16 @@ The LLVM D Compiler (ldc2) supports the Intel-like syntax, the GCC syntax, and t
 
 This project uses the standard library (Phobos) and runtime (druntime).
 
+The executable:
+```
+dmd ddcpuid.d
+```
+
+The Windows DLL:
+```
+dmd -version=DLL -ofddcpuid.dll -shared ddcpuid.d ddcpuid.def
+```
+
 THIS TOOL IS ONLY FOR x86 AND AMD64 (x86-64) PROCESSORS.
 
 License: [MIT License](LICENSE)

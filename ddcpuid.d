@@ -166,6 +166,8 @@ void main(string[] args)
             write("AESNI, ");
         if (c.AVX)
             write("AVX, ");
+        if (c.AVX2)
+            write("AVX2, ");
         if (c.VMX)
             write("VMX, ");
         if (c.SMX)
@@ -331,18 +333,6 @@ public string GetVendor()
     s ~= *(pecx + 3);
     return s;
 }
-
-// ----- 02H - Basic CPUID Information -----
-// EAX, EBX, ECX, EDX - Cache and TLB Information.
-//TODO: 02H
-
-// ----- 03H - Basic CPUID Information -----
-// EAX and EBX are reserved.
-
-// NOTES: (From the Intel document)
-// Processor serial number (PSN) is not supported in the Pentium 4 processor or later.
-// On all models, use the PSN flag (returned using CPUID) to check for PSN support
-// before accessing the feature.
 
 // ----- 04H - Deterministic Cache Parameters Leaf -----
 // NOTES: Leaf 04H output depends on the initial value in ECX.*
@@ -579,16 +569,24 @@ public class CPU_INFO
                     break;
 
                 case 6: // 06h -- Thermal and Power Management Leaf | AMD: Reversed
-                    TurboBoost = a >> 1 & 1;
+                    switch (Vendor)
+                    {
+                        case "GenuineIntel":
+                            TurboBoost = a >> 1 & 1;
+                            break;
+
+                        default:
+                    }
                     break;
 
                     default:
+
+                case 7:
+                    AVX2 = b >> 5 & 1;
+                    break;
             }
         }
     }
-    //TODO: Default constructor for CPU_INFO which will query information.
-    //this() { ... }
-    //this(bool query = true) { ... }
 
     // ---- Basic information ----
     /// Processor vendor.

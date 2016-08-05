@@ -5,7 +5,7 @@ This small utility will reveal everything through `CPUID` -- A CPU instruction t
 
 It is planned to probably do a GUI version as well, there is a nice list of [libraries](https://wiki.dlang.org/Libraries_and_Frameworks) for it too.
 
-If you have any questions, suggestions, find any bugs, or notice incorect data, please either start an Issue or send an [email](mailto:devddstuff@gmail.com)!
+If you have any questions, suggestions, requests, find any bugs, or notice incorect data, please either start an Issue or send an [email](mailto:devddstuff@gmail.com)!
 
 ## Goal
 

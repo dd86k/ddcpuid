@@ -163,7 +163,7 @@ void main(string[] args)
         if (c.SSE42)
             write("SSE4.2, ");
         if (c.AESNI)
-            write("AESNI, ");
+            write("AES-NI, ");
         if (c.AVX)
             write("AVX, ");
         if (c.AVX2)
@@ -283,6 +283,16 @@ void main(string[] args)
             writefln("Self Snoop [SS]: %s", c.SS);
             writefln("Pending Break Enable [PBE]: %s", c.PBE);
             writefln("Supervisor Mode Execution Protection [SMEP]: %s", c.SMEP);
+            write("Bit manipulation groups: ");
+            if (c.BMI1 || c.BMI2)
+            {
+                if (c.BMI1)
+                    write("BMI1 ");
+                if (c.BMI2)
+                    write("BMI2");
+            }
+            else
+                writeln("None");
         }
     }
 }
@@ -583,8 +593,10 @@ public class CPU_INFO
                     default:
 
                 case 7:
+                    BMI1 = b >> 3 & 1;
                     AVX2 = b >> 5 & 1;
                     SMEP = b >> 7 & 1;
+                    BMI2 = b >> 8 & 1;
                     break;
             }
         }
@@ -758,8 +770,15 @@ public class CPU_INFO
 
     // ---- 07h - Thermal and Power Management Leaf ----
     // -- EBX --
-    /// Supervisor Mode Execution Protection
+    /*
+     * Note: BMI1, BMI2, and SMEP were instroduced in 4th Generation Core processors.
+     */
+    /// Bit manipulation group 1 instruction support.
+    public bool BMI1; // 3
+    /// Supervisor Mode Execution Protection.
     public bool SMEP; // 7
+    /// Bit manipulation group 2 instruction support.
+    public bool BMI2; // 8
 
 
     // ---- 06h - Thermal and Power Management Leaf ----

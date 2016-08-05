@@ -282,6 +282,7 @@ void main(string[] args)
             writefln("Thermal Monitor and Software Controlled Clock Facilities [APCI]: %s", c.APCI);
             writefln("Self Snoop [SS]: %s", c.SS);
             writefln("Pending Break Enable [PBE]: %s", c.PBE);
+            writefln("Supervisor Mode Execution Protection [SMEP]: %s", c.SMEP);
         }
     }
 }
@@ -583,6 +584,7 @@ public class CPU_INFO
 
                 case 7:
                     AVX2 = b >> 5 & 1;
+                    SMEP = b >> 7 & 1;
                     break;
             }
         }
@@ -754,8 +756,13 @@ public class CPU_INFO
     public bool PBE; // 31
 
 
+    // ---- 07h - Thermal and Power Management Leaf ----
+    // -- EBX --
+    /// Supervisor Mode Execution Protection
+    public bool SMEP; // 7
+
 
     // ---- 06h - Thermal and Power Management Leaf ----
-    /// Turbo Boost Technology
+    /// Turbo Boost Technology (Intel)
     public bool TurboBoost;
 }

@@ -89,34 +89,36 @@ void main(string[] args)
 
     if (_dbg)
     {
+        writeln("|   Leaf   | Sub-leaf | EAX      | EBX      | ECX      | EDX      |");
+        writeln("|----------|----------|----------|----------|----------|----------| ");
         uint _eax, _ebx, _ecx, _edx, _ebp, _esp, _edi, _esi;
-        for (int b = 0; b <= max; ++b)
+        for (int leaf = 0; leaf <= max; ++leaf)
         {
             asm
             {
-                mov EAX, b;
+                mov EAX, leaf;
                 cpuid;
                 mov _eax, EAX;
                 mov _ebx, EBX;
                 mov _ecx, ECX;
                 mov _edx, EDX;
             }
-            writefln("EAX=%08XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X",
-                b, _eax, _ebx, _ecx, _edx);
+            writefln("| %8X |        0 | %8X | %8X | %8X | %8X |",
+                leaf, _eax, _ebx, _ecx, _edx);
         }
-        for (int b = 0x8000_0000; b <= emax; ++b)
+        for (int eleaf = 0x8000_0000; eleaf <= emax; ++eleaf)
         {
             asm
             {
-                mov EAX, b;
+                mov EAX, eleaf;
                 cpuid;
                 mov _eax, EAX;
                 mov _ebx, EBX;
                 mov _ecx, ECX;
                 mov _edx, EDX;
             }
-            writefln("EAX=%08XH -> EAX=%-8X EBX=%-8X ECX=%-8X EDX=%-8X",
-                b, _eax, _ebx, _ecx, _edx);
+            writefln("| %8X |        0 | %8X | %8X | %8X | %8X |",
+                eleaf, _eax, _ebx, _ecx, _edx);
         }
         asm
         {
@@ -668,7 +670,7 @@ public class CPU_INFO
     /// PCLMULQDQ instruction.
     public bool PCLMULQDQ; // 1
     /// 64-bit DS Area (64-bit layout). 
-    public bool DTES64; // EM64T ??
+    public bool DTES64;
     /// MONITOR/MWAIT.
     public bool MONITOR;
     /// CPL Qualified Debug Store.
@@ -767,11 +769,15 @@ public class CPU_INFO
     /// Pending Break Enable.
     public bool PBE; // 31
 
+    // ---- 06h - Thermal and Power Management Leaf ----
+    /// Turbo Boost Technology (Intel)
+    public bool TurboBoost;
+
 
     // ---- 07h - Thermal and Power Management Leaf ----
     // -- EBX --
     /*
-     * Note: BMI1, BMI2, and SMEP were instroduced in 4th Generation Core processors.
+     * Note: BMI1, BMI2, and SMEP were introduced in 4th Generation Core processors.
      */
     /// Bit manipulation group 1 instruction support.
     public bool BMI1; // 3
@@ -779,9 +785,4 @@ public class CPU_INFO
     public bool SMEP; // 7
     /// Bit manipulation group 2 instruction support.
     public bool BMI2; // 8
-
-
-    // ---- 06h - Thermal and Power Management Leaf ----
-    /// Turbo Boost Technology (Intel)
-    public bool TurboBoost;
 }

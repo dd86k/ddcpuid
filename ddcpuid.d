@@ -148,18 +148,10 @@ void main(string[] args)
 
         writeln("Vendor: ", c.Vendor);
         writeln("Model: ", strip(c.ProcessorBrandString));
-        writefln("Identification: Family %s [%X] Model %s [%X] Stepping %s [%X]",
-            c.Family, c.Family, c.Model, c.Model, c.Stepping, c.Stepping);
-
-        if (_det)
-        {
-            writefln(
-                "BaseFamily: %s [%X], Extended: %s [%X], BaseModel: %s [%X], Extended: %s [%X]",
-                c.BaseFamily, c.BaseFamily,
-                c.ExtendedFamily, c.ExtendedFamily,
-                c.BaseModel, c.BaseModel,
-                c.ExtendedModel, c.ExtendedModel);
-        }
+        writefln("Identification: Family %X [%X:%X] Model %X [%X:%X] Stepping %X",
+            c.Family, c.BaseFamily, c.ExtendedFamily,
+            c.Model, c.BaseModel, c.ExtendedModel,
+            c.Stepping);
 
         write("Extensions: ");
         if (c.MMX)
@@ -190,12 +182,12 @@ void main(string[] args)
             write("DS-CPL, ");
         if (c.FMA)
             write("FMA, ");
+        if (c.F16C)
+            write("F16C, ");
         if (c.XSAVE)
             write("XSAVE, ");
         if (c.OSXSAVE)
             write("OSXSAVE, ");
-        if (c.F16C)
-            write("F16C, ");
         writeln();
 
         if (_det)
@@ -249,7 +241,7 @@ void main(string[] args)
             writefln("Highest Leaf: %02XH | Extended: %02XH", max, emax);
             write("Processor type: ");
             final switch (c.ProcessorType) // 2 bit value
-            {
+            { // Only Intel uses this, AMD will always return 0.
                 case 0:
                     writeln("Original OEM Processor");
                     break;
@@ -334,7 +326,8 @@ public int GetHighestLeaf()
 public string GetVendor()
 {
     string s;
-    int ebx, ecx, edx;
+    int ebx, edx, ecx;
+    char* p = cast(char*)&ebx;
     asm
     {
         mov EAX, 0;
@@ -343,20 +336,18 @@ public string GetVendor()
         mov ecx, ECX;
         mov edx, EDX;
     }
-    char* pebx = cast(char*)&ebx, pecx = cast(char*)&ecx, pedx = cast(char*)&edx;
-    // EBX, EDX, ECX
-    s ~= *pebx;
-    s ~= *(pebx + 1);
-    s ~= *(pebx + 2);
-    s ~= *(pebx + 3);
-    s ~= *pedx;
-    s ~= *(pedx + 1);
-    s ~= *(pedx + 2);
-    s ~= *(pedx + 3);
-    s ~= *pecx;
-    s ~= *(pecx + 1);
-    s ~= *(pecx + 2);
-    s ~= *(pecx + 3);
+    s ~= *p;
+    s ~= *(p + 1);
+    s ~= *(p + 2);
+    s ~= *(p + 3);
+    s ~= *(p + 4);
+    s ~= *(p + 5);
+    s ~= *(p + 6);
+    s ~= *(p + 7);
+    s ~= *(p + 8);
+    s ~= *(p + 9);
+    s ~= *(p + 10);
+    s ~= *(p + 11);
     return s;
 }
 
@@ -405,9 +396,10 @@ public int GetHighestExtendedLeaf()
 public string GetProcessorBrandString()
 {
     string s;
+    int eax, ebx, ecx, edx;
+    char* p = cast(char*)&eax;
     for (int i = 0x80000002; i <= 0x80000004; ++i)
     {
-        int eax, ebx, ecx, edx;
         asm
         {
             mov EAX, i;
@@ -417,25 +409,22 @@ public string GetProcessorBrandString()
             mov ecx, ECX;
             mov edx, EDX;
         }
-        char* peax = cast(char*)&eax, pebx = cast(char*)&ebx,
-              pecx = cast(char*)&ecx, pedx = cast(char*)&edx;
-        // EAX, EBX, ECX, EDX
-        s ~= *peax;
-        s ~= *(peax + 1);
-        s ~= *(peax + 2);
-        s ~= *(peax + 3);
-        s ~= *pebx;
-        s ~= *(pebx + 1);
-        s ~= *(pebx + 2);
-        s ~= *(pebx + 3);
-        s ~= *pecx;
-        s ~= *(pecx + 1);
-        s ~= *(pecx + 2);
-        s ~= *(pecx + 3);
-        s ~= *pedx;
-        s ~= *(pedx + 1);
-        s ~= *(pedx + 2);
-        s ~= *(pedx + 3);
+        s ~= *p;
+        s ~= *(p + 1);
+        s ~= *(p + 2);
+        s ~= *(p + 3);
+        s ~= *(p + 4);
+        s ~= *(p + 5);
+        s ~= *(p + 6);
+        s ~= *(p + 7);
+        s ~= *(p + 8);
+        s ~= *(p + 9);
+        s ~= *(p + 10);
+        s ~= *(p + 11);
+        s ~= *(p + 12);
+        s ~= *(p + 13);
+        s ~= *(p + 14);
+        s ~= *(p + 15);
     }
     return s;
 }
@@ -449,7 +438,7 @@ public string GetProcessorBrandString()
 /// </summary>
 public class CPU_INFO
 {
-    /// Initiates a CPU_INFO without fetching CPU info.
+    /// Initiates a CPU_INFO.
     this(bool fetch = false)
     {
         if (fetch)
@@ -488,6 +477,19 @@ public class CPU_INFO
                     ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
                     switch (Vendor)
                     {
+                        case "GenuineIntel":
+                        if (BaseFamily != 0) // If Family_ID ≠ 0FH
+                            Family = BaseFamily; // DisplayFamily = Family_ID;
+                        else // ELSE DisplayFamily = Extended_Family_ID + Family_ID;
+                            Family = cast(ubyte)(ExtendedFamily + BaseFamily);
+
+                        if (BaseFamily == 6 || BaseFamily == 0) // IF (Family_ID = 06H or Family_ID = 0FH)
+                        // DisplayModel = (Extended_Model_ID « 4) + Model_ID;
+                            Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
+                        else // DisplayModel = Model_ID;
+                            Model = BaseModel;
+                        break;
+
                         case "AuthenticAMD":
                         // If BaseFamily[3:0] is less than Fh, then ExtFamily is
                         // reserved and Family is equal to BaseFamily[3:0].
@@ -502,19 +504,6 @@ public class CPU_INFO
                             Model = BaseModel;
                         else
                             Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
-                        break;
-                        
-                        case "GenuineIntel":
-                        if (BaseFamily != 0) // If Family_ID ≠ 0FH
-                            Family = BaseFamily; // DisplayFamily = Family_ID;
-                        else // ELSE DisplayFamily = Extended_Family_ID + Family_ID;
-                            Family = cast(ubyte)(ExtendedFamily + BaseFamily);
-
-                        if (BaseFamily == 6 || BaseFamily == 0) // IF (Family_ID = 06H or Family_ID = 0FH)
-                        // DisplayModel = (Extended_Model_ID « 4) + Model_ID;
-                            Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
-                        else // DisplayModel = Model_ID;
-                            Model = BaseModel;
                         break;
 
                         default:
@@ -617,6 +606,10 @@ public class CPU_INFO
         }
     }
 
+    /*************************
+     * PROCESSOR INFORMATION *
+     *************************/
+
     // ---- Basic information ----
     /// Processor vendor.
     public string Vendor;
@@ -645,7 +638,9 @@ public class CPU_INFO
     /// Processor type.**1
     public ubyte ProcessorType;
 
-    // ---- Instruction extensions ----
+    public ushort NumberOfCores;
+    public ushort NumberOfThreads;
+
     /// MMX Technology.
     public bool MMX;
     /// Streaming SIMD Extensions.
@@ -671,18 +666,18 @@ public class CPU_INFO
 
     // ---- 01h : Basic CPUID Information ----
     // -- EBX --
-    /// Brand index. Probably unsused. E.g. Intel Core i7
+    /// Brand index. See Table 3-24. If 0, use normal BrandString.
     public ubyte BrandIndex;
     /// The CLFLUSH line size. Multiply by 8 to get its size in bytes.
     public ubyte CLFLUSHLineSize;
-    /// Maximum number of addressable IDs for logical processors in this physical package.*1
+    /// Maximum number of addressable IDs for logical processors in this physical package.
     public ubyte MaximumNumberOfAddressableIDs;
     /// Initial APIC ID for this processor.
     public ubyte InitialAPICID;
     // -- ECX --
     /// PCLMULQDQ instruction.
     public bool PCLMULQDQ; // 1
-    /// 64-bit DS Area (64-bit layout). 
+    /// 64-bit DS Area (64-bit layout).
     public bool DTES64;
     /// MONITOR/MWAIT.
     public bool MONITOR;
@@ -722,7 +717,7 @@ public class CPU_INFO
     public bool TSC_Deadline;
     /// Indicates the support of the XSAVE/XRSTOR extended states feature, XSETBV/XGETBV instructions, and XCR0.
     public bool XSAVE;
-    /// Indicates if the OS has set CR4.OSXSAVE[bit 18] to enable XSETBV/XGETBV instructions for XCR0 and XSAVE.
+    /// Indicates if the OS has set CR4.OSXSAVE[18] to enable XSETBV/XGETBV instructions for XCR0 and XSAVE.
     public bool OSXSAVE;
     /// 16-bit floating-point conversion instructions.
     public bool F16C;
@@ -790,7 +785,7 @@ public class CPU_INFO
     // ---- 07h - Thermal and Power Management Leaf ----
     // -- EBX --
     /*
-     * Note: BMI1, BMI2, and SMEP were introduced in 4th Generation Core processors.
+     * Note: BMI1, BMI2, and SMEP were introduced in 4th Generation Core-ix processors.
      */
     /// Bit manipulation group 1 instruction support.
     public bool BMI1; // 3

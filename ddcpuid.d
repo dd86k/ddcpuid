@@ -236,7 +236,8 @@ void main(string[] args)
         if (_det)
         {
             writeln();
-            writeln(" ----- Details -----");
+            writeln(" Details");
+            writeln(" ================");
             writeln();
             writefln("Highest Leaf: %02XH | Extended: %02XH", max, emax);
             write("Processor type: ");

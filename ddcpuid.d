@@ -16,19 +16,19 @@ extern(Windows) bool DllMain(void* hInstance, uint ulReason, void*)
     {
         default: assert(0);
         case DLL_PROCESS_ATTACH:
-            dll_process_attach( hInstance, true );
+            dll_process_attach(hInstance, true);
             break;
 
         case DLL_PROCESS_DETACH:
-            dll_process_detach( hInstance, true );
+            dll_process_detach(hInstance, true);
             break;
 
         case DLL_THREAD_ATTACH:
-            dll_thread_attach( true, true );
+            dll_thread_attach(true, true);
             break;
 
         case DLL_THREAD_DETACH:
-            dll_thread_detach( true, true );
+            dll_thread_detach(true, true);
             break;
     }
     return true;
@@ -62,7 +62,7 @@ void main(string[] args)
             writeln(" ddcpuid [<Options>]");
             writeln();
             writeln(" --details, -D    Gets more details.");
-            writeln(" --override, -O   Overrides the maximum leaf and extended leaf.");
+            writeln(" --override, -O   Overrides leafs to 0x20 and 0x8000_0020");
             writeln(" --debug          Gets debugging information.");
             writeln();
             writeln(" --help      Prints help and quit.");
@@ -95,7 +95,7 @@ void main(string[] args)
     }
 
     // Maximum leaf
-    int max = _oml ? 0x17 : GetHighestLeaf();
+    int max = _oml ? 0x20 : GetHighestLeaf();
     // Maximum extended leaf
     int emax = _oml ? 0x8000_0020 : GetHighestExtendedLeaf();
 
@@ -168,19 +168,33 @@ void main(string[] args)
             write("SSE4.1, ");
         if (c.SSE42)
             write("SSE4.2, ");
+        if (c.SSE4a)
+            write("SSE4a, ");
+        if (c.LongMode)
+            switch (c.Vendor)
+            {
+                case "GenuineIntel": write("Intel64, "); break;
+                case "AuthenticAMD": write("AMD64, ");   break;
+                default:
+            }
+        if (c.VMX)
+            switch (c.Vendor)
+            {
+                case "GenuineIntel": write("VT-x, ");  break; // VMX
+                case "AuthenticAMD": write("AMD-V, "); break; // SVM
+                default:
+            }
         if (c.AESNI)
             write("AES-NI, ");
         if (c.AVX)
             write("AVX, ");
         if (c.AVX2)
             write("AVX2, ");
-        if (c.VMX)
-            write("VMX, ");
         if (c.SMX)
             write("SMX, ");
         if (c.DS_CPL)
             write("DS-CPL, ");
-        if (c.FMA)
+        if (c.FMA) 
             write("FMA, ");
         if (c.F16C)
             write("F16C, ");
@@ -453,6 +467,7 @@ public class CPU_INFO
         ProcessorBrandString = GetProcessorBrandString();
 
         MaximumLeaf = GetHighestLeaf();
+        MaximumExtendedLeaf = GetHighestExtendedLeaf();
 
         int a, b, c, d;
         for (int leaf = 1; leaf <= MaximumLeaf; ++leaf)
@@ -520,22 +535,32 @@ public class CPU_INFO
                     // ECX
                     SSE3         = c & 1;
                     PCLMULQDQ    = c >>  1 & 1;
-                    DTES64       = c >>  2 & 1;
+                    if (Vendor == "GenuineIntel")
+                        DTES64       = c >>  2 & 1;
                     MONITOR      = c >>  3 & 1;
-                    DS_CPL       = c >>  4 & 1;
-                    VMX          = c >>  5 & 1;
-                    SMX          = c >>  6 & 1;
-                    EIST         = c >>  7 & 1;
+                    if (Vendor == "GenuineIntel")
+                    {
+                        DS_CPL       = c >>  4 & 1;
+                        VMX          = c >>  5 & 1;
+                        SMX          = c >>  6 & 1;
+                        EIST         = c >>  7 & 1;
+                    }
                     TM2          = c >>  8 & 1;
                     SSSE3        = c >>  9 & 1;
-                    CNXT_ID      = c >> 10 & 1;
-                    SDBG         = c >> 11 & 1;
+                    if (Vendor == "GenuineIntel")
+                    {
+                        CNXT_ID      = c >> 10 & 1;
+                        SDBG         = c >> 11 & 1;
+                    }
                     FMA          = c >> 12 & 1;
                     CMPXCHG16B   = c >> 13 & 1;
-                    xTPR         = c >> 14 & 1;
-                    PDCM         = c >> 15 & 1;
-                    PCID         = c >> 17 & 1;
-                    DCA          = c >> 18 & 1;
+                    if (Vendor == "GenuineIntel")
+                    {
+                        xTPR         = c >> 14 & 1;
+                        PDCM         = c >> 15 & 1;
+                        PCID         = c >> 17 & 1;
+                        DCA          = c >> 18 & 1;
+                    }
                     SSE41        = c >> 19 & 1;
                     SSE42        = c >> 20 & 1;
                     x2APIC       = c >> 21 & 1;
@@ -568,16 +593,23 @@ public class CPU_INFO
                     PSE_36 = d >> 17 & 1;
                     PSN    = d >> 18 & 1;
                     CLFSH  = d >> 19 & 1;
-                    DS     = d >> 21 & 1;
-                    APCI   = d >> 22 & 1;
+                    if (Vendor == "GenuineIntel")
+                    {
+                        DS     = d >> 21 & 1;
+                        APCI   = d >> 22 & 1;
+                    }
                     MMX    = d >> 23 & 1;
                     FXSR   = d >> 24 & 1;
                     SSE    = d >> 25 & 1;
                     SSE2   = d >> 26 & 1;
-                    SS     = d >> 27 & 1;
+                    if (Vendor == "GenuineIntel")
+                        SS     = d >> 27 & 1;
                     HTT    = d >> 28 & 1;
-                    TM     = d >> 29 & 1;
-                    PBE    = d >> 31 & 1;
+                    if (Vendor == "GenuineIntel")
+                    {
+                        TM     = d >> 29 & 1;
+                        PBE    = d >> 31 & 1;
+                    }
                     break;
 
                 case 2: // 02h -- Cache and TLB Information. | AMD: Reserved
@@ -605,6 +637,54 @@ public class CPU_INFO
                     break;
             }
         }
+
+        for (int eleaf = 0x8000_0000; eleaf < MaximumExtendedLeaf; ++eleaf)
+        {
+            asm
+            {
+                mov EAX, eleaf;
+                cpuid;
+                mov a, EAX;
+                mov b, EBX;
+                mov c, ECX;
+                mov d, EDX;
+            }
+
+            switch (eleaf)
+            {
+                case 0x8000_0000:
+                
+                break;
+
+                case 0x8000_0001:
+                    switch (Vendor)
+                    {
+                        case "AuthenticAMD":
+                            VMX = c >> 2 & 1; // SVM
+                            SSE4a = c >> 6 & 1;
+                            break;
+
+                        default:
+                    }
+
+                    LongMode = d >> 29 & 1;
+
+                    break;
+
+                case 0x8000_0007:
+                    switch (Vendor)
+                    {
+                        case "AuthenticAMD":
+                            TM = d >> 4 & 1;
+                            break;
+
+                        default:
+                    }
+                    break;
+
+                default:
+            }
+        }
     }
 
     /*************************
@@ -622,6 +702,14 @@ public class CPU_INFO
     /// Maximum extended leaf supported by this processor.
     public int MaximumExtendedLeaf;
 
+    /// Also known as Intel64 Architecture on Intel.
+    public bool LongMode;
+
+    /// Number of physical cores.
+    public ushort NumberOfCores;
+    /// Number of logical cores.
+    public ushort NumberOfThreads;
+
     /// Processor family. ID and extended ID included.
     public ushort Family;
     /// Base Family ID
@@ -636,11 +724,8 @@ public class CPU_INFO
     public ubyte ExtendedModel;
     /// Processor stepping.
     public ubyte Stepping;
-    /// Processor type.**1
+    /// Processor type.
     public ubyte ProcessorType;
-
-    public ushort NumberOfCores;
-    public ushort NumberOfThreads;
 
     /// MMX Technology.
     public bool MMX;
@@ -656,6 +741,8 @@ public class CPU_INFO
     public bool SSE41;
     /// Streaming SIMD Extensions 4.2.
     public bool SSE42;
+    /// Streaming SIMD Extensions 4a. AMD-only.
+    public bool SSE4a;
     /// AESNI instruction extensions.
     public bool AESNI;
     /// AVX instruction extensions.
@@ -684,7 +771,7 @@ public class CPU_INFO
     public bool MONITOR;
     /// CPL Qualified Debug Store.
     public bool DS_CPL;
-    /// Virtual Machine Extensions.
+    /// Virtual Machine Extensions. AMD: SVM -- Secure Virtual Machine.
     public bool VMX;
     /// Safer Mode Extensions.
     public bool SMX;

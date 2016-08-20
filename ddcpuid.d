@@ -144,178 +144,180 @@ void main(string[] args)
     }
     else
     {
-        CPU_INFO c = new CPU_INFO(true);
-
-        writeln("Vendor: ", c.Vendor);
-        writeln("Model: ", strip(c.ProcessorBrandString));
-        writefln("Identification: Family %X [%X:%X] Model %X [%X:%X] Stepping %X",
-            c.Family, c.BaseFamily, c.ExtendedFamily,
-            c.Model, c.BaseModel, c.ExtendedModel,
-            c.Stepping);
-
-        write("Extensions: ");
-        if (c.MMX)
-            write("MMX, ");
-        if (c.SSE)
-            write("SSE, ");
-        if (c.SSE2)
-            write("SSE2, ");
-        if (c.SSE3)
-            write("SSE3, ");
-        if (c.SSSE3)
-            write("SSSE3, ");
-        if (c.SSE41)
-            write("SSE4.1, ");
-        if (c.SSE42)
-            write("SSE4.2, ");
-        if (c.SSE4a)
-            write("SSE4a, ");
-        if (c.LongMode)
-            switch (c.Vendor)
-            {
-                case "GenuineIntel": write("Intel64, "); break;
-                case "AuthenticAMD": write("AMD64, ");   break;
-                default:
-            }
-        if (c.VMX)
-            switch (c.Vendor)
-            {
-                case "GenuineIntel": write("VT-x, ");  break; // VMX
-                case "AuthenticAMD": write("AMD-V, "); break; // SVM
-                default:
-            }
-        if (c.AESNI)
-            write("AES-NI, ");
-        if (c.AVX)
-            write("AVX, ");
-        if (c.AVX2)
-            write("AVX2, ");
-        if (c.SMX)
-            write("SMX, ");
-        if (c.DS_CPL)
-            write("DS-CPL, ");
-        if (c.FMA) 
-            write("FMA, ");
-        if (c.F16C)
-            write("F16C, ");
-        if (c.XSAVE)
-            write("XSAVE, ");
-        if (c.OSXSAVE)
-            write("OSXSAVE, ");
-        writeln();
-
-        if (_det)
+        const CPU_INFO cpuinfo = new CPU_INFO(true);
+        with (cpuinfo)
         {
-            write("Single instructions: [ ");
-            if (c.MONITOR)
-                write("MONITOR/MWAIT, ");
-            if (c.PCLMULQDQ)
-                write("PCLMULQDQ, ");
-            if (c.CX8)
-                write("CMPXCHG8B, ");
-            if (c.CMPXCHG16B)
-                write("CMPXCHG16B, ");
-            if (c.MOVBE)
-                write("MOVBE, "); // Intel Atom only!
-            if (c.RDRAND)
-                write("RDRAND, ");
-            if (c.MSR)
-                write("RDMSR/WRMSR, ");
-            if (c.SEP)
-                write("SYSENTER/SYSEXIT, ");
-            if (c.TSC)
-            {
-                write("RDTSC");
-                if (c.TSC_Deadline)
-                    write(" (TSC-Deadline)");
-                write(", ");
-            }
-            if (c.CMOV)
-                write("CMOV, ");
-            if (c.FPU && c.CMOV)
-                write("FCOMI/FCMOV, ");
-            if (c.CLFSH)
-                writef("CLFLUSH (Lines: %s), ", c.CLFLUSHLineSize);
-            if (c.POPCNT)
-                write("POPCNT, ");
-            if (c.FXSR)
-                write("FXSAVE/FXRSTOR, ");
-            writeln("]");
-        }
+            writeln("Vendor: ", Vendor);
+            writeln("Model: ", ProcessorBrandString);
+            writefln("Identification: Family %X [%X:%X] Model %X [%X:%X] Stepping %X",
+                Family, BaseFamily, ExtendedFamily,
+                Model, BaseModel, ExtendedModel,
+                Stepping);
 
-        writefln("Hyper-Threading Technology: %s", c.HTT);
-        writefln("Turbo Boost Available: %s", c.TurboBoost);
-        writefln("Enhanced Intel SpeedStep technology: %s", c.EIST);
-
-        if (_det)
-        {
+            write("Extensions: ");
+            if (MMX)
+                write("MMX, ");
+            if (SSE)
+                write("SSE, ");
+            if (SSE2)
+                write("SSE2, ");
+            if (SSE3)
+                write("SSE3, ");
+            if (SSSE3)
+                write("SSSE3, ");
+            if (SSE41)
+                write("SSE4.1, ");
+            if (SSE42)
+                write("SSE4.2, ");
+            if (SSE4a)
+                write("SSE4a, ");
+            if (LongMode)
+                switch (Vendor)
+                {
+                    case "GenuineIntel": write("Intel64, "); break;
+                    case "AuthenticAMD": write("AMD64, ");   break;
+                    default:
+                }
+            if (VMX)
+                switch (Vendor)
+                {
+                    case "GenuineIntel": write("VT-x, ");  break; // VMX
+                    case "AuthenticAMD": write("AMD-V, "); break; // SVM
+                    default:
+                }
+            if (AESNI)
+                write("AES-NI, ");
+            if (AVX)
+                write("AVX, ");
+            if (AVX2)
+                write("AVX2, ");
+            if (SMX)
+                write("SMX, ");
+            if (DS_CPL)
+                write("DS-CPL, ");
+            if (FMA) 
+                write("FMA, ");
+            if (F16C)
+                write("F16C, ");
+            if (XSAVE)
+                write("XSAVE, ");
+            if (OSXSAVE)
+                write("OSXSAVE, ");
             writeln();
-            writeln(" Details");
-            writeln(" ================");
-            writeln();
-            writefln("Highest Leaf: %02XH | Extended: %02XH", max, emax);
-            write("Processor type: ");
-            final switch (c.ProcessorType) // 2 bit value
-            { // Only Intel uses this, AMD will always return 0.
-                case 0:
-                    writeln("Original OEM Processor");
-                    break;
-                case 1:
-                    writeln("Intel OverDrive Processor");
-                    break;
-                case 2:
-                    writeln("Dual processor");
-                    break;
-                case 3:
-                    writeln("Intel reserved");
-                    break;
-            }
 
-            //TODO: Floating point section
-            //TODO: Virtualization section
-            //TODO: Memory handling section
-
-            writefln("Brand Index: %s", c.BrandIndex);
-            // MaximumNumberOfAddressableIDs / 2 (if HTT) for # cores?
-            writefln("Max # of addressable IDs: %s", c.MaximumNumberOfAddressableIDs);
-            writefln("APIC: %s (Initial ID: %s)", c.APIC, c.InitialAPICID);
-            writefln("x2APIC: %s", c.x2APIC);
-            writefln("64-bit DS Area [DTES64]: %s", c.DTES64);
-            writefln("Thermal Monitor [TM]: %s", c.TM);
-            writefln("Thermal Monitor 2 [TM2]: %s", c.TM2);
-            writefln("L1 Context ID [CNXT-ID]: %s", c.CNXT_ID);
-            writefln("xTPR Update Control [xTPR]: %s", c.xTPR);
-            writefln("Perfmon and Debug Capability [PDCM]: %s", c.PDCM);
-            writefln("Process-context identifiers [PCID]: %s", c.PCID);
-            writefln("Direct Cache Access [DCA]: %s", c.DCA);
-            writefln("Floating Point Unit [FPU]: %s", c.FPU);
-            writefln("Virtual 8086 Mode Enhancements [VME]: %s", c.VME);
-            writefln("Debugging Extensions [DE]: %s", c.DE);
-            writefln("Page Size Extension [PAE]: %s", c.PAE);
-            writefln("Machine Check Exception [MCE]: %s", c.MCE);
-            writefln("Memory Type Range Registers [MTRR]: %s", c.MTRR);
-            writefln("Page Global Bit [PGE]: %s", c.PGE);
-            writefln("Machine Check Architecture [MCA]: %s", c.MCA);
-            writefln("Page Attribute Table [PAT]: %s", c.PAT);
-            writefln("36-Bit Page Size Extension [PSE-36]: %s", c.PSE_36);
-            writefln("Processor Serial Number [PSN]: %s", c.PSN);
-            writefln("Debug Store [DS]: %s", c.DS);
-            writefln("Thermal Monitor and Software Controlled Clock Facilities [APCI]: %s", c.APCI);
-            writefln("Self Snoop [SS]: %s", c.SS);
-            writefln("Pending Break Enable [PBE]: %s", c.PBE);
-            writefln("Supervisor Mode Execution Protection [SMEP]: %s", c.SMEP);
-            write("Bit manipulation groups: ");
-            if (c.BMI1 || c.BMI2)
+            if (_det)
             {
-                if (c.BMI1)
-                    write("BMI1 ");
-                if (c.BMI2)
-                    write("BMI2");
+                write("Single instructions: [ ");
+                if (MONITOR)
+                    write("MONITOR/MWAIT, ");
+                if (PCLMULQDQ)
+                    write("PCLMULQDQ, ");
+                if (CX8)
+                    write("CMPXCHG8B, ");
+                if (CMPXCHG16B)
+                    write("CMPXCHG16B, ");
+                if (MOVBE)
+                    write("MOVBE, "); // Intel Atom only!
+                if (RDRAND)
+                    write("RDRAND, ");
+                if (MSR)
+                    write("RDMSR/WRMSR, ");
+                if (SEP)
+                    write("SYSENTER/SYSEXIT, ");
+                if (TSC)
+                {
+                    write("RDTSC");
+                    if (TSC_Deadline)
+                        write(" (TSC-Deadline)");
+                    write(", ");
+                }
+                if (CMOV)
+                    write("CMOV, ");
+                if (FPU && CMOV)
+                    write("FCOMI/FCMOV, ");
+                if (CLFSH)
+                    writef("CLFLUSH (Lines: %s), ", CLFLUSHLineSize);
+                if (POPCNT)
+                    write("POPCNT, ");
+                if (FXSR)
+                    write("FXSAVE/FXRSTOR, ");
+                writeln("]");
             }
-            else
-                writeln("None");
-        }
-    }
+
+            writefln("Hyper-Threading Technology: %s", HTT);
+            writefln("Turbo Boost Available: %s", TurboBoost);
+            writefln("Enhanced Intel SpeedStep technology: %s", EIST);
+
+            if (_det)
+            {
+                writeln();
+                writeln(" Details");
+                writeln(" ================");
+                writeln();
+                writefln("Highest Leaf: %02XH | Extended: %02XH", max, emax);
+                write("Processor type: ");
+                final switch (ProcessorType) // 2 bit value
+                { // Only Intel uses this, AMD will always return 0.
+                    case 0:
+                        writeln("Original OEM Processor");
+                        break;
+                    case 1:
+                        writeln("Intel OverDrive Processor");
+                        break;
+                    case 2:
+                        writeln("Dual processor");
+                        break;
+                    case 3:
+                        writeln("Intel reserved");
+                        break;
+                }
+
+                //TODO: Floating point section
+                //TODO: Virtualization section
+                //TODO: Memory handling section
+
+                writeln("Brand Index: ", BrandIndex);
+                // MaximumNumberOfAddressableIDs / 2 (if HTT) for # cores?
+                writeln("Max # of addressable IDs: ", MaximumNumberOfAddressableIDs);
+                writefln("APIC: %s (Initial ID: %s)", APIC, InitialAPICID);
+                writeln("x2APIC: ", x2APIC);
+                writeln("64-bit DS Area [DTES64]: ", DTES64);
+                writeln("Thermal Monitor [TM]: ", TM);
+                writeln("Thermal Monitor 2 [TM2]: ", TM2);
+                writeln("L1 Context ID [CNXT-ID]: ", CNXT_ID);
+                writeln("xTPR Update Control [xTPR]: ", xTPR);
+                writeln("Perfmon and Debug Capability [PDCM]: ", PDCM);
+                writeln("Process-context identifiers [PCID]: ", PCID);
+                writeln("Direct Cache Access [DCA]: ", DCA);
+                writeln("Floating Point Unit [FPU]: ", FPU);
+                writeln("Virtual 8086 Mode Enhancements [VME]: ", VME);
+                writeln("Debugging Extensions [DE]: ", DE);
+                writeln("Page Size Extension [PAE]: ", PAE);
+                writeln("Machine Check Exception [MCE]: ", MCE);
+                writeln("Memory Type Range Registers [MTRR]: ", MTRR);
+                writeln("Page Global Bit [PGE]: ", PGE);
+                writeln("Machine Check Architecture [MCA]: ", MCA);
+                writeln("Page Attribute Table [PAT]: ", PAT);
+                writeln("36-Bit Page Size Extension [PSE-36]: %s", PSE_36);
+                writeln("Processor Serial Number [PSN]: %s", PSN);
+                writeln("Debug Store [DS]: %s", DS);
+                writeln("Thermal Monitor and Software Controlled Clock Facilities [APCI]: %s", APCI);
+                writeln("Self Snoop [SS]: %s", SS);
+                writeln("Pending Break Enable [PBE]: %s", PBE);
+                writeln("Supervisor Mode Execution Protection [SMEP]: %s", SMEP);
+                write("Bit manipulation groups: ");
+                if (BMI1 || BMI2)
+                {
+                    if (BMI1)
+                        write("BMI1 ");
+                    if (BMI2)
+                        write("BMI2");
+                }
+                else
+                    writeln("None");
+            } // if (_det)
+        } // with (c)
+    } // else if
 } // main
 } // version else
 
@@ -464,7 +466,7 @@ public class CPU_INFO
     public void FetchInfo()
     {
         Vendor = GetVendor();
-        ProcessorBrandString = GetProcessorBrandString();
+        ProcessorBrandString = strip(GetProcessorBrandString());
 
         MaximumLeaf = GetHighestLeaf();
         MaximumExtendedLeaf = GetHighestExtendedLeaf();

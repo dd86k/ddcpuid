@@ -144,7 +144,7 @@ void main(string[] args)
     }
     else
     {
-        const CPU_INFO cpuinfo = new CPU_INFO(true);
+        const CPU_INFO cpuinfo = new CPU_INFO();
         with (cpuinfo)
         {
             writeln("Vendor: ", Vendor);
@@ -217,7 +217,7 @@ void main(string[] args)
                 if (CMPXCHG16B)
                     write("CMPXCHG16B, ");
                 if (MOVBE)
-                    write("MOVBE, "); // Intel Atom only!
+                    write("MOVBE, "); // Intel Atom only!, and quite a few AMDs.
                 if (RDRAND)
                     write("RDRAND, ");
                 if (MSR)
@@ -227,8 +227,15 @@ void main(string[] args)
                 if (TSC)
                 {
                     write("RDTSC");
-                    if (TSC_Deadline)
-                        write(" (TSC-Deadline)");
+                    if (TSC_Deadline || TscInvariant)
+                    {
+                        write(" (");
+                        if (TSC_Deadline)
+                            write("TSC-Deadline");
+                        if (TscInvariant)
+                            write(", TscInvariant");
+                        write(")");
+                    }
                     write(", ");
                 }
                 if (CMOV)
@@ -244,9 +251,9 @@ void main(string[] args)
                 writeln("]");
             }
 
-            writefln("Hyper-Threading Technology: %s", HTT);
-            writefln("Turbo Boost Available: %s", TurboBoost);
-            writefln("Enhanced Intel SpeedStep technology: %s", EIST);
+            writeln("Hyper-Threading Technology: ", HTT);
+            writeln("Turbo Boost Available: ", TurboBoost);
+            writeln("Enhanced Intel SpeedStep technology: ", EIST);
 
             if (_det)
             {
@@ -298,18 +305,18 @@ void main(string[] args)
                 writeln("Page Global Bit [PGE]: ", PGE);
                 writeln("Machine Check Architecture [MCA]: ", MCA);
                 writeln("Page Attribute Table [PAT]: ", PAT);
-                writeln("36-Bit Page Size Extension [PSE-36]: %s", PSE_36);
-                writeln("Processor Serial Number [PSN]: %s", PSN);
-                writeln("Debug Store [DS]: %s", DS);
-                writeln("Thermal Monitor and Software Controlled Clock Facilities [APCI]: %s", APCI);
-                writeln("Self Snoop [SS]: %s", SS);
-                writeln("Pending Break Enable [PBE]: %s", PBE);
-                writeln("Supervisor Mode Execution Protection [SMEP]: %s", SMEP);
+                writeln("36-Bit Page Size Extension [PSE-36]: ", PSE_36);
+                writeln("Processor Serial Number [PSN]: ", PSN);
+                writeln("Debug Store [DS]: ", DS);
+                writeln("Thermal Monitor and Software Controlled Clock Facilities [APCI]: ", APCI);
+                writeln("Self Snoop [SS]: ", SS);
+                writeln("Pending Break Enable [PBE]: ", PBE);
+                writeln("Supervisor Mode Execution Protection [SMEP]: ", SMEP);
                 write("Bit manipulation groups: ");
                 if (BMI1 || BMI2)
                 {
                     if (BMI1)
-                        write("BMI1 ");
+                        write("BMI1, ");
                     if (BMI2)
                         write("BMI2");
                 }
@@ -456,7 +463,7 @@ public string GetProcessorBrandString()
 public class CPU_INFO
 {
     /// Initiates a CPU_INFO.
-    this(bool fetch = false)
+    this(bool fetch = true)
     {
         if (fetch)
             FetchInfo();
@@ -495,36 +502,50 @@ public class CPU_INFO
                     ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
                     switch (Vendor)
                     {
-                        case "GenuineIntel":
-                        if (BaseFamily != 0) // If Family_ID ≠ 0FH
-                            Family = BaseFamily; // DisplayFamily = Family_ID;
-                        else // ELSE DisplayFamily = Extended_Family_ID + Family_ID;
-                            Family = cast(ubyte)(ExtendedFamily + BaseFamily);
+                        case "GenuineIntel": // Intel only section
+                            if (BaseFamily != 0)
+                                Family = BaseFamily;
+                            else
+                                Family = cast(ubyte)(ExtendedFamily + BaseFamily);
 
-                        if (BaseFamily == 6 || BaseFamily == 0) // IF (Family_ID = 06H or Family_ID = 0FH)
-                        // DisplayModel = (Extended_Model_ID « 4) + Model_ID;
-                            Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
-                        else // DisplayModel = Model_ID;
-                            Model = BaseModel;
-                        break;
+                            if (BaseFamily == 6 || BaseFamily == 0)
+                                Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
+                            else // DisplayModel = Model_ID;
+                                Model = BaseModel;
 
-                        case "AuthenticAMD":
-                        // If BaseFamily[3:0] is less than Fh, then ExtFamily is
-                        // reserved and Family is equal to BaseFamily[3:0].
-                        if (BaseFamily < 0xF)
-                            Family = BaseFamily;
-                        else
-                            Family = cast(ubyte)(ExtendedFamily + BaseFamily);
+                            // ECX
+                            DTES64  = c >>  2 & 1;
+                            DS_CPL  = c >>  4 & 1;
+                            VMX     = c >>  5 & 1;
+                            SMX     = c >>  6 & 1;
+                            EIST    = c >>  7 & 1;
+                            CNXT_ID = c >> 10 & 1;
+                            SDBG    = c >> 11 & 1;
+                            xTPR    = c >> 14 & 1;
+                            PDCM    = c >> 15 & 1;
+                            PCID    = c >> 17 & 1;
+                            DCA     = c >> 18 & 1;
 
-                        // If BaseFamily[3:0] is less than 0Fh, then ExtModel is
-                        // reserved and Model is equal to BaseModel[3:0].
-                        if (BaseFamily < 0xF)
-                            Model = BaseModel;
-                        else
-                            Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
-                        break;
+                            DS      = d >> 21 & 1;
+                            APCI    = d >> 22 & 1;
+                            SS      = d >> 27 & 1;
+                            TM      = d >> 29 & 1;
+                            PBE     = d >> 31 & 1;
+                            break;
 
-                        default:
+                        case "AuthenticAMD": // AMD only section
+                            if (BaseFamily < 0xF)
+                                Family = BaseFamily;
+                            else
+                                Family = cast(ubyte)(ExtendedFamily + BaseFamily);
+
+                            if (BaseFamily < 0xF)
+                                Model = BaseModel;
+                            else
+                                Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
+                            break;
+
+                            default:
                     }
 
                     ProcessorType = (a >> 12) & 3; // EAX[13:12]
@@ -537,32 +558,11 @@ public class CPU_INFO
                     // ECX
                     SSE3         = c & 1;
                     PCLMULQDQ    = c >>  1 & 1;
-                    if (Vendor == "GenuineIntel")
-                        DTES64       = c >>  2 & 1;
                     MONITOR      = c >>  3 & 1;
-                    if (Vendor == "GenuineIntel")
-                    {
-                        DS_CPL       = c >>  4 & 1;
-                        VMX          = c >>  5 & 1;
-                        SMX          = c >>  6 & 1;
-                        EIST         = c >>  7 & 1;
-                    }
                     TM2          = c >>  8 & 1;
                     SSSE3        = c >>  9 & 1;
-                    if (Vendor == "GenuineIntel")
-                    {
-                        CNXT_ID      = c >> 10 & 1;
-                        SDBG         = c >> 11 & 1;
-                    }
                     FMA          = c >> 12 & 1;
                     CMPXCHG16B   = c >> 13 & 1;
-                    if (Vendor == "GenuineIntel")
-                    {
-                        xTPR         = c >> 14 & 1;
-                        PDCM         = c >> 15 & 1;
-                        PCID         = c >> 17 & 1;
-                        DCA          = c >> 18 & 1;
-                    }
                     SSE41        = c >> 19 & 1;
                     SSE42        = c >> 20 & 1;
                     x2APIC       = c >> 21 & 1;
@@ -595,23 +595,11 @@ public class CPU_INFO
                     PSE_36 = d >> 17 & 1;
                     PSN    = d >> 18 & 1;
                     CLFSH  = d >> 19 & 1;
-                    if (Vendor == "GenuineIntel")
-                    {
-                        DS     = d >> 21 & 1;
-                        APCI   = d >> 22 & 1;
-                    }
                     MMX    = d >> 23 & 1;
                     FXSR   = d >> 24 & 1;
                     SSE    = d >> 25 & 1;
                     SSE2   = d >> 26 & 1;
-                    if (Vendor == "GenuineIntel")
-                        SS     = d >> 27 & 1;
                     HTT    = d >> 28 & 1;
-                    if (Vendor == "GenuineIntel")
-                    {
-                        TM     = d >> 29 & 1;
-                        PBE    = d >> 31 & 1;
-                    }
                     break;
 
                 case 2: // 02h -- Cache and TLB Information. | AMD: Reserved
@@ -682,6 +670,8 @@ public class CPU_INFO
 
                         default:
                     }
+
+                    TscInvariant = d >> 8 & 1;
                     break;
 
                 default:
@@ -883,4 +873,7 @@ public class CPU_INFO
     public bool SMEP; // 7
     /// Bit manipulation group 2 instruction support.
     public bool BMI2; // 8
+
+    // ---- 8000_0007 -  ----
+    public bool TscInvariant; // 8
 }

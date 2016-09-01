@@ -27,8 +27,11 @@ By default, it will show basic information.
 
 `--version` -- Shows the version screen and quits.
 
+## Contributing
+Any help is appreciated! I recommend reading the Intel and AMD programming guides and verify your information before suggesting a fix.
+
 ## Compiling
-I highly recommend the Digital Mars D (dmd) compiler, since the GNU D Compiler (gdc) does not support the Intel-like syntax.
+I highly recommend the Digital Mars D (dmd) compiler, since the GNU D Compiler (gdc) does not support the Intel-like Assembly syntax.
 
 The LLVM D Compiler (ldc2) supports the Intel-like syntax, the GCC syntax, and the LLVM inline IR ([Wiki.dlang.org](https://wiki.dlang.org/LDC_inline_IR)), but requires MinGW for Windows.
 
@@ -39,7 +42,7 @@ The executable:
 dmd ddcpuid.d
 ```
 
-The Windows DLL:
+The Windows DLL: (WIP)
 ```
 dmd -version=DLL -ofddcpuid.dll -shared ddcpuid.d ddcpuid.def
 ```

@@ -1,0 +1,33 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug-GDB-Windows",
+            "type": "gdb",
+            "request": "launch",
+            "target": "ddcpuid.exe",
+            "cwd": "${workspaceRoot}"
+        },
+        {
+            "name": "Debug-GDB-Posix",
+            "type": "gdb",
+            "request": "launch",
+            "target": "ddcpuid",
+            "cwd": "${workspaceRoot}"
+        },
+        {
+            "name": "Debug-LLDB-MI-Windows",
+            "type": "lldb-mi",
+            "request": "launch",
+            "target": "ddcpuid.exe",
+            "cwd": "${workspaceRoot}"
+        },
+        {
+            "name": "Debug-LLDB-MI-Posix",
+            "type": "lldb-mi",
+            "request": "launch",
+            "target": "ddcpuid",
+            "cwd": "${workspaceRoot}"
+        }
+    ]
+}

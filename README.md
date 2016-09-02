@@ -11,44 +11,42 @@ The output and the project will change often!
 
 ## Goal
 
-My goal is to make a tool that provides complete human readable information about the processor for users of all types: Simple user, technician, and programmers.
+My goal is to make a tool that provides complete human readable information about the processor for users of all types: users, technicians, and programmers.
 
 ## Usage
 
 By default, it will show basic information.
 
-`-D`, `--details` -- Details, this switches will show more, technical, information.
-
-`--debug` -- Debug, shows debugging information in a chart.
-
-`-O`, `--override` -- Overrides the maximum leaf to `20h` and `8000_0020h`.
-
-`--help` -- Shows the help screen and quits.
-
-`--version` -- Shows the version screen and quits.
+| Switch | Description |
+| :---: | :---: |
+| `-D`, `--details` | Show more technician-related details. |
+| `--debug` | Show debugging information. |
+| `-O`, `--override` | Override maximum leaves to 20h and 8000_0020h. |
+| `-h`, `--help` | Show help screen and quit. |
+| `-v`, `--version` | Show version screen and quit. |
 
 ## Contributing
 Any help is appreciated! I recommend reading the Intel and AMD programming guides and verify your information before suggesting a fix.
 
 ## Compiling
-I highly recommend the Digital Mars D (dmd) compiler, since the GNU D Compiler (gdc) does not support the Intel-like Assembly syntax.
 
-The LLVM D Compiler (ldc2) supports the Intel-like syntax, the GCC syntax, and the LLVM inline IR ([Wiki.dlang.org](https://wiki.dlang.org/LDC_inline_IR)), but requires MinGW for Windows.
+Requirements:
+- `dmd` — Digital Mars D compiler
 
-This project uses the standard library (Phobos) and runtime (druntime).
+That's it! The standard Phobos and druntime.
 
-The executable:
+To compile:
+- The executable (x86):
 ```
 dmd ddcpuid.d
 ```
-
-The Windows DLL: (WIP)
+- The Windows DLL (WIP, x86):
 ```
 dmd -version=DLL -ofddcpuid.dll -shared ddcpuid.d ddcpuid.def
 ```
 
-I still need to make external references to the CPU_INFO class (in source and definition file).
-
 THIS TOOL IS ONLY FOR x86 AND AMD64 (x86-64) PROCESSORS.
 
-License: [MIT License](LICENSE)
+Other architectures may become supported in the future.
+
+[MIT License](LICENSE)

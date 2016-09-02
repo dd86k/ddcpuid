@@ -69,6 +69,7 @@ void main(string[] args)
             writeln(" --version   Prints version and quit.");
             return;
  
+        case "-v":
         case "--version":
             writeln("ddcpuid ", ver);
             writeln("Copyright (c) guitarxhero 2016");
@@ -467,8 +468,7 @@ public class CPU_INFO
             }
 
             switch (leaf)
-            {
-                // case 0 already has been handled (max leaf and vendor).
+            { // case 0 has already has been handled (max leaf and vendor).
                 case 1: // 01H -- Basic CPUID Information
                     // EAX
                     BaseFamily     = a >>  8 &  0xF; // EAX[11:8]

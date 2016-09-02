@@ -1,16 +1,17 @@
-import std.stdio, std.string;
+import std.stdio, std.string : strip;
 
 /// Version
-const string ver = "0.2.0";
+const string ver = "0.2.1";
 
 version(DLL)
 {
 import core.sys.windows.windows;
 import core.sys.windows.dll;
+/// Handle instance
 __gshared HINSTANCE g_hInst;
  
-version(Windows)
-extern(Windows) bool DllMain(void* hInstance, uint ulReason, void*)
+/// DLL Entry point
+version(Windows) extern(Windows) bool DllMain(void* hInstance, uint ulReason, void*)
 {
     switch (ulReason)
     {
@@ -35,17 +36,16 @@ extern(Windows) bool DllMain(void* hInstance, uint ulReason, void*)
 }
 
 // Trash
-version(Windows)
-extern(Windows) void DllGetClassObject() {}
-version(Windows)
-extern(Windows) void DllCanUnloadNow() {}
-version(Windows)
-extern(Windows) void DllRegisterServer() {}
-version(Windows)
-extern(Windows) void DllUnregisterServer() {}
-}
-else
-{
+
+/// Gets the class object for this DLL
+version(Windows) extern(Windows) void DllGetClassObject() {}
+/// Returns if the DLL can unload now
+version(Windows) extern(Windows) void DllCanUnloadNow() {}
+/// Registers with the COM server
+version(Windows) extern(Windows) void DllRegisterServer() {}
+/// Unregisters with the COM server
+version(Windows) extern(Windows) void DllUnregisterServer() {}
+} else {
 void main(string[] args)
 {
     bool _dbg = false; // Debug
@@ -70,10 +70,12 @@ void main(string[] args)
             return;
  
         case "--version":
-            writeln("ddcpuid v", ver);
+            writeln("ddcpuid ", ver);
             writeln("Copyright (c) guitarxhero 2016");
             writeln("License: MIT License <http://opensource.org/licenses/MIT>");
             writeln("Project page: <https://github.com/guitarxhero/ddcpuid>");
+            writefln("Compiled %s at %s, using %s version %s.",
+                __FILE__, __TIMESTAMP__, __VENDOR__, __VERSION__);
             return;
 
         case "-D":
@@ -95,9 +97,9 @@ void main(string[] args)
     }
 
     // Maximum leaf
-    int max = _oml ? 0x20 : GetHighestLeaf();
+    int max = _oml ? 0x20 : getHighestLeaf();
     // Maximum extended leaf
-    int emax = _oml ? 0x8000_0020 : GetHighestExtendedLeaf();
+    int emax = _oml ? 0x8000_0020 : getHighestExtendedLeaf();
 
     if (_dbg)
     {
@@ -233,7 +235,7 @@ void main(string[] args)
                         if (TSC_Deadline)
                             write("TSC-Deadline");
                         if (TscInvariant)
-                            write(", TscInvariant");
+                            write(", TSC-Invariant");
                         write(")");
                     }
                     write(", ");
@@ -328,26 +330,38 @@ void main(string[] args)
 } // main
 } // version else
 
-// ----- 00H - Basic CPUID Information -----
 /// <summary>
 /// Gets the highest leaf possible for this processor.
 /// </summay>
-public int GetHighestLeaf()
+public int getHighestLeaf()
 {
-    int e;
     asm
     {
+        naked;
         mov EAX, 0;
         cpuid;
-        mov e, EAX;
+        ret;
     }
-    return e;
+}
+
+/// <summary>
+/// Get the Processor Brand string
+/// </summary>
+public int getHighestExtendedLeaf()
+{
+    asm
+    {
+        naked;
+        mov EAX, 0x80000000;
+        cpuid;
+        ret;
+    }
 }
 
 /// <summary>
 /// Gets the CPU Vendor string.
 /// </summay>
-public string GetVendor()
+public string getVendor()
 {
     string s;
     int ebx, edx, ecx;
@@ -375,49 +389,10 @@ public string GetVendor()
     return s;
 }
 
-// ----- 04H - Deterministic Cache Parameters Leaf -----
-// NOTES: Leaf 04H output depends on the initial value in ECX.*
-
-/*  ECX = Cache Level
-    This Cache Size in Bytes
-    = (Ways + 1) * (Partitions + 1) * (Line_Size + 1) * (Sets + 1)
-    = (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
-*/
-
-// ----- 80000000H - Extended Function CPUID Information -----
-// EAX - Maximum Input Value for Extended Function CPUID Information.
-public int GetHighestExtendedLeaf()
-{
-    int e;
-    asm
-    {
-        mov EAX, 0x80000000;
-        cpuid;
-        mov e, EAX;
-    }
-    return e;
-}
-
-// ----- 80000001H - Extended Function CPUID Information -----
-// EAX - Extended Processor Signature and Feature Bits.
-
-// EBX - Reserved
-
-// ECX
-// Bit 00 - LAHF/SAHF available in 64-bit mode.
-
-// Bit 04~01 - Reserved
-// Bit 05 - LZCNT
-
-// Bit 07~06 - Reserved
-// Bit 08 - PREFETCHW
-
-// Bit 31~09 - Reserved
-
-// EDX
-
-// ----- 80000002H~80000004H - Processor Brand String -----
-public string GetProcessorBrandString()
+/// <summary>
+/// Get the Processor Brand string
+/// </summary>
+public string getProcessorBrandString()
 {
     string s;
     int eax, ebx, ecx, edx;
@@ -466,17 +441,17 @@ public class CPU_INFO
     this(bool fetch = true)
     {
         if (fetch)
-            FetchInfo();
+            fetchInfo();
     }
 
     /// Fetches the information 
-    public void FetchInfo()
+    public void fetchInfo()
     {
-        Vendor = GetVendor();
-        ProcessorBrandString = strip(GetProcessorBrandString());
+        Vendor = getVendor();
+        ProcessorBrandString = strip(getProcessorBrandString());
 
-        MaximumLeaf = GetHighestLeaf();
-        MaximumExtendedLeaf = GetHighestExtendedLeaf();
+        MaximumLeaf = getHighestLeaf();
+        MaximumExtendedLeaf = getHighestExtendedLeaf();
 
         int a, b, c, d;
         for (int leaf = 1; leaf <= MaximumLeaf; ++leaf)
@@ -627,6 +602,10 @@ public class CPU_INFO
                     break;
             }
         }
+
+        /*******************
+         * Extended leaves *
+         *******************/
 
         for (int eleaf = 0x8000_0000; eleaf < MaximumExtendedLeaf; ++eleaf)
         {
@@ -875,5 +854,6 @@ public class CPU_INFO
     public bool BMI2; // 8
 
     // ---- 8000_0007 -  ----
+    /// TSC Invariation support
     public bool TscInvariant; // 8
 }

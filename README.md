@@ -21,7 +21,7 @@ By default, it will show basic information.
 
 `--debug` -- Debug, shows debugging information in a chart.
 
-`-O`, `--override` -- Overrides the maximum leaf to `17h` and `8000_0020h`.
+`-O`, `--override` -- Overrides the maximum leaf to `20h` and `8000_0020h`.
 
 `--help` -- Shows the help screen and quits.
 

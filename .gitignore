@@ -7,6 +7,7 @@ ehthumbs.db
 *.dll
 *.lib
 *.o
+*.di
 
 # Folder config file
 Desktop.ini
@@ -52,3 +53,4 @@ Network Trash Folder
 Temporary Items
 .apdisk
 ddcpuid
+*.html

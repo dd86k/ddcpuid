@@ -36,9 +36,13 @@ Requirements:
 That's it! The standard Phobos and druntime.
 
 To compile:
-- The executable (x86):
+- The executable (Debug, x86):
 ```
 dmd ddcpuid.d
+```
+- The executable (Release, x86):
+```
+dmd -O -release -inline -boundscheck=off ddcpuid.d
 ```
 - The Windows DLL (WIP, x86):
 ```

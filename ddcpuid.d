@@ -1,12 +1,12 @@
-import std.stdio, std.string : strip;
+import std.stdio : write, writef, writeln, writefln;
+import std.string : strip;
 
 /// Version
 const string ver = "0.2.1";
 
 version(DLL)
 {
-import core.sys.windows.windows;
-import core.sys.windows.dll;
+import core.sys.windows.windows, core.sys.windows.dll;
 /// Handle instance
 __gshared HINSTANCE g_hInst;
  
@@ -36,7 +36,6 @@ version(Windows) extern(Windows) bool DllMain(void* hInstance, uint ulReason, vo
 }
 
 // Trash
-
 /// Gets the class object for this DLL
 version(Windows) extern(Windows) void DllGetClassObject() {}
 /// Returns if the DLL can unload now
@@ -208,6 +207,10 @@ void main(string[] args)
                 write("OSXSAVE, ");
             writeln();
 
+            writeln("Hyper-Threading Technology: ", HTT);
+            writeln("Turbo Boost Available: ", TurboBoost);
+            writeln("Enhanced Intel SpeedStep technology: ", EIST);
+
             if (_det)
             {
                 write("Single instructions: [ ");
@@ -252,14 +255,23 @@ void main(string[] args)
                 if (FXSR)
                     write("FXSAVE/FXRSTOR, ");
                 writeln("]");
-            }
 
-            writeln("Hyper-Threading Technology: ", HTT);
-            writeln("Turbo Boost Available: ", TurboBoost);
-            writeln("Enhanced Intel SpeedStep technology: ", EIST);
+                writeln();
+                writeln(" Memory handling");
+                writeln(" ================");
+                writeln();
 
-            if (_det)
-            {
+                writeln();
+                writeln(" Floating Point");
+                writeln(" ================");
+                writeln();
+                writeln("Floating Point Unit [FPU]: ", FPU);
+
+                writeln();
+                writeln(" Virtualization");
+                writeln(" ================");
+                writeln();
+
                 writeln();
                 writeln(" Details");
                 writeln(" ================");
@@ -282,10 +294,6 @@ void main(string[] args)
                         break;
                 }
 
-                //TODO: Floating point section
-                //TODO: Virtualization section
-                //TODO: Memory handling section
-
                 writeln("Brand Index: ", BrandIndex);
                 // MaximumNumberOfAddressableIDs / 2 (if HTT) for # cores?
                 writeln("Max # of addressable IDs: ", MaximumNumberOfAddressableIDs);
@@ -299,7 +307,6 @@ void main(string[] args)
                 writeln("Perfmon and Debug Capability [PDCM]: ", PDCM);
                 writeln("Process-context identifiers [PCID]: ", PCID);
                 writeln("Direct Cache Access [DCA]: ", DCA);
-                writeln("Floating Point Unit [FPU]: ", FPU);
                 writeln("Virtual 8086 Mode Enhancements [VME]: ", VME);
                 writeln("Debugging Extensions [DE]: ", DE);
                 writeln("Page Size Extension [PAE]: ", PAE);
@@ -329,7 +336,6 @@ void main(string[] args)
         } // with (c)
     } // else if
 } // main
-} // version else
 
 /// <summary>
 /// Gets the highest leaf possible for this processor.
@@ -857,3 +863,4 @@ public class CPU_INFO
     /// TSC Invariation support
     public bool TscInvariant; // 8
 }
+} // version else

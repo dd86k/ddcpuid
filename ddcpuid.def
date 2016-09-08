@@ -1,12 +1,13 @@
-LIBRARY         LIBDDCPUID
-DESCRIPTION     'ddcpuid Library'
+LIBRARY			LIBDDCPUID
+DESCRIPTION		'ddcpuid Library'
 
 EXETYPE			NT
-CODE            PRELOAD DISCARDABLE
-DATA            WRITE
+CODE			PRELOAD DISCARDABLE
+DATA			WRITE
 
 EXPORTS
-		DllGetClassObject       @2
-		DllCanUnloadNow         @3
-		DllRegisterServer       @4
-		DllUnregisterServer     @5
+	DllGetClassObject		@2
+	DllCanUnloadNow			@3
+	DllRegisterServer		@4
+	DllUnregisterServer		@5
+	GetLibraryVersion		@6

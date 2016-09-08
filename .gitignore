@@ -9,6 +9,8 @@ ehthumbs.db
 *.o
 *.di
 
+.vscode
+
 # Folder config file
 Desktop.ini
 

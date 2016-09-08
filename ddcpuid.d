@@ -44,6 +44,11 @@ version(Windows) extern(Windows) void DllCanUnloadNow() {}
 version(Windows) extern(Windows) void DllRegisterServer() {}
 /// Unregisters with the COM server
 version(Windows) extern(Windows) void DllUnregisterServer() {}
+
+extern(C) string GetLibraryVersion()
+{
+    return ver ~ '\0';
+}
 } else {
 void main(string[] args)
 {
@@ -337,104 +342,6 @@ void main(string[] args)
     } // else if
 } // main
 
-/// <summary>
-/// Gets the highest leaf possible for this processor.
-/// </summay>
-public int getHighestLeaf()
-{
-    asm
-    {
-        naked;
-        mov EAX, 0;
-        cpuid;
-        ret;
-    }
-}
-
-/// <summary>
-/// Get the Processor Brand string
-/// </summary>
-public int getHighestExtendedLeaf()
-{
-    asm
-    {
-        naked;
-        mov EAX, 0x80000000;
-        cpuid;
-        ret;
-    }
-}
-
-/// <summary>
-/// Gets the CPU Vendor string.
-/// </summay>
-public string getVendor()
-{
-    string s;
-    int ebx, edx, ecx;
-    char* p = cast(char*)&ebx;
-    asm
-    {
-        mov EAX, 0;
-        cpuid;
-        mov ebx, EBX;
-        mov ecx, ECX;
-        mov edx, EDX;
-    }
-    s ~= *p;
-    s ~= *(p + 1);
-    s ~= *(p + 2);
-    s ~= *(p + 3);
-    s ~= *(p + 4);
-    s ~= *(p + 5);
-    s ~= *(p + 6);
-    s ~= *(p + 7);
-    s ~= *(p + 8);
-    s ~= *(p + 9);
-    s ~= *(p + 10);
-    s ~= *(p + 11);
-    return s;
-}
-
-/// <summary>
-/// Get the Processor Brand string
-/// </summary>
-public string getProcessorBrandString()
-{
-    string s;
-    int eax, ebx, ecx, edx;
-    char* p = cast(char*)&eax;
-    for (int i = 0x80000002; i <= 0x80000004; ++i)
-    {
-        asm
-        {
-            mov EAX, i;
-            cpuid;
-            mov eax, EAX;
-            mov ebx, EBX;
-            mov ecx, ECX;
-            mov edx, EDX;
-        }
-        s ~= *p;
-        s ~= *(p + 1);
-        s ~= *(p + 2);
-        s ~= *(p + 3);
-        s ~= *(p + 4);
-        s ~= *(p + 5);
-        s ~= *(p + 6);
-        s ~= *(p + 7);
-        s ~= *(p + 8);
-        s ~= *(p + 9);
-        s ~= *(p + 10);
-        s ~= *(p + 11);
-        s ~= *(p + 12);
-        s ~= *(p + 13);
-        s ~= *(p + 14);
-        s ~= *(p + 15);
-    }
-    return s;
-}
-
 /***********
  * Classes *
  ***********/
@@ -609,9 +516,9 @@ public class CPU_INFO
             }
         }
 
-        /*******************
-         * Extended leaves *
-         *******************/
+        /************
+         * EXTENDED *
+         ************/
 
         for (int eleaf = 0x8000_0000; eleaf < MaximumExtendedLeaf; ++eleaf)
         {
@@ -864,3 +771,101 @@ public class CPU_INFO
     public bool TscInvariant; // 8
 }
 } // version else
+
+/// <summary>
+/// Gets the highest leaf possible for this processor.
+/// </summay>
+public int getHighestLeaf()
+{
+    asm
+    {
+        naked;
+        mov EAX, 0;
+        cpuid;
+        ret;
+    }
+}
+
+/// <summary>
+/// Get the Processor Brand string
+/// </summary>
+public int getHighestExtendedLeaf()
+{
+    asm
+    {
+        naked;
+        mov EAX, 0x80000000;
+        cpuid;
+        ret;
+    }
+}
+
+/// <summary>
+/// Gets the CPU Vendor string.
+/// </summay>
+public string getVendor()
+{
+    string s;
+    int ebx, edx, ecx;
+    char* p = cast(char*)&ebx;
+    asm
+    {
+        mov EAX, 0;
+        cpuid;
+        mov ebx, EBX;
+        mov ecx, ECX;
+        mov edx, EDX;
+    }
+    s ~= *p;
+    s ~= *(p + 1);
+    s ~= *(p + 2);
+    s ~= *(p + 3);
+    s ~= *(p + 4);
+    s ~= *(p + 5);
+    s ~= *(p + 6);
+    s ~= *(p + 7);
+    s ~= *(p + 8);
+    s ~= *(p + 9);
+    s ~= *(p + 10);
+    s ~= *(p + 11);
+    return s;
+}
+
+/// <summary>
+/// Get the Processor Brand string
+/// </summary>
+public string getProcessorBrandString()
+{
+    string s;
+    int eax, ebx, ecx, edx;
+    char* p = cast(char*)&eax;
+    for (int i = 0x80000002; i <= 0x80000004; ++i)
+    {
+        asm
+        {
+            mov EAX, i;
+            cpuid;
+            mov eax, EAX;
+            mov ebx, EBX;
+            mov ecx, ECX;
+            mov edx, EDX;
+        }
+        s ~= *p;
+        s ~= *(p + 1);
+        s ~= *(p + 2);
+        s ~= *(p + 3);
+        s ~= *(p + 4);
+        s ~= *(p + 5);
+        s ~= *(p + 6);
+        s ~= *(p + 7);
+        s ~= *(p + 8);
+        s ~= *(p + 9);
+        s ~= *(p + 10);
+        s ~= *(p + 11);
+        s ~= *(p + 12);
+        s ~= *(p + 13);
+        s ~= *(p + 14);
+        s ~= *(p + 15);
+    }
+    return s;
+}

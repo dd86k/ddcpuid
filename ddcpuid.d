@@ -287,7 +287,7 @@ void main(string[] args)
 
                 writeln("Brand Index: ", BrandIndex);
                 // MaximumNumberOfAddressableIDs / 2 (if HTT) for # cores?
-                writeln("Logical processor count*: ", LogicalProcessorCount);
+                writeln("Logical processor count*: ", MaxIDs);
                 writeln("Floating Point Unit [FPU]: ", FPU);
                 writefln("APIC: %s (Initial ID: %s)", APIC, InitialAPICID);
                 writeln("x2APIC: ", x2APIC);
@@ -426,7 +426,7 @@ public class CPU_INFO
                     // EBX
                     BrandIndex = b & 0xFF; // EBX[7:0]
                     CLFLUSHLineSize = b >> 8 & 0xFF; // EBX[15:8]
-                    LogicalProcessorCount = b >> 16 & 0xFF; // EBX[23:16]
+                    MaxIDs = b >> 16 & 0xFF; // EBX[23:16]
                     InitialAPICID = b >> 24 & 0xFF; // EBX[31:24]
                     // ECX
                     SSE3         = c & 1;
@@ -472,7 +472,7 @@ public class CPU_INFO
                     FXSR   = d >> 24 & 1;
                     SSE    = d >> 25 & 1;
                     SSE2   = d >> 26 & 1;
-                    HTT    = (d >> 28 & 1) && (LogicalProcessorCount > 1);
+                    HTT    = (d >> 28 & 1) && (MaxIDs > 1);
                     break;
 
                 case 2: // 02h -- Cache and TLB Information. | AMD: Reserved
@@ -628,7 +628,7 @@ public class CPU_INFO
     /// The CLFLUSH line size. Multiply by 8 to get its size in bytes.
     public ubyte CLFLUSHLineSize;
     /// Maximum number of addressable IDs for logical processors in this physical package.
-    public ubyte LogicalProcessorCount;
+    public ubyte MaxIDs;
     /// Initial APIC ID for this processor.
     public ubyte InitialAPICID;
     // -- ECX --
@@ -779,7 +779,7 @@ extern (C) export int getHighestExtendedLeaf()
     asm
     {
         naked;
-        mov EAX, 0x80000000;
+        mov EAX, 0x8000_0000;
         cpuid;
         ret;
     }
@@ -792,7 +792,7 @@ public string getVendor()
 {
     string s;
     int ebx, edx, ecx;
-    char* p = cast(char*)&ebx;
+    char* p = cast(char*)&ebx; // char.sizeof == 1
     asm
     {
         mov EAX, 0;
@@ -825,7 +825,6 @@ public string getProcessorBrandString()
             mov ecx, ECX;
             mov edx, EDX;
         }
-
         for (int a = 0; a < int.sizeof * 4; ++a)
             s ~= *(p + a);
     }

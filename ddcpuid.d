@@ -801,18 +801,8 @@ public string getVendor()
         mov ecx, ECX;
         mov edx, EDX;
     }
-    s ~= *p;
-    s ~= *(p + 1);
-    s ~= *(p + 2);
-    s ~= *(p + 3);
-    s ~= *(p + 4);
-    s ~= *(p + 5);
-    s ~= *(p + 6);
-    s ~= *(p + 7);
-    s ~= *(p + 8);
-    s ~= *(p + 9);
-    s ~= *(p + 10);
-    s ~= *(p + 11);
+    for (int a = 0; a < int.sizeof * 3; ++a)
+        s ~= *(p + a);
     return s;
 }
 
@@ -835,22 +825,9 @@ public string getProcessorBrandString()
             mov ecx, ECX;
             mov edx, EDX;
         }
-        s ~= *p;
-        s ~= *(p + 1);
-        s ~= *(p + 2);
-        s ~= *(p + 3);
-        s ~= *(p + 4);
-        s ~= *(p + 5);
-        s ~= *(p + 6);
-        s ~= *(p + 7);
-        s ~= *(p + 8);
-        s ~= *(p + 9);
-        s ~= *(p + 10);
-        s ~= *(p + 11);
-        s ~= *(p + 12);
-        s ~= *(p + 13);
-        s ~= *(p + 14);
-        s ~= *(p + 15);
+
+        for (int a = 0; a < int.sizeof * 4; ++a)
+            s ~= *(p + a);
     }
     return s;
 }

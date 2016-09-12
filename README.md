@@ -30,21 +30,21 @@ Any help is appreciated! I recommend reading the Intel and AMD programming guide
 
 ## Compiling
 
-Requirements:
+### Requirements
 - `dmd` — Digital Mars D compiler
 
 That's it! The standard Phobos and druntime.
 
-To compile:
-- The executable (x86):
+### Compile
+- Executable (x86):
 ```
 dmd ddcpuid.d
 ```
-- The executable (Optimized, x86):
+- Executable (Optimized, x86):
 ```
 dmd -O -release -inline -boundscheck=off ddcpuid.d
 ```
-- The Windows DLL (Windows, x86) (WIP):
+- Windows DLL (Windows, x86) (WIP):
 ```
 dmd -version=DLL -ofddcpuid.dll -shared ddcpuid.d ddcpuid.def
 ```

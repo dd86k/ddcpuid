@@ -44,11 +44,6 @@ version(Windows) extern(Windows) void DllCanUnloadNow() {}
 version(Windows) extern(Windows) void DllRegisterServer() {}
 /// Unregisters with the COM server
 version(Windows) extern(Windows) void DllUnregisterServer() {}
-
-extern(C) string GetLibraryVersion()
-{
-    return ver ~ '\0';
-}
 } else {
 void main(string[] args)
 {
@@ -212,9 +207,11 @@ void main(string[] args)
                 write("OSXSAVE, ");
             writeln();
 
+            writeln();
             writeln("Hyper-Threading Technology: ", HTT);
             writeln("Turbo Boost Available: ", TurboBoost);
             writeln("Enhanced Intel SpeedStep technology: ", EIST);
+            writeln();
 
             if (_det)
             {
@@ -262,18 +259,7 @@ void main(string[] args)
                 writeln("]");
 
                 writeln();
-                writeln(" Memory handling");
-                writeln(" ================");
-                writeln();
-
-                writeln();
                 writeln(" Floating Point");
-                writeln(" ================");
-                writeln();
-                writeln("Floating Point Unit [FPU]: ", FPU);
-
-                writeln();
-                writeln(" Virtualization");
                 writeln(" ================");
                 writeln();
 
@@ -301,7 +287,8 @@ void main(string[] args)
 
                 writeln("Brand Index: ", BrandIndex);
                 // MaximumNumberOfAddressableIDs / 2 (if HTT) for # cores?
-                writeln("Max # of addressable IDs: ", MaximumNumberOfAddressableIDs);
+                writeln("Logical processor count*: ", LogicalProcessorCount);
+                writeln("Floating Point Unit [FPU]: ", FPU);
                 writefln("APIC: %s (Initial ID: %s)", APIC, InitialAPICID);
                 writeln("x2APIC: ", x2APIC);
                 writeln("64-bit DS Area [DTES64]: ", DTES64);
@@ -388,9 +375,9 @@ public class CPU_INFO
                     ExtendedFamily = a >> 20 & 0xFF; // EAX[27:20]
                     BaseModel      = a >>  4 &  0xF; // EAX[7:4]
                     ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
-                    switch (Vendor)
+                    switch (Vendor) // Vendor specific features.
                     {
-                        case "GenuineIntel": // Intel only section
+                        case "GenuineIntel":
                             if (BaseFamily != 0)
                                 Family = BaseFamily;
                             else
@@ -413,7 +400,6 @@ public class CPU_INFO
                             PDCM    = c >> 15 & 1;
                             PCID    = c >> 17 & 1;
                             DCA     = c >> 18 & 1;
-
                             DS      = d >> 21 & 1;
                             APCI    = d >> 22 & 1;
                             SS      = d >> 27 & 1;
@@ -421,7 +407,7 @@ public class CPU_INFO
                             PBE     = d >> 31 & 1;
                             break;
 
-                        case "AuthenticAMD": // AMD only section
+                        case "AuthenticAMD":
                             if (BaseFamily < 0xF)
                                 Family = BaseFamily;
                             else
@@ -435,13 +421,12 @@ public class CPU_INFO
 
                             default:
                     }
-
                     ProcessorType = (a >> 12) & 3; // EAX[13:12]
                     Stepping = a & 0xF; // EAX[3:0]
                     // EBX
                     BrandIndex = b & 0xFF; // EBX[7:0]
                     CLFLUSHLineSize = b >> 8 & 0xFF; // EBX[15:8]
-                    MaximumNumberOfAddressableIDs = b >> 16 & 0xFF; // EBX[23:16]
+                    LogicalProcessorCount = b >> 16 & 0xFF; // EBX[23:16]
                     InitialAPICID = b >> 24 & 0xFF; // EBX[31:24]
                     // ECX
                     SSE3         = c & 1;
@@ -487,7 +472,7 @@ public class CPU_INFO
                     FXSR   = d >> 24 & 1;
                     SSE    = d >> 25 & 1;
                     SSE2   = d >> 26 & 1;
-                    HTT    = d >> 28 & 1;
+                    HTT    = (d >> 28 & 1) && (LogicalProcessorCount > 1);
                     break;
 
                 case 2: // 02h -- Cache and TLB Information. | AMD: Reserved
@@ -586,7 +571,7 @@ public class CPU_INFO
     /// Maximum extended leaf supported by this processor.
     public int MaximumExtendedLeaf;
 
-    /// Also known as Intel64 Architecture on Intel.
+    /// Also known as Intel64 or AMD64.
     public bool LongMode;
 
     /// Number of physical cores.
@@ -643,7 +628,7 @@ public class CPU_INFO
     /// The CLFLUSH line size. Multiply by 8 to get its size in bytes.
     public ubyte CLFLUSHLineSize;
     /// Maximum number of addressable IDs for logical processors in this physical package.
-    public ubyte MaximumNumberOfAddressableIDs;
+    public ubyte LogicalProcessorCount;
     /// Initial APIC ID for this processor.
     public ubyte InitialAPICID;
     // -- ECX --
@@ -775,7 +760,7 @@ public class CPU_INFO
 /// <summary>
 /// Gets the highest leaf possible for this processor.
 /// </summay>
-public int getHighestLeaf()
+extern (C) export int getHighestLeaf()
 {
     asm
     {
@@ -789,7 +774,7 @@ public int getHighestLeaf()
 /// <summary>
 /// Get the Processor Brand string
 /// </summary>
-public int getHighestExtendedLeaf()
+extern (C) export int getHighestExtendedLeaf()
 {
     asm
     {

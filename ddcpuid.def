@@ -10,4 +10,3 @@ EXPORTS
 	DllCanUnloadNow			@3
 	DllRegisterServer		@4
 	DllUnregisterServer		@5
-	GetLibraryVersion		@6

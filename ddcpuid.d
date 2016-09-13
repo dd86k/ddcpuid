@@ -784,7 +784,7 @@ extern (C) export int getHighestExtendedLeaf()
 /// <summary>
 /// Gets the CPU Vendor string.
 /// </summay>
-public string getVendor()
+string getVendor()
 {
     string s;
     int ebx, edx, ecx;
@@ -805,9 +805,9 @@ public string getVendor()
 /// <summary>
 /// Get the Processor Brand string
 /// </summary>
-public string getProcessorBrandString()
+string getProcessorBrandString()
 {
-    char[48] s;
+    string s;
     int eax, ebx, ecx, edx;
     char* p = cast(char*)&eax;
     for (int i = 0x80000002; i <= 0x80000004; ++i)

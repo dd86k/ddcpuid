@@ -180,7 +180,7 @@ void main(string[] args)
                     case "AuthenticAMD": write("AMD64, ");   break;
                     default:
                 }
-            if (VMX)
+            if (Virtualization)
                 switch (Vendor)
                 {
                     case "GenuineIntel": write("VT-x, ");  break; // VMX
@@ -389,22 +389,22 @@ public class CPU_INFO
                                 Model = BaseModel;
 
                             // ECX
-                            DTES64  = c >>  2 & 1;
-                            DS_CPL  = c >>  4 & 1;
-                            VMX     = c >>  5 & 1;
-                            SMX     = c >>  6 & 1;
-                            EIST    = c >>  7 & 1;
-                            CNXT_ID = c >> 10 & 1;
-                            SDBG    = c >> 11 & 1;
-                            xTPR    = c >> 14 & 1;
-                            PDCM    = c >> 15 & 1;
-                            PCID    = c >> 17 & 1;
-                            DCA     = c >> 18 & 1;
-                            DS      = d >> 21 & 1;
-                            APCI    = d >> 22 & 1;
-                            SS      = d >> 27 & 1;
-                            TM      = d >> 29 & 1;
-                            PBE     = d >> 31 & 1;
+                            DTES64         = c >>  2 & 1;
+                            DS_CPL         = c >>  4 & 1;
+                            Virtualization = c >>  5 & 1;
+                            SMX            = c >>  6 & 1;
+                            EIST           = c >>  7 & 1;
+                            CNXT_ID        = c >> 10 & 1;
+                            SDBG           = c >> 11 & 1;
+                            xTPR           = c >> 14 & 1;
+                            PDCM           = c >> 15 & 1;
+                            PCID           = c >> 17 & 1;
+                            DCA            = c >> 18 & 1;
+                            DS             = d >> 21 & 1;
+                            APCI           = d >> 22 & 1;
+                            SS             = d >> 27 & 1;
+                            TM             = d >> 29 & 1;
+                            PBE            = d >> 31 & 1;
                             break;
 
                         case "AuthenticAMD":
@@ -519,15 +519,11 @@ public class CPU_INFO
 
             switch (eleaf)
             {
-                case 0x8000_0000:
-                
-                break;
-
                 case 0x8000_0001:
                     switch (Vendor)
                     {
                         case "AuthenticAMD":
-                            VMX = c >> 2 & 1; // SVM
+                            Virtualization = c >> 2 & 1; // SVM/VMX
                             SSE4a = c >> 6 & 1;
                             break;
 
@@ -640,8 +636,8 @@ public class CPU_INFO
     public bool MONITOR;
     /// CPL Qualified Debug Store.
     public bool DS_CPL;
-    /// Virtual Machine Extensions. AMD: SVM -- Secure Virtual Machine.
-    public bool VMX;
+    /// Virtualization | Virtual Machine Extensions (Intel) | Secure Virtual Machine (AMD) 
+    public bool Virtualization;
     /// Safer Mode Extensions.
     public bool SMX;
     /// Enhanced Intel SpeedStep® technology.
@@ -811,7 +807,7 @@ public string getVendor()
 /// </summary>
 public string getProcessorBrandString()
 {
-    string s;
+    char[48] s;
     int eax, ebx, ecx, edx;
     char* p = cast(char*)&eax;
     for (int i = 0x80000002; i <= 0x80000004; ++i)

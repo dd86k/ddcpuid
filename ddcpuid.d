@@ -2,7 +2,7 @@ import std.stdio : write, writef, writeln, writefln;
 import std.string : strip;
 
 /// Version
-const string ver = "0.2.1";
+const string version = "0.2.0";
 
 version(DLL)
 {
@@ -47,9 +47,10 @@ version(Windows) extern(Windows) void DllUnregisterServer() {}
 } else {
 void main(string[] args)
 {
-    bool _dbg = false; // Debug
-    bool _det = false; // Detailed output
-    bool _oml = false; // Override max leaf
+    bool raw = false; // Raw
+    bool det = false; // Detailed output
+    bool ovr = false; // Override max leaf
+    bool ver = false; // Verbose
 
     foreach (s; args)
     {
@@ -60,17 +61,18 @@ void main(string[] args)
         case "--help":
             writeln(" ddcpuid [<Options>]");
             writeln();
-            writeln(" --details, -D    Gets more details.");
-            writeln(" --override, -O   Overrides leafs to 0x20 and 0x8000_0020");
-            writeln(" --debug          Gets debugging information.");
+            writeln(" -d, --details    Show more details.");
+            writeln(" -o, --override   Override leafs to 0x20 and 0x8000_0020.");
+            writeln(" -V, --verbose    Show debugging information.");
+            writeln(" -r, --raw        Show raw CPUID information.");
             writeln();
-            writeln(" --help      Prints help and quit.");
-            writeln(" --version   Prints version and quit.");
+            writeln(" --help, -h, /?  Print help and quit.");
+            writeln(" --version, -v   Print version and quit.");
             return;
  
         case "-v":
         case "--version":
-            writeln("ddcpuid ", ver);
+            writeln("ddcpuid ", version);
             writeln("Copyright (c) guitarxhero 2016");
             writeln("License: MIT License <http://opensource.org/licenses/MIT>");
             writeln("Project page: <https://github.com/guitarxhero/ddcpuid>");
@@ -78,30 +80,42 @@ void main(string[] args)
                 __FILE__, __TIMESTAMP__, __VENDOR__, __VERSION__);
             return;
 
-        case "-D":
+        case "-d":
         case "--details":
-            _det = true;
+            det = true;
             break;
 
-        case "-O":
+        case "-o":
         case "--override":
-            _oml = true;
+            ovr = true;
             break;
 
-        case "--debug":
-            _dbg = true;
+        case "--raw":
+        case "-r":
+            raw = true;
+            break;
+
+        case "-V":
+        case "--verbose":
+            ver = true;
             break;
 
         default:
         }
     }
 
-    // Maximum leaf
-    int max = _oml ? 0x20 : getHighestLeaf();
-    // Maximum extended leaf
-    int emax = _oml ? 0x8000_0020 : getHighestExtendedLeaf();
+    if (ver)
+        writefln("[%4d] Verbose mode on", __LINE__);
 
-    if (_dbg)
+    // Maximum leaf
+    int max = _ovr ? 0x20 : getHighestLeaf();
+    // Maximum extended leaf
+    int emax = _ovr ? 0x8000_0020 : getHighestExtendedLeaf();
+
+    if (ver)
+        writefln("[%4d] Max: %d | Extended Max: %d", __LINE__, max, emax);
+
+    if (_raw)
     {
         writeln("|   Leaf   | Sub-leaf | EAX      | EBX      | ECX      | EDX      |");
         writeln("|----------|----------|----------|----------|----------|----------| ");
@@ -146,15 +160,21 @@ void main(string[] args)
     }
     else
     {
+        if (ver)
+            writefln("[%4d] Getting info...", __LINE__);
+
         const CpuInfo ci = new CpuInfo();
+        
         with (ci)
         {
             writeln("Vendor: ", Vendor);
             writeln("Model: ", ProcessorBrandString);
-            writefln("Identification: Family %X [%X:%X] Model %X [%X:%X] Stepping %X",
-                Family, BaseFamily, ExtendedFamily,
-                Model, BaseModel, ExtendedModel,
-                Stepping);
+            if (_det)
+                writefln("Identification: Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh",
+                    Family, BaseFamily, ExtendedFamily, Model, BaseModel, ExtendedModel, Stepping);
+            else
+                writefln("Identification: Family %d Model %d Stepping %d",
+                    Family, Model, Stepping);
 
             write("Extensions: ");
             if (MMX)
@@ -215,7 +235,7 @@ void main(string[] args)
 
             if (_det)
             {
-                writeln("     Details");
+                writeln(" Details");
                 writeln(" ===============");
                 writeln();
 
@@ -334,14 +354,14 @@ void main(string[] args)
 public class CpuInfo
 {
     /// Initiates a CPU_INFO.
-    this(bool fetch = true)
+    this(bool fetch = true, bool verbose = false)
     {
         if (fetch)
-            fetchInfo();
+            fetchInfo(verbose);
     }
 
     /// Fetches the information 
-    public void fetchInfo()
+    public void fetchInfo(bool verbose = false)
     {
         Vendor = getVendor();
         ProcessorBrandString = strip(getProcessorBrandString());
@@ -404,14 +424,15 @@ public class CpuInfo
 
                         case "AuthenticAMD":
                             if (BaseFamily < 0xF)
+                            {
                                 Family = BaseFamily;
-                            else
-                                Family = cast(ubyte)(ExtendedFamily + BaseFamily);
-
-                            if (BaseFamily < 0xF)
                                 Model = BaseModel;
+                            }
                             else
+                            {
+                                Family = cast(ubyte)(ExtendedFamily + BaseFamily);
                                 Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
+                            }
                             break;
 
                             default:

@@ -3,11 +3,7 @@
 
 This small utility will reveal everything through `CPUID` -- A CPU instruction to get information about the CPU.
 
-It is planned to probably do a GUI version as well, there is a nice list of [libraries](https://wiki.dlang.org/Libraries_and_Frameworks) for it too.
-
 If you have any questions, suggestions, requests, find any bugs, or notice incorect data, please either start an Issue or send an [email](mailto:devddstuff@gmail.com)!
-
-The output and the project will change often!
 
 ## Goal
 
@@ -15,18 +11,19 @@ My goal is to make a tool that provides complete human readable information abou
 
 ## Usage
 
-By default, it will show basic information.
+By default, ddcpuid will show basic information.
 
 | Switch | Description |
 | :---: | :---: |
-| `-D`, `--details` | Show more technician-related details. |
-| `--debug` | Show debugging information. |
-| `-O`, `--override` | Override maximum leaves to 20h and 8000_0020h. |
+| `-d`, `--details` | Show more details. |
+| `-V`, `--verbose` | Show debugging information. |
+| `-o`, `--override` | Override maximum leaves to 20h and 8000_0020h. |
+| `-r`, `--raw` | Show raw CPUID information. |
 | `-h`, `--help` | Show help screen and quit. |
 | `-v`, `--version` | Show version screen and quit. |
 
 ## Contributing
-Any help is appreciated! I recommend reading the Intel and AMD programming guides and verify your information before suggesting a fix.
+Any help is appreciated! I recommend reading the Intel and AMD reference programming guides and verifying your information before suggesting a fix.
 
 ## Compiling
 

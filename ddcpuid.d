@@ -146,8 +146,8 @@ void main(string[] args)
     }
     else
     {
-        const CPU_INFO cpuinfo = new CPU_INFO();
-        with (cpuinfo)
+        const CpuInfo ci = new CpuInfo();
+        with (ci)
         {
             writeln("Vendor: ", Vendor);
             writeln("Model: ", ProcessorBrandString);
@@ -215,6 +215,10 @@ void main(string[] args)
 
             if (_det)
             {
+                writeln("     Details");
+                writeln(" ===============");
+                writeln();
+
                 write("Single instructions: [ ");
                 if (MONITOR)
                     write("MONITOR/MWAIT, ");
@@ -235,10 +239,10 @@ void main(string[] args)
                 if (TSC)
                 {
                     write("RDTSC");
-                    if (TSC_Deadline || TscInvariant)
+                    if (TscDeadline || TscInvariant)
                     {
                         write(" (");
-                        if (TSC_Deadline)
+                        if (TscDeadline)
                             write("TSC-Deadline");
                         if (TscInvariant)
                             write(", TSC-Invariant");
@@ -258,19 +262,10 @@ void main(string[] args)
                     write("FXSAVE/FXRSTOR, ");
                 writeln("]");
 
-                writeln();
-                writeln(" Floating Point");
-                writeln(" ================");
-                writeln();
-
-                writeln();
-                writeln(" Details");
-                writeln(" ================");
-                writeln();
                 writefln("Highest Leaf: %02XH | Extended: %02XH", max, emax);
                 write("Processor type: ");
                 final switch (ProcessorType) // 2 bit value
-                { // Only Intel uses this, AMD will always return 0.
+                { // Both parties should return 0 these days.
                     case 0:
                         writeln("Original OEM Processor");
                         break;
@@ -336,7 +331,7 @@ void main(string[] args)
 /// <summary>
 /// Provides a set of information about the processor.
 /// </summary>
-public class CPU_INFO
+public class CpuInfo
 {
     /// Initiates a CPU_INFO.
     this(bool fetch = true)
@@ -429,25 +424,25 @@ public class CPU_INFO
                     MaxIDs = b >> 16 & 0xFF; // EBX[23:16]
                     InitialAPICID = b >> 24 & 0xFF; // EBX[31:24]
                     // ECX
-                    SSE3         = c & 1;
-                    PCLMULQDQ    = c >>  1 & 1;
-                    MONITOR      = c >>  3 & 1;
-                    TM2          = c >>  8 & 1;
-                    SSSE3        = c >>  9 & 1;
-                    FMA          = c >> 12 & 1;
-                    CMPXCHG16B   = c >> 13 & 1;
-                    SSE41        = c >> 19 & 1;
-                    SSE42        = c >> 20 & 1;
-                    x2APIC       = c >> 21 & 1;
-                    MOVBE        = c >> 22 & 1;
-                    POPCNT       = c >> 23 & 1;
-                    TSC_Deadline = c >> 24 & 1;
-                    AESNI        = c >> 25 & 1;
-                    XSAVE        = c >> 26 & 1;
-                    OSXSAVE      = c >> 27 & 1;
-                    AVX          = c >> 28 & 1;
-                    F16C         = c >> 29 & 1;
-                    RDRAND       = c >> 30 & 1;
+                    SSE3        = c & 1;
+                    PCLMULQDQ   = c >>  1 & 1;
+                    MONITOR     = c >>  3 & 1;
+                    TM2         = c >>  8 & 1;
+                    SSSE3       = c >>  9 & 1;
+                    FMA         = c >> 12 & 1;
+                    CMPXCHG16B  = c >> 13 & 1;
+                    SSE41       = c >> 19 & 1;
+                    SSE42       = c >> 20 & 1;
+                    x2APIC      = c >> 21 & 1;
+                    MOVBE       = c >> 22 & 1;
+                    POPCNT      = c >> 23 & 1;
+                    TscDeadline = c >> 24 & 1;
+                    AESNI       = c >> 25 & 1;
+                    XSAVE       = c >> 26 & 1;
+                    OSXSAVE     = c >> 27 & 1;
+                    AVX         = c >> 28 & 1;
+                    F16C        = c >> 29 & 1;
+                    RDRAND      = c >> 30 & 1;
                     // EDX
                     FPU    = d & 1;
                     VME    = d >>  1 & 1;
@@ -667,7 +662,7 @@ public class CPU_INFO
     /// POPCNT instruction.
     public bool POPCNT;
     /// Indicates if the APIC timer supports one-shot operation using a TSC deadline value.
-    public bool TSC_Deadline;
+    public bool TscDeadline;
     /// Indicates the support of the XSAVE/XRSTOR extended states feature, XSETBV/XGETBV instructions, and XCR0.
     public bool XSAVE;
     /// Indicates if the OS has set CR4.OSXSAVE[18] to enable XSETBV/XGETBV instructions for XCR0 and XSAVE.
@@ -753,9 +748,7 @@ public class CPU_INFO
 }
 } // version else
 
-/// <summary>
 /// Gets the highest leaf possible for this processor.
-/// </summay>
 extern (C) export int getHighestLeaf()
 {
     asm
@@ -767,9 +760,7 @@ extern (C) export int getHighestLeaf()
     }
 }
 
-/// <summary>
-/// Get the Processor Brand string
-/// </summary>
+/// Get the highest extended leaf.
 extern (C) export int getHighestExtendedLeaf()
 {
     asm
@@ -781,12 +772,19 @@ extern (C) export int getHighestExtendedLeaf()
     }
 }
 
-/// <summary>
+extern (C) export int getNumberOfLogicalCores()
+{
+    int maxCores = 1, maxThreads = 1;
+
+
+
+    return 2;
+}
+
 /// Gets the CPU Vendor string.
-/// </summay>
 string getVendor()
 {
-    string s;
+    char[12] s;
     int ebx, edx, ecx;
     char* p = cast(char*)&ebx; // char.sizeof == 1
     asm
@@ -798,19 +796,17 @@ string getVendor()
         mov edx, EDX;
     }
     for (int a = 0; a < int.sizeof * 3; ++a)
-        s ~= *(p + a);
-    return s;
+        s[a] = *(p + a);
+    return s.idup();
 }
 
-/// <summary>
 /// Get the Processor Brand string
-/// </summary>
 string getProcessorBrandString()
 {
-    string s;
+    char[48] s;
     int eax, ebx, ecx, edx;
     char* p = cast(char*)&eax;
-    for (int i = 0x80000002; i <= 0x80000004; ++i)
+    for (int i = 0x80000002, b = 0; i <= 0x80000004; ++i)
     {
         asm
         {
@@ -821,8 +817,8 @@ string getProcessorBrandString()
             mov ecx, ECX;
             mov edx, EDX;
         }
-        for (int a = 0; a < int.sizeof * 4; ++a)
-            s ~= *(p + a);
+        for (int a = 0; a < int.sizeof * 4; ++a, ++b)
+            s[b] = *(p + a);
     }
-    return s;
+    return s.idup();
 }

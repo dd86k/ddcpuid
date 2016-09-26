@@ -2,7 +2,7 @@ import std.stdio : write, writef, writeln, writefln;
 import std.string : strip;
 
 /// Version
-const string version = "0.2.0";
+const string appver = "0.2.0";
 
 version(DLL)
 {
@@ -72,7 +72,7 @@ void main(string[] args)
  
         case "-v":
         case "--version":
-            writeln("ddcpuid ", version);
+            writeln("ddcpuid ", appver);
             writeln("Copyright (c) guitarxhero 2016");
             writeln("License: MIT License <http://opensource.org/licenses/MIT>");
             writeln("Project page: <https://github.com/guitarxhero/ddcpuid>");
@@ -108,21 +108,21 @@ void main(string[] args)
         writefln("[%4d] Verbose mode on", __LINE__);
 
     // Maximum leaf
-    int max = _ovr ? 0x20 : getHighestLeaf();
+    int max = ovr ? 0x20 : getHighestLeaf();
     // Maximum extended leaf
-    int emax = _ovr ? 0x8000_0020 : getHighestExtendedLeaf();
+    int emax = ovr ? 0x8000_0020 : getHighestExtendedLeaf();
 
     if (ver)
         writefln("[%4d] Max: %d | Extended Max: %d", __LINE__, max, emax);
 
-    if (_raw)
+    if (raw)
     {
         writeln("|   Leaf   | Sub-leaf | EAX      | EBX      | ECX      | EDX      |");
         writeln("|----------|----------|----------|----------|----------|----------| ");
         uint _eax, _ebx, _ecx, _edx, _ebp, _esp, _edi, _esi;
         for (int leaf = 0; leaf <= max; ++leaf)
         {
-            asm
+            asm @nogc nothrow
             {
                 mov EAX, leaf;
                 cpuid;
@@ -136,7 +136,7 @@ void main(string[] args)
         }
         for (int eleaf = 0x8000_0000; eleaf <= emax; ++eleaf)
         {
-            asm
+            asm @nogc nothrow
             {
                 mov EAX, eleaf;
                 cpuid;
@@ -169,7 +169,7 @@ void main(string[] args)
         {
             writeln("Vendor: ", Vendor);
             writeln("Model: ", ProcessorBrandString);
-            if (_det)
+            if (det)
                 writefln("Identification: Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh",
                     Family, BaseFamily, ExtendedFamily, Model, BaseModel, ExtendedModel, Stepping);
             else
@@ -230,10 +230,10 @@ void main(string[] args)
             writeln();
             writeln("Hyper-Threading Technology: ", HTT);
             writeln("Turbo Boost Available: ", TurboBoost);
-            writeln("Enhanced Intel SpeedStep technology: ", EIST);
+            writeln("Enhanced Intel SpeedStep Technology: ", EIST);
             writeln();
 
-            if (_det)
+            if (det)
             {
                 writeln(" Details");
                 writeln(" ===============");
@@ -301,11 +301,11 @@ void main(string[] args)
                 }
 
                 writeln("Brand Index: ", BrandIndex);
-                // MaximumNumberOfAddressableIDs / 2 (if HTT) for # cores?
-                writeln("Logical processor count*: ", MaxIDs);
                 writeln("Floating Point Unit [FPU]: ", FPU);
                 writefln("APIC: %s (Initial ID: %s)", APIC, InitialAPICID);
                 writeln("x2APIC: ", x2APIC);
+                // MaximumNumberOfAddressableIDs / 2 (if HTT) for # cores?
+                writeln("Maximum number of IDs: ", MaxIDs);
                 writeln("64-bit DS Area [DTES64]: ", DTES64);
                 writeln("Thermal Monitor [TM]: ", TM);
                 writeln("Thermal Monitor 2 [TM2]: ", TM2);
@@ -372,7 +372,7 @@ public class CpuInfo
         int a, b, c, d;
         for (int leaf = 1; leaf <= MaximumLeaf; ++leaf)
         {
-            asm
+            asm @nogc nothrow
             {
                 mov EAX, leaf;
                 cpuid;
@@ -438,12 +438,12 @@ public class CpuInfo
                             default:
                     }
                     ProcessorType = (a >> 12) & 3; // EAX[13:12]
-                    Stepping = a & 0xF; // EAX[3:0]
+                    Stepping      = a & 0xF;       // EAX[3:0]
                     // EBX
-                    BrandIndex = b & 0xFF; // EBX[7:0]
-                    CLFLUSHLineSize = b >> 8 & 0xFF; // EBX[15:8]
-                    MaxIDs = b >> 16 & 0xFF; // EBX[23:16]
-                    InitialAPICID = b >> 24 & 0xFF; // EBX[31:24]
+                    BrandIndex      = b & 0xFF;       // EBX[7:0]
+                    CLFLUSHLineSize = b >> 8 & 0xFF;  // EBX[15:8]
+                    MaxIDs          = b >> 16 & 0xFF; // EBX[23:16]
+                    InitialAPICID   = b >> 24 & 0xFF; // EBX[31:24]
                     // ECX
                     SSE3        = c & 1;
                     PCLMULQDQ   = c >>  1 & 1;
@@ -523,7 +523,7 @@ public class CpuInfo
 
         for (int eleaf = 0x8000_0000; eleaf < MaximumExtendedLeaf; ++eleaf)
         {
-            asm
+            asm @nogc nothrow
             {
                 mov EAX, eleaf;
                 cpuid;
@@ -631,8 +631,6 @@ public class CpuInfo
     /// AVX2 instruction extensions.
     public bool AVX2;
 
-    //TODO: Single instructions
-
     // ---- 01h : Basic CPUID Information ----
     // -- EBX --
     /// Brand index. See Table 3-24. If 0, use normal BrandString.
@@ -641,7 +639,7 @@ public class CpuInfo
     public ubyte CLFLUSHLineSize;
     /// Maximum number of addressable IDs for logical processors in this physical package.
     public ubyte MaxIDs;
-    /// Initial APIC ID for this processor.
+    /// Initial APIC ID that the process started on.
     public ubyte InitialAPICID;
     // -- ECX --
     /// PCLMULQDQ instruction.
@@ -652,15 +650,15 @@ public class CpuInfo
     public bool MONITOR;
     /// CPL Qualified Debug Store.
     public bool DS_CPL;
-    /// Virtualization | Virtual Machine Extensions (Intel) | Secure Virtual Machine (AMD) 
+    /// Virtualization | Virtual Machine eXtensions (Intel) | Secure Virtual Machine (AMD) 
     public bool Virtualization;
     /// Safer Mode Extensions.
     public bool SMX;
-    /// Enhanced Intel SpeedStep® technology.
+    /// Enhanced Intel SpeedStep® Technology.
     public bool EIST;
     /// Thermal Monitor 2.
     public bool TM2;
-    /// L1 Context ID. If true, the L1 data cache mode can be set to either adaptive or shared mode. 
+    /// L1 Context ID.
     public bool CNXT_ID;
     /// Indicates the processor supports IA32_DEBUG_INTERFACE MSR for silicon debug.
     public bool SDBG;
@@ -766,13 +764,13 @@ public class CpuInfo
     // ---- 8000_0007 -  ----
     /// TSC Invariation support
     public bool TscInvariant; // 8
-}
+} // Class CpuInfo
 } // version else
 
-/// Gets the highest leaf possible for this processor.
-extern (C) export int getHighestLeaf()
+/// Get the maximum leaf. 
+extern (C) export int getHighestLeaf() @nogc nothrow
 {
-    asm
+    asm @nogc nothrow
     {
         naked;
         mov EAX, 0;
@@ -781,10 +779,10 @@ extern (C) export int getHighestLeaf()
     }
 }
 
-/// Get the highest extended leaf.
-extern (C) export int getHighestExtendedLeaf()
+/// Get the maximum extended leaf.
+extern (C) export int getHighestExtendedLeaf() @nogc nothrow
 {
-    asm
+    asm @nogc nothrow
     {
         naked;
         mov EAX, 0x8000_0000;
@@ -808,7 +806,7 @@ string getVendor()
     char[12] s;
     int ebx, edx, ecx;
     char* p = cast(char*)&ebx; // char.sizeof == 1
-    asm
+    asm @nogc nothrow
     {
         mov EAX, 0;
         cpuid;
@@ -829,7 +827,7 @@ string getProcessorBrandString()
     char* p = cast(char*)&eax;
     for (int i = 0x80000002, b = 0; i <= 0x80000004; ++i)
     {
-        asm
+        asm @nogc nothrow
         {
             mov EAX, i;
             cpuid;

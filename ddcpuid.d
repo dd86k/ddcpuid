@@ -795,6 +795,7 @@ extern (C) export int getHighestExtendedLeaf() @nogc nothrow
 
 extern (C) export int getNumberOfLogicalCores()
 {
+    //TODO: Fix getNumberOfLogicalCores()
     switch (getVendor())
     {
         case "GenuineIntel":
@@ -807,7 +808,7 @@ extern (C) export int getNumberOfLogicalCores()
             mov htt, EDX;
         }
         ids = (ids>>16)&0xff;
-        return (htt>>28)&1 ? ids / 2 : ids;
+        return ids == 0 ? 1 : (htt>>28)&1 ? ids / 2 : ids;
 
         case "AuthenticAMD":
         /*

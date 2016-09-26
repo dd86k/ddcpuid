@@ -169,14 +169,14 @@ void main(string[] args)
         {
             writeln("Vendor: ", Vendor);
             writeln("Model: ", ProcessorBrandString);
+            writeln("Number of logical cores (Experimental): ", getNumberOfLogicalCores());
+
             if (det)
                 writefln("Identification: Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh",
                     Family, BaseFamily, ExtendedFamily, Model, BaseModel, ExtendedModel, Stepping);
             else
                 writefln("Identification: Family %d Model %d Stepping %d",
                     Family, Model, Stepping);
-
-            writeln("Number of logical cores: ", getNumberOfLogicalCores());
 
             write("Extensions: ");
             if (MMX)

@@ -82,22 +82,30 @@ void main(string[] args)
 
         case "-d":
         case "--details":
+            if (ver)
+                writefln("[%4d] Details flag on", __LINE__);
             det = true;
             break;
 
         case "-o":
         case "--override":
+            if (ver)
+                writefln("[%4d] Override flag on", __LINE__);
             ovr = true;
             break;
 
         case "--raw":
         case "-r":
+            if (ver)
+                writefln("[%4d] Raw flag on", __LINE__);
             raw = true;
             break;
 
         case "-V":
         case "--verbose":
             ver = true;
+            if (ver)
+                writefln("[%4d] Verbose flag on", __LINE__);
             break;
 
         default:
@@ -870,18 +878,16 @@ extern (C) export int getNumberOfLogicalCores()
 string getVendor()
 {
     char[12] s;
-    int ebx, edx, ecx;
-    char* p = cast(char*)&ebx; // char.sizeof == 1
+    byte* p = cast(byte*)&s;
     asm @nogc nothrow
     {
+        mov EDI, p;
         mov EAX, 0;
         cpuid;
-        mov ebx, EBX;
-        mov ecx, ECX;
-        mov edx, EDX;
+        mov [EDI], EBX;
+        mov [EDI+4], EDX;
+        mov [EDI+8], ECX;
     }
-    for (int a = 0; a < int.sizeof * 3; ++a)
-        s[a] = *(p + a);
     return s.idup();
 }
 
@@ -889,21 +895,30 @@ string getVendor()
 string getProcessorBrandString()
 {
     char[48] s;
-    int eax, ebx, ecx, edx;
-    char* p = cast(char*)&eax;
-    for (int i = 0x80000002, b = 0; i <= 0x80000004; ++i)
+    byte* ar = cast(byte*)&s;
+    asm @nogc nothrow
     {
-        asm @nogc nothrow
-        {
-            mov EAX, i;
-            cpuid;
-            mov eax, EAX;
-            mov ebx, EBX;
-            mov ecx, ECX;
-            mov edx, EDX;
-        }
-        for (int a = 0; a < int.sizeof * 4; ++a, ++b)
-            s[b] = *(p + a);
+        mov EDI, ar;
+        mov EAX, 0x8000_0002;
+        cpuid;
+        mov [EDI], EAX;
+        mov [EDI+4], EBX;
+        mov [EDI+8], ECX;
+        mov [EDI+12], EDX;
+        add EDI, 16;
+        mov EAX, 0x8000_0003;
+        cpuid;
+        mov [EDI], EAX;
+        mov [EDI+4], EBX;
+        mov [EDI+8], ECX;
+        mov [EDI+12], EDX;
+        add EDI, 16;
+        mov EAX, 0x8000_0004;
+        cpuid;
+        mov [EDI], EAX;
+        mov [EDI+4], EBX;
+        mov [EDI+8], ECX;
+        mov [EDI+12], EDX;
     }
     return s.idup();
 }

@@ -56,13 +56,11 @@ void main(string[] args)
     {
         switch (s)
         {
-        case "/?":
-        case "-h":
-        case "--help":
+        case "/?", "-h", "--help":
             writeln(" ddcpuid [<Options>]");
             writeln();
             writeln(" -d, --details    Show more details.");
-            writeln(" -o, --override   Override leafs to 0x20 and 0x8000_0020.");
+            writeln(" -o, --override   Override leafs to 20h and 8000_0020h.");
             writeln(" -V, --verbose    Show debugging information.");
             writeln(" -r, --raw        Show raw CPUID information.");
             writeln();
@@ -70,8 +68,7 @@ void main(string[] args)
             writeln(" --version, -v   Print version and quit.");
             return;
  
-        case "-v":
-        case "--version":
+        case "-v", "--version", "/v", "/version":
             writeln("ddcpuid ", appver);
             writeln("Copyright (c) guitarxhero 2016");
             writeln("License: MIT License <http://opensource.org/licenses/MIT>");
@@ -80,32 +77,28 @@ void main(string[] args)
                 __FILE__, __TIMESTAMP__, __VENDOR__, __VERSION__);
             return;
 
-        case "-d":
-        case "--details":
+        case "-d", "--details", "/d", "/details":
             if (ver)
-                writefln("[%4d] Details flag on", __LINE__);
+                writefln("[%4d] Details flag ON.", __LINE__);
             det = true;
             break;
 
-        case "-o":
-        case "--override":
+        case "-o", "--override", "/o", "/override":
             if (ver)
-                writefln("[%4d] Override flag on", __LINE__);
+                writefln("[%4d] Override flag ON.", __LINE__);
             ovr = true;
             break;
 
-        case "--raw":
-        case "-r":
+        case "-r", "--raw", "/r", "/raw":
             if (ver)
-                writefln("[%4d] Raw flag on", __LINE__);
+                writefln("[%4d] Raw flag ON.", __LINE__);
             raw = true;
             break;
 
-        case "-V":
-        case "--verbose":
+        case "-V", "--verbose", "/V", "/Verbose":
             ver = true;
             if (ver)
-                writefln("[%4d] Verbose flag on", __LINE__);
+                writefln("[%4d] Verbose flag ON.", __LINE__);
             break;
 
         default:
@@ -905,20 +898,18 @@ string getProcessorBrandString()
         mov [EDI+4], EBX;
         mov [EDI+8], ECX;
         mov [EDI+12], EDX;
-        add EDI, 16;
         mov EAX, 0x8000_0003;
         cpuid;
-        mov [EDI], EAX;
-        mov [EDI+4], EBX;
-        mov [EDI+8], ECX;
-        mov [EDI+12], EDX;
-        add EDI, 16;
+        mov [EDI+16], EAX;
+        mov [EDI+20], EBX;
+        mov [EDI+24], ECX;
+        mov [EDI+28], EDX;
         mov EAX, 0x8000_0004;
         cpuid;
-        mov [EDI], EAX;
-        mov [EDI+4], EBX;
-        mov [EDI+8], ECX;
-        mov [EDI+12], EDX;
+        mov [EDI+32], EAX;
+        mov [EDI+36], EBX;
+        mov [EDI+40], ECX;
+        mov [EDI+44], EDX;
     }
     return s.idup();
 }

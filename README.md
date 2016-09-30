@@ -1,17 +1,15 @@
 # ddcpuid
 ## A CPUID tool
 
-This small utility will reveal everything through `CPUID` -- A CPU instruction to get information about the CPU.
+This small utility will reveal everything through the `CPUID` instruction without any library or third-party help. 
 
 If you have any questions, suggestions, requests, find any bugs, or notice incorect data, please either start an Issue or send an [email](mailto:devddstuff@gmail.com)!
 
 ## Goal
 
-My goal is to make a tool that provides complete human readable information about the processor for users of all types: users, technicians, and programmers.
+My goal is to make a tool that provides complete human readable information about the processor for users of all types: users, technicians, and programmers, without the use of external library nor the standard library.
 
-## Usage
-
-By default, ddcpuid will show basic information.
+## Usage (v0.3.0)
 
 | Switch | Description |
 | :---: | :---: |

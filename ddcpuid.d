@@ -797,74 +797,7 @@ extern (C) export int getHighestExtendedLeaf() @nogc nothrow
 extern (C) export int getNumberOfLogicalCores()
 {
     //TODO: Fix getNumberOfLogicalCores()
-    switch (getVendor())
-    {
-        case "GenuineIntel":
-        int ids, htt;
-        asm @nogc
-        {
-            mov EAX, 1;
-            cpuid;
-            mov ids, EBX;
-            mov htt, EDX;
-        }
-        ids = (ids>>16)&0xff;
-        return ids == 0 ? 1 : (htt>>28)&1 ? ids / 2 : ids;
-
-        case "AuthenticAMD":
-        /*
-        if (ApicIdCoreIdSize[3:0] == 0){
-            // Used by legacy dual-core/single-core processors
-            MNC = CPUID Fn8000_0008_ECX[NC] + 1;
-            } else {
-            // use ApicIdCoreIdSize[3:0] field
-            MNC = (2 ^ ApicIdCoreIdSize[3:0]);
-        }
-        */
-        int mnc, htt, lpc, cmp_leg;
-        asm @nogc
-        {
-            mov EAX, 0x8000_0001;
-            cpuid;
-            mov cmp_leg, ECX;
-
-            mov EAX, 0x8000_0008;
-            cpuid;
-            mov mnc, ECX;
-
-            mov EAX, 1;
-            cpuid;
-            mov lpc, EBX;
-            mov htt, EDX;
-        }
-        htt=(htt>>28)&1;
-        lpc=(lpc>>16)&0xf;
-        mnc=(mnc>>12)&0xf;
-        cmp_leg=(cmp_leg>>1)&1;
-
-        if (htt && cmp_leg)
-            return lpc;
-        else
-            return 1;
-        /*
-        if (mnc == 0)
-        {
-            asm @nogc
-            {
-                mov EAX, 0x8000_0008;
-                cpuid;
-                and EAX, 0xff;
-                mov mnc, EAX;
-            }
-        }
-        else
-        {
-            mnc = (2^^mnc);
-        }
-        return mnc;*/
-
-        default: return 0;
-    }
+    
 }
 
 /// Gets the CPU Vendor string.

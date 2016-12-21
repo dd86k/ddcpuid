@@ -164,13 +164,13 @@ void main(string[] args)
         if (ver)
             writefln("[%4d] Getting info...", __LINE__);
 
-        const CpuInfo ci = new CpuInfo();
+        const CpuInfo ci = new CpuInfo;
         
         with (ci)
         {
             writeln("Vendor: ", Vendor);
             writeln("Model: ", ProcessorBrandString);
-            writeln("Number of logical cores (Experimental): ", getNumberOfLogicalCores());
+            //writeln("Number of logical cores (Experimental): ", getNumberOfLogicalCores());
 
             if (det)
                 writefln("Identification: Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh",
@@ -794,11 +794,12 @@ extern (C) export int getHighestExtendedLeaf() @nogc nothrow
     }
 }
 
-extern (C) export int getNumberOfLogicalCores()
+/*extern (C) export int getNumberOfLogicalCores()
 {
     //TODO: Fix getNumberOfLogicalCores()
     
-}
+
+}*/
 
 /// Gets the CPU Vendor string.
 string getVendor()
@@ -821,10 +822,10 @@ string getVendor()
 string getProcessorBrandString()
 {
     char[48] s;
-    byte* ar = cast(byte*)&s;
+    char[48]* ps = &s;
     asm @nogc nothrow
     {
-        mov EDI, ar;
+        mov EDI, ps;
         mov EAX, 0x8000_0002;
         cpuid;
         mov [EDI], EAX;

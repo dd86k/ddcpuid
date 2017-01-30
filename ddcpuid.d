@@ -4,6 +4,11 @@ import std.string : strip;
 /// Version
 const string appver = "0.2.0";
 
+const enum {
+    VENDOR_INTEL = "GenuineIntel",
+    VENDOR_AMD   = "AuthenticAMD"
+}
+
 version(DLL)
 {
 import core.sys.windows.windows, core.sys.windows.dll;
@@ -118,26 +123,42 @@ void main(string[] args)
 
     if (raw)
     {
-        writeln("|   Leaf   | Sub-leaf | EAX      | EBX      | ECX      | EDX      |");
-        writeln("|----------|----------|----------|----------|----------|----------| ");
+        writeln("|   Leaf   | S | EAX      | EBX      | ECX      | EDX      |");
+        writeln("|----------|---|----------|----------|----------|----------| ");
         uint _eax, _ebx, _ecx, _edx, _ebp, _esp, _edi, _esi;
-        for (int leaf = 0; leaf <= max; ++leaf)
+        asm
         {
-            asm @nogc nothrow
+            mov _ebp, EBP;
+            mov _esp, ESP;
+            mov _edi, EDI;
+            mov _esi, ESI;
+        }
+        uint subl = 0;
+        for (int leaf = 0; leaf <= max;)
+        {
+            asm
             {
                 mov EAX, leaf;
+                mov ECX, subl;
                 cpuid;
                 mov _eax, EAX;
                 mov _ebx, EBX;
                 mov _ecx, ECX;
                 mov _edx, EDX;
             }
-            writefln("| %8X |        0 | %8X | %8X | %8X | %8X |",
-                leaf, _eax, _ebx, _ecx, _edx);
+            writefln("| %8X | %X | %8X | %8X | %8X | %8X |",
+                leaf, subl, _eax, _ebx, _ecx, _edx);
+                
+            if (leaf == 0xB && subl < 2) {
+                ++subl;
+            } else {
+                subl = 0;
+                ++leaf;
+            }
         }
         for (int eleaf = 0x8000_0000; eleaf <= emax; ++eleaf)
         {
-            asm @nogc nothrow
+            asm
             {
                 mov EAX, eleaf;
                 cpuid;
@@ -146,18 +167,11 @@ void main(string[] args)
                 mov _ecx, ECX;
                 mov _edx, EDX;
             }
-            writefln("| %8X |        0 | %8X | %8X | %8X | %8X |",
-                eleaf, _eax, _ebx, _ecx, _edx);
+            writefln("| %8X | %X | %8X | %8X | %8X | %8X |",
+                eleaf, subl, _eax, _ebx, _ecx, _edx);
         }
-        asm
-        {
-            mov _ebp, EBP;
-            mov _esp, ESP;
-            mov _edi, EDI;
-            mov _esi, ESI;
-        }
-        writefln("EBP=%-8X ESP=%-8X EDI=%-8X ESI=%-8X", _ebp, _esp, _edi, _esi);
-        writeln();
+        writefln("EBP=%-8X ESP=%-8X EDI=%-8X ESI=%-8X",
+            _ebp, _esp, _edi, _esi);
     }
     else
     {
@@ -170,7 +184,7 @@ void main(string[] args)
         {
             writeln("Vendor: ", Vendor);
             writeln("Model: ", ProcessorBrandString);
-            //writeln("Number of logical cores (Experimental): ", getNumberOfLogicalCores());
+            writeln("Number of logical cores (Experimental): ", getnlc);
 
             if (det)
                 writefln("Identification: Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh",
@@ -199,16 +213,16 @@ void main(string[] args)
             if (LongMode)
                 switch (Vendor)
                 {
-                    case "GenuineIntel": write("Intel64, "); break;
-                    case "AuthenticAMD": write("AMD64, ");   break;
-                    default:
+                    case VENDOR_INTEL: write("Intel64, "); break;
+                    case VENDOR_AMD  : write("AMD64, ");   break;
+                    default          : write("LONG,");
                 }
             if (Virtualization)
                 switch (Vendor)
                 {
-                    case "GenuineIntel": write("VT-x, ");  break; // VMX
-                    case "AuthenticAMD": write("AMD-V, "); break; // SVM
-                    default:
+                    case VENDOR_INTEL: write("VT-x, ");  break; // VMX
+                    case VENDOR_AMD  : write("AMD-V, "); break; // SVM
+                    default          : write("VIRT, ");
                 }
             if (AESNI)
                 write("AES-NI, ");
@@ -230,18 +244,8 @@ void main(string[] args)
                 write("OSXSAVE, ");
             writeln();
 
-            writeln();
-            writeln("Hyper-Threading Technology: ", HTT);
-            writeln("Turbo Boost Available: ", TurboBoost);
-            writeln("Enhanced Intel SpeedStep Technology: ", EIST);
-            writeln();
-
             if (det)
             {
-                writeln(" Details");
-                writeln(" ===============");
-                writeln();
-
                 write("Single instructions: [ ");
                 if (MONITOR)
                     write("MONITOR/MWAIT, ");
@@ -252,7 +256,7 @@ void main(string[] args)
                 if (CMPXCHG16B)
                     write("CMPXCHG16B, ");
                 if (MOVBE)
-                    write("MOVBE, "); // Intel Atom only!, and quite a few AMDs.
+                    write("MOVBE, "); // Intel Atom and quite a few AMD processorss.
                 if (RDRAND)
                     write("RDRAND, ");
                 if (MSR)
@@ -794,19 +798,64 @@ extern (C) export int getHighestExtendedLeaf() @nogc nothrow
     }
 }
 
-/*extern (C) export int getNumberOfLogicalCores()
+extern (C) export uint getnlc()
 {
-    //TODO: Fix getNumberOfLogicalCores()
-    
+    uint cpubits, count, corebits;
+    asm {
+        mov EAX, 1;
+        cpuid;
+        test EDX, 0x1000_0000; // Check if HTT
+        jno HTT;               // If HTT bit is set
+        mov EAX, 1;
+        ret;
+    HTT:
+        shr EBX, 16;
+        and EBX, 0xF;
+        mov count, EBX;
+    }
 
+    uint ml = getHighestLeaf;
+    uint eml = getHighestExtendedLeaf;
+
+    switch (getVendor)
+    {
+        case VENDOR_INTEL:
+        if (ml >= 0xB) asm {
+            mov EAX, 0xB;
+            mov ECX, 0;
+            cpuid;
+            mov cpubits, EAX;
+            mov EAX, 0xB;
+            mov ECX, 1;
+            cpuid;
+            mov corebits, EAX;
+        } else if (ml >= 4) {
+
+        } else {
+
+        }
+        break;
+
+        case VENDOR_AMD:
+        
+        break;
+
+        default: return 1;
+    }
+}
+
+
+/*void tgetFrequency()
+{
+    
 }*/
 
 /// Gets the CPU Vendor string.
 string getVendor()
 {
     char[12] s;
-    byte* p = cast(byte*)&s;
-    asm @nogc nothrow
+    char[12]* p = &s;
+    version (X86) asm
     {
         mov EDI, p;
         mov EAX, 0;
@@ -814,6 +863,15 @@ string getVendor()
         mov [EDI], EBX;
         mov [EDI+4], EDX;
         mov [EDI+8], ECX;
+    }
+    else asm
+    {
+        mov RDI, p;
+        mov RAX, 0;
+        cpuid;
+        mov [RDI], EBX;
+        mov [RDI+4], EDX;
+        mov [RDI+8], ECX;
     }
     return s.idup();
 }

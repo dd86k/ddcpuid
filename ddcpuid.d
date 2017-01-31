@@ -30,8 +30,7 @@ const enum { // Vendor strings
     VENDOR_PARALLELS    = " lrpepyh vr"
 }
 
-version(DLL)
-{
+version(DLL) {
 import core.sys.windows.windows, core.sys.windows.dll;
 /// Handle instance
 __gshared HINSTANCE g_hInst;
@@ -245,16 +244,16 @@ void main(string[] args)
                 switch (Vendor)
                 {
                     case VENDOR_INTEL: write("Intel64, "); break;
-                    case VENDOR_AMD  : write("AMD64, ");   break;
-                    default          : write("x86-64,");
+                    case VENDOR_AMD  : write("AMD64, "); break;
+                    default          : write("x86-64, "); break;
                 }
             if (Virtualization)
                 switch (Vendor)
                 {
-                    case VENDOR_INTEL: write("VT-x, ");   break; // VMX
-                    case VENDOR_AMD  : write("AMD-V, ");  break; // SVM
+                    case VENDOR_INTEL: write("VT-x, "); break; // VMX
+                    case VENDOR_AMD  : write("AMD-V, "); break; // SVM
                     case VENDOR_VIA  : write("VIA VT, "); break;
-                    default          : write("VMX, ");
+                    default          : write("VMX, "); break;
                 }
             if (AESNI)
                 write("AES-NI, ");
@@ -263,13 +262,9 @@ void main(string[] args)
             if (AVX2)
                 write("AVX2, ");
             if (SMX)
-                write("SMX, ");
-            if (DS_CPL)
-                write("DS-CPL, ");
+                write("TPM, ");
             if (FMA) 
                 write("FMA, ");
-            if (F16C)
-                write("F16C, ");
             if (XSAVE)
                 write("XSAVE, ");
             if (OSXSAVE)
@@ -278,7 +273,7 @@ void main(string[] args)
 
             if (_det)
             {
-                write("Single instructions: [ ");
+                write("Instructions: [ ");
                 if (MONITOR)
                     write("MONITOR/MWAIT, ");
                 if (PCLMULQDQ)
@@ -290,7 +285,7 @@ void main(string[] args)
                 if (MOVBE)
                     write("MOVBE, "); // Intel Atom and quite a few AMD processorss.
                 if (RDRAND)
-                    write("RDRAND, ");
+                    write("RDRAND/RDSEED, ");
                 if (MSR)
                     write("RDMSR/WRMSR, ");
                 if (SEP)
@@ -314,7 +309,7 @@ void main(string[] args)
                 if (FPU && CMOV)
                     write("FCOMI/FCMOV, ");
                 if (CLFSH)
-                    writef("CLFLUSH (Lines: %s), ", CLFLUSHLineSize);
+                    writef("CLFLUSH (Line size: %d bytes), ", CLFLUSHLineSize * 8);
                 if (POPCNT)
                     write("POPCNT, ");
                 if (FXSR)
@@ -325,61 +320,73 @@ void main(string[] args)
                 write("Processor type: ");
                 final switch (ProcessorType) // 2 bit value
                 { // Should return 0 these days.
-                    case 0:
-                        writeln("Original OEM Processor");
-                        break;
-                    case 1:
-                        writeln("Intel OverDrive Processor");
-                        break;
-                    case 2:
-                        writeln("Dual processor");
-                        break;
-                    case 3:
-                        writeln("Intel reserved");
-                        break;
+                    case 0b00: writeln("Original OEM Processor"); break;
+                    case 0b01: writeln("Intel OverDrive Processor"); break;
+                    case 0b10: writeln("Dual processor"); break;
+                    case 0b11: writeln("Intel reserved"); break;
                 }
 
-                writeln("Brand Index: ", BrandIndex);
-                writeln("Floating Point Unit [FPU]: ", FPU);
-                writefln("APIC: %s (Initial ID: %s)", APIC, InitialAPICID);
-                writeln("x2APIC: ", x2APIC);
-                writeln("Maximum number of IDs: ", MaxIDs);
-                writeln("64-bit DS Area [DTES64]: ", DTES64);
-                writeln("Thermal Monitor [TM]: ", TM);
-                writeln("Thermal Monitor 2 [TM2]: ", TM2);
-                writeln("L1 Context ID [CNXT-ID]: ", CNXT_ID);
-                writeln("xTPR Update Control [xTPR]: ", xTPR);
-                writeln("Perfmon and Debug Capability [PDCM]: ", PDCM);
-                writeln("Process-context identifiers [PCID]: ", PCID);
-                writeln("Direct Cache Access [DCA]: ", DCA);
-                writeln("Virtual 8086 Mode Enhancements [VME]: ", VME);
-                writeln("Debugging Extensions [DE]: ", DE);
-                writeln("Page Size Extension [PAE]: ", PAE);
-                writeln("Machine Check Exception [MCE]: ", MCE);
-                writeln("Memory Type Range Registers [MTRR]: ", MTRR);
-                writeln("Page Global Bit [PGE]: ", PGE);
-                writeln("Machine Check Architecture [MCA]: ", MCA);
-                writeln("Page Attribute Table [PAT]: ", PAT);
-                writeln("36-Bit Page Size Extension [PSE-36]: ", PSE_36);
-                writeln("Processor Serial Number [PSN]: ", PSN);
-                writeln("Debug Store [DS]: ", DS);
-                writeln("Thermal Monitor and Software Controlled Clock Facilities [APCI]: ", APCI);
-                writeln("Self Snoop [SS]: ", SS);
-                writeln("Pending Break Enable [PBE]: ", PBE);
-                writeln("Supervisor Mode Execution Protection [SMEP]: ", SMEP);
-                write("Bit manipulation groups: ");
+                writeln();
+                writeln("FPU");
+                writeln("  Floating Point Unit [FPU]: ", FPU);
+                writeln("  16-bit conversion [F16]: ", F16C);
+
+                writeln();
+                writeln("APCI");
+                writeln("  APCI: ", APCI);
+                writefln("  APIC: %s (Initial ID: %d, Max: %d)", APIC, InitialAPICID, MaxIDs);
+                writeln("  x2APIC: ", x2APIC);
+                writeln("  Thermal Monitor: ", TM);
+                writeln("  Thermal Monitor 2: ", TM2);
+
+                writeln();
+                writeln("Virtualization");
+                writeln("  Virtual 8086 Mode Enhancements [VME]: ", VME);
+
+                writeln()
+                writeln("Memory and Paging");
+                writeln("  Page Size Extension [PAE]: ", PAE);
+                writeln("  36-Bit Page Size Extension [PSE-36]: ", PSE_36);
+                writeln("  Direct Cache Access [DCA]: ", DCA);
+                writeln("  Page Attribute Table [PAT]: ", PAT);
+                writeln("  Memory Type Range Registers [MTRR]: ", MTRR);
+                writeln("  Page Global Bit [PGE]: ", PGE);
+                writeln("  64-bit DS Area [DTES64]: ", DTES64);
+
+                writeln();
+                writeln("Debugging");
+                writeln("  Debugging Extensions [DE]: ", DE);
+                writeln("  Debug Store [DS]: ", DS);
+                writeln("  Debug Store CPL [DS-CPL]: ", DS_CPL);
+                writeln("  Perfmon and Debug Capability [PDCM]: ", PDCM);
+                writeln("  SDBG: ", SDBG);
+
+                writeln();
+                writeln("Other features");
+                writeln("  Brand Index: ", BrandIndex);
+                writeln("  L1 Context ID [CNXT-ID]: ", CNXT_ID);
+                writeln("  xTPR Update Control [xTPR]: ", xTPR);
+                writeln("  Process-context identifiers [PCID]: ", PCID);
+                writeln("  Machine Check Exception [MCE]: ", MCE);
+                writeln("  Machine Check Architecture [MCA]: ", MCA);
+                writeln("  Processor Serial Number [PSN]: ", PSN);
+                writeln("  Self Snoop [SS]: ", SS);
+                writeln("  Pending Break Enable [PBE]: ", PBE);
+                writeln("  Supervisor Mode Execution Protection [SMEP]: ", SMEP);
+                write("  Bit manipulation groups: ");
                 if (BMI1 || BMI2)
                 {
                     if (BMI1)
-                        write("BMI1, ");
+                        write("BMI1");
                     if (BMI2)
-                        write("BMI2");
+                        write(", BMI2");
+                    writeln();
                 }
                 else
                     writeln("None");
             } // if (_det)
         } // with (c)
-    } // else if
+    } // if (_raw) else
 } // main
 
 /***********
@@ -687,7 +694,7 @@ public class CpuInfo
     bool DS_CPL;
     /// Virtualization | Virtual Machine eXtensions (Intel) | Secure Virtual Machine (AMD) 
     bool Virtualization;
-    /// Safer Mode Extensions.
+    /// Safer Mode Extensions. Intel TXT/TPM
     bool SMX;
     /// Enhanced Intel SpeedStep® Technology.
     bool EIST;
@@ -760,7 +767,7 @@ public class CpuInfo
     bool PAT;
     /// 36-Bit Page Size Extension.
     bool PSE_36;
-    /// Processor Serial Number. 
+    /// Processor Serial Number. Only Pentium 3 used this.
     bool PSN;
     /// CLFLUSH Instruction.
     bool CLFSH;
@@ -772,7 +779,7 @@ public class CpuInfo
     bool FXSR;
     /// Self Snoop.
     bool SS;
-    /// Hyper-threading technology.
+    /// Max APIC IDs reserved field is Valid. 0 if only unicore.
     bool HTT;
     /// Thermal Monitor.
     bool TM;

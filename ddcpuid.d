@@ -348,7 +348,7 @@ class CpuInfo
         MaximumLeaf = getHighestLeaf();
         MaximumExtendedLeaf = getHighestExtendedLeaf();
 
-        int a, b, c, d;
+        uint a, b, c, d;
         for (int leaf = 1; leaf <= MaximumLeaf; ++leaf)
         {
             asm @nogc nothrow

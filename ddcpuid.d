@@ -177,8 +177,8 @@ int main(string[] args)
                 }
             if (NX)
                 write("NX, ");
-            if (AESNI)
-                write("AES-NI, ");
+            if (AES)
+                write("AES, ");
             if (AVX)
                 write("AVX, ");
             if (AVX2)
@@ -378,12 +378,14 @@ class CpuInfo
         MaximumLeaf = getHighestLeaf(); // 0h.EAX
         MaximumExtendedLeaf = getHighestExtendedLeaf();
 
-        uint a, b, c, d;
+        uint a, b, c, d; // Aliases to register EAX:EDX.
+
         for (int leaf = 1; leaf <= MaximumLeaf; ++leaf)
         {
             asm @nogc nothrow
             {
                 mov EAX, leaf;
+                mov ECX, 0;
                 cpuid;
                 mov a, EAX;
                 mov b, EBX;
@@ -467,7 +469,7 @@ class CpuInfo
                     MOVBE       = c >> 22 & 1;
                     POPCNT      = c >> 23 & 1;
                     TscDeadline = c >> 24 & 1;
-                    AESNI       = c >> 25 & 1;
+                    AES       = c >> 25 & 1;
                     XSAVE       = c >> 26 & 1;
                     OSXSAVE     = c >> 27 & 1;
                     AVX         = c >> 28 & 1;
@@ -534,16 +536,17 @@ class CpuInfo
                     break;
             }
         }
-
-        /************
-         * EXTENDED *
-         ************/
+        
+        /*
+         * Extended CPUID leafs
+         */
 
         for (int eleaf = 0x8000_0000; eleaf < MaximumExtendedLeaf; ++eleaf)
         {
             asm @nogc nothrow
             {
                 mov EAX, eleaf;
+                mov ECX, 0;
                 cpuid;
                 mov a, EAX;
                 mov b, EBX;
@@ -577,6 +580,9 @@ class CpuInfo
                 case 0x8000_0007:
                     switch (Vendor)
                     {
+                        case VENDOR_INTEL:
+                            RDSEED = b >> 18 & 1;
+                            break;
                         case VENDOR_AMD:
                             TM = d >> 4 & 1;
                             break;
@@ -643,8 +649,8 @@ class CpuInfo
     bool SSE42;
     /// Streaming SIMD Extensions 4a. AMD only.
     bool SSE4a;
-    /// AESNI instruction extensions.
-    bool AESNI;
+    /// AES instruction extensions.
+    bool AES;
     /// AVX instruction extensions.
     bool AVX;
     /// AVX2 instruction extensions.
@@ -791,6 +797,8 @@ class CpuInfo
     bool LZCNT;
     /// PREFETCHW under Intel. 3DNowPrefetch under AMD.
     bool PREFETCHW; // 8
+
+    bool RDSEED;
     // EDX
     /// Intel: Execute Disable Bit. AMD: No-execute page protection.
     bool NX; // 20

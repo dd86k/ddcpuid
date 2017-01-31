@@ -30,46 +30,6 @@ const enum { // Vendor strings
     VENDOR_PARALLELS    = " lrpepyh vr"
 }
 
-version(DLL) {
-import core.sys.windows.windows, core.sys.windows.dll;
-/// Handle instance
-__gshared HINSTANCE g_hInst;
- 
-/// DLL Entry point
-version(Windows) extern(Windows) bool DllMain(void* hInstance, uint ulReason, void*)
-{
-    switch (ulReason)
-    {
-        default: assert(0);
-        case DLL_PROCESS_ATTACH:
-            dll_process_attach(hInstance, true);
-            break;
-
-        case DLL_PROCESS_DETACH:
-            dll_process_detach(hInstance, true);
-            break;
-
-        case DLL_THREAD_ATTACH:
-            dll_thread_attach(true, true);
-            break;
-
-        case DLL_THREAD_DETACH:
-            dll_thread_detach(true, true);
-            break;
-    }
-    return true;
-}
-
-// Trash
-/// Gets the class object for this DLL
-version(Windows) extern(Windows) void DllGetClassObject() {}
-/// Returns if the DLL can unload now
-version(Windows) extern(Windows) void DllCanUnloadNow() {}
-/// Registers with the COM server
-version(Windows) extern(Windows) void DllRegisterServer() {}
-/// Unregisters with the COM server
-version(Windows) extern(Windows) void DllUnregisterServer() {}
-} else {
 void main(string[] args)
 {
     bool _raw = false; // Raw
@@ -86,8 +46,10 @@ void main(string[] args)
             writefln(" %s [<Options>]", args[0]);
             writefln(" %s {-h|--help|/?|-v|--version}", args[0]);
             writeln();
-            writeln(" -d, --details      Show more details.");
+            writeln(" -d, --details      Show more information.");
             writeln(" -e, --experiments  Use experimental features.");
+            writeln(" -i                 Include field. (Not available)");
+            writeln(" -I                 Include field without field. (Not available)");
             writeln(" -o, --override     Override leafs to 20h and 8000_0020h.");
             writeln(" -V, --verbose      Show debugging information.");
             writeln(" -r, --raw          Only show raw CPUID data.");
@@ -132,75 +94,29 @@ void main(string[] args)
         case "-V", "--verbose", "/V", "/Verbose":
             _ver = true;
             if (_ver)
-                writefln("[%4d] Verbose flag ON.", __LINE__);
+                writefln("[%4d] Verbose mode on.", __LINE__);
             break;
 
         default:
         }
     }
 
-    if (_ver)
-        writefln("[%4d] Verbose mode on", __LINE__);
-
     // Maximum leaf
-    uint max = _ovr ? 0x20 : getHighestLeaf();
+    uint maxl = _ovr ? 0x20 : getHighestLeaf();
     // Maximum extended leaf
-    uint emax = _ovr ? 0x8000_0020 : getHighestExtendedLeaf();
+    uint emaxl = _ovr ? 0x8000_0020 : getHighestExtendedLeaf();
 
     if (_ver)
-        writefln("[%4d] Max: %d | Extended Max: %d", __LINE__, max, emax);
+        writefln("[%4d] Max leaf: %X | Extended: %X", __LINE__, maxl, emaxl);
 
     if (_raw)
     {
         writeln("|   Leaf   | S | EAX      | EBX      | ECX      | EDX      |");
         writeln("|----------|---|----------|----------|----------|----------| ");
-        uint _eax, _ebx, _ecx, _edx, _ebp, _esp, _edi, _esi;
-        asm
-        {
-            mov _ebp, EBP;
-            mov _esp, ESP;
-            mov _edi, EDI;
-            mov _esi, ESI;
-        }
-        uint subl = 0;
-        for (int leaf = 0; leaf <= max;)
-        {
-            asm
-            {
-                mov EAX, leaf;
-                mov ECX, subl;
-                cpuid;
-                mov _eax, EAX;
-                mov _ebx, EBX;
-                mov _ecx, ECX;
-                mov _edx, EDX;
-            }
-            writefln("| %8X | %X | %8X | %8X | %8X | %8X |",
-                leaf, subl, _eax, _ebx, _ecx, _edx);
-                
-            if (leaf == 0xB && subl < 2) {
-                ++subl;
-            } else {
-                subl = 0;
-                ++leaf;
-            }
-        }
-        for (int eleaf = 0x8000_0000; eleaf <= emax; ++eleaf)
-        {
-            asm
-            {
-                mov EAX, eleaf;
-                cpuid;
-                mov _eax, EAX;
-                mov _ebx, EBX;
-                mov _ecx, ECX;
-                mov _edx, EDX;
-            }
-            writefln("| %8X | %X | %8X | %8X | %8X | %8X |",
-                eleaf, subl, _eax, _ebx, _ecx, _edx);
-        }
-        writefln("EBP=%-8X ESP=%-8X EDI=%-8X ESI=%-8X",
-            _ebp, _esp, _edi, _esi);
+        for (uint leaf = 0; leaf <= maxl; ++leaf)
+            print_cpuid(leaf, 0);
+        for (uint eleaf = 0x8000_0000; eleaf <= emaxl; ++eleaf)
+            print_cpuid(eleaf, 0);
     }
     else
     {
@@ -316,7 +232,7 @@ void main(string[] args)
                     write("FXSAVE/FXRSTOR, ");
                 writeln("]");
 
-                writefln("Highest Leaf: %02XH | Extended: %02XH", max, emax);
+                writefln("Highest Leaf: %02XH | Extended: %02XH", maxl, emaxl);
                 write("Processor type: ");
                 final switch (ProcessorType) // 2 bit value
                 { // Should return 0 these days.
@@ -343,7 +259,7 @@ void main(string[] args)
                 writeln("Virtualization");
                 writeln("  Virtual 8086 Mode Enhancements [VME]: ", VME);
 
-                writeln()
+                writeln();
                 writeln("Memory and Paging");
                 writeln("  Page Size Extension [PAE]: ", PAE);
                 writeln("  36-Bit Page Size Extension [PSE-36]: ", PSE_36);
@@ -389,6 +305,24 @@ void main(string[] args)
     } // if (_raw) else
 } // main
 
+void print_cpuid(uint leaf, uint subl)
+{
+    uint _eax, _ebx, _ecx, _edx;
+    asm
+    {
+        mov EAX, leaf;
+        mov ECX, subl;
+        cpuid;
+        mov _eax, EAX;
+        mov _ebx, EBX;
+        mov _ecx, ECX;
+        mov _edx, EDX;
+    }
+    writefln("| %8X | %X | %8X | %8X | %8X | %8X |",
+        leaf, subl, _eax, _ebx, _ecx, _edx);
+}
+
+
 /***********
  * Classes *
  ***********/
@@ -396,7 +330,7 @@ void main(string[] args)
 /// <summary>
 /// Provides a set of information about the processor.
 /// </summary>
-public class CpuInfo
+class CpuInfo
 {
     /// Initiates a CPU_INFO.
     this(bool fetch = true, bool verbose = false)
@@ -807,7 +741,6 @@ public class CpuInfo
     /// TSC Invariation support
     bool TscInvariant; // 8
 } // Class CpuInfo
-} // version else
 
 /// Get the maximum leaf. 
 extern (C) export int getHighestLeaf() pure @nogc nothrow

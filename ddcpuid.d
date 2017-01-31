@@ -1,14 +1,16 @@
+module ddcpuid;
+
 import std.stdio : write, writef, writeln, writefln;
 import std.string : strip;
 
 /// Version
-const string appver = "0.2.0";
+const enum VERSION = "0.3.0";
 
 const enum { // Vendor strings
     VENDOR_INTEL     = "GenuineIntel",
     VENDOR_AMD       = "AuthenticAMD",
     VENDOR_VIA       = "VIA VIA VIA ",
-    VENDOR_CENTAUR   = "CentaurHauls", // Including some VIA
+    VENDOR_CENTAUR   = "CentaurHauls", // VIA aquired Centaur
     VENDOR_TRANSMETA = "GenuineTMx86",
     VENDOR_CYRIX     = "CyrixInstead",
     VENDOR_NEXGEN    = "NexGenDriven",
@@ -82,21 +84,22 @@ void main(string[] args)
         switch (s)
         {
         case "/?", "-h", "--help":
-            writeln(" ddcpuid [<Options>]");
+            writefln(" %s [<Options>]", args[0]);
+            writefln(" %s {-h|--help|/?|-v|--version}", args[0]);
             writeln();
             writeln(" -d, --details      Show more details.");
             writeln(" -e, --experiments  Use experimental features.");
             writeln(" -o, --override     Override leafs to 20h and 8000_0020h.");
             writeln(" -V, --verbose      Show debugging information.");
-            writeln(" -r, --raw          Show raw CPUID information.");
+            writeln(" -r, --raw          Only show raw CPUID data.");
             writeln();
             writeln(" --help, -h, /?  Print help and quit.");
             writeln(" --version, -v   Print version and quit.");
             return;
  
         case "-v", "--version", "/v", "/version":
-            writeln("ddcpuid ", appver);
-            writeln("Copyright (c) guitarxhero 2016");
+            writefln("%s v%s", args[0], VERSION);
+            writeln("Copyright (c) dd86k 2016");
             writeln("License: MIT License <http://opensource.org/licenses/MIT>");
             writeln("Project page: <https://github.com/guitarxhero/ddcpuid>");
             writefln("Compiled %s at %s, using %s version %s.",
@@ -243,14 +246,15 @@ void main(string[] args)
                 {
                     case VENDOR_INTEL: write("Intel64, "); break;
                     case VENDOR_AMD  : write("AMD64, ");   break;
-                    default          : write("LONG,");
+                    default          : write("x86-64,");
                 }
             if (Virtualization)
                 switch (Vendor)
                 {
-                    case VENDOR_INTEL: write("VT-x, ");  break; // VMX
-                    case VENDOR_AMD  : write("AMD-V, "); break; // SVM
-                    default          : write("VIRT, ");
+                    case VENDOR_INTEL: write("VT-x, ");   break; // VMX
+                    case VENDOR_AMD  : write("AMD-V, ");  break; // SVM
+                    case VENDOR_VIA  : write("VIA VT, "); break;
+                    default          : write("VMX, ");
                 }
             if (AESNI)
                 write("AES-NI, ");
@@ -320,7 +324,7 @@ void main(string[] args)
                 writefln("Highest Leaf: %02XH | Extended: %02XH", max, emax);
                 write("Processor type: ");
                 final switch (ProcessorType) // 2 bit value
-                { // Both parties should return 0 these days.
+                { // Should return 0 these days.
                     case 0:
                         writeln("Original OEM Processor");
                         break;
@@ -339,7 +343,6 @@ void main(string[] args)
                 writeln("Floating Point Unit [FPU]: ", FPU);
                 writefln("APIC: %s (Initial ID: %s)", APIC, InitialAPICID);
                 writeln("x2APIC: ", x2APIC);
-                // MaximumNumberOfAddressableIDs / 2 (if HTT) for # cores?
                 writeln("Maximum number of IDs: ", MaxIDs);
                 writeln("64-bit DS Area [DTES64]: ", DTES64);
                 writeln("Thermal Monitor [TM]: ", TM);
@@ -611,199 +614,198 @@ public class CpuInfo
     string ProcessorBrandString;
 
     /// Maximum leaf supported by this processor.
-    public int MaximumLeaf;
+    int MaximumLeaf;
     /// Maximum extended leaf supported by this processor.
-    public int MaximumExtendedLeaf;
+    int MaximumExtendedLeaf;
 
     /// Also known as Intel64 or AMD64.
-    public bool LongMode;
+    bool LongMode;
 
     /// Number of physical cores.
-    public ushort NumberOfCores;
+    ushort NumberOfCores;
     /// Number of logical cores.
-    public ushort NumberOfThreads;
+    ushort NumberOfThreads;
 
     /// Processor family. ID and extended ID included.
-    public ushort Family;
+    ushort Family;
     /// Base Family ID
-    public ubyte BaseFamily;
+    ubyte BaseFamily;
     /// Extended Family ID
-    public ubyte ExtendedFamily;
+    ubyte ExtendedFamily;
     /// Processor model. ID and extended ID included.
-    public ubyte Model;
+    ubyte Model;
     /// Base Model ID
-    public ubyte BaseModel;
+    ubyte BaseModel;
     /// Extended Model ID
-    public ubyte ExtendedModel;
+    ubyte ExtendedModel;
     /// Processor stepping.
-    public ubyte Stepping;
+    ubyte Stepping;
     /// Processor type.
-    public ubyte ProcessorType;
+    ubyte ProcessorType;
 
     /// MMX Technology.
-    public bool MMX;
+    bool MMX;
     /// Streaming SIMD Extensions.
-    public bool SSE;
+    bool SSE;
     /// Streaming SIMD Extensions 2.
-    public bool SSE2;
+    bool SSE2;
     /// Streaming SIMD Extensions 3.
-    public bool SSE3;
+    bool SSE3;
     /// Supplemental Streaming SIMD Extensions 3 (SSSE3).
-    public bool SSSE3;
+    bool SSSE3;
     /// Streaming SIMD Extensions 4.1.
-    public bool SSE41;
+    bool SSE41;
     /// Streaming SIMD Extensions 4.2.
-    public bool SSE42;
+    bool SSE42;
     /// Streaming SIMD Extensions 4a. AMD-only.
-    public bool SSE4a;
+    bool SSE4a;
     /// AESNI instruction extensions.
-    public bool AESNI;
+    bool AESNI;
     /// AVX instruction extensions.
-    public bool AVX;
+    bool AVX;
     /// AVX2 instruction extensions.
-    public bool AVX2;
+    bool AVX2;
 
     // ---- 01h : Basic CPUID Information ----
     // -- EBX --
     /// Brand index. See Table 3-24. If 0, use normal BrandString.
-    public ubyte BrandIndex;
+    ubyte BrandIndex;
     /// The CLFLUSH line size. Multiply by 8 to get its size in bytes.
-    public ubyte CLFLUSHLineSize;
+    ubyte CLFLUSHLineSize;
     /// Maximum number of addressable IDs for logical processors in this physical package.
-    public ubyte MaxIDs;
+    ubyte MaxIDs;
     /// Initial APIC ID that the process started on.
-    public ubyte InitialAPICID;
+    ubyte InitialAPICID;
     // -- ECX --
     /// PCLMULQDQ instruction.
-    public bool PCLMULQDQ; // 1
+    bool PCLMULQDQ; // 1
     /// 64-bit DS Area (64-bit layout).
-    public bool DTES64;
+    bool DTES64;
     /// MONITOR/MWAIT.
-    public bool MONITOR;
+    bool MONITOR;
     /// CPL Qualified Debug Store.
-    public bool DS_CPL;
+    bool DS_CPL;
     /// Virtualization | Virtual Machine eXtensions (Intel) | Secure Virtual Machine (AMD) 
-    public bool Virtualization;
+    bool Virtualization;
     /// Safer Mode Extensions.
-    public bool SMX;
+    bool SMX;
     /// Enhanced Intel SpeedStep® Technology.
-    public bool EIST;
+    bool EIST;
     /// Thermal Monitor 2.
-    public bool TM2;
+    bool TM2;
     /// L1 Context ID.
-    public bool CNXT_ID;
+    bool CNXT_ID;
     /// Indicates the processor supports IA32_DEBUG_INTERFACE MSR for silicon debug.
-    public bool SDBG;
+    bool SDBG;
     /// FMA extensions using YMM state.
-    public bool FMA;
+    bool FMA;
     /// CMPXCHG16B instruction.
-    public bool CMPXCHG16B;
+    bool CMPXCHG16B;
     /// xTPR Update Control.
-    public bool xTPR;
+    bool xTPR;
     /// Perfmon and Debug Capability.
-    public bool PDCM;
+    bool PDCM;
     /// Process-context identifiers.
-    public bool PCID;
+    bool PCID;
     /// Direct Cache Access.
-    public bool DCA;
+    bool DCA;
     /// x2APIC feature (Intel programmable interrupt controller).
-    public bool x2APIC;
+    bool x2APIC;
     /// MOVBE instruction.
-    public bool MOVBE;
+    bool MOVBE;
     /// POPCNT instruction.
-    public bool POPCNT;
+    bool POPCNT;
     /// Indicates if the APIC timer supports one-shot operation using a TSC deadline value.
-    public bool TscDeadline;
+    bool TscDeadline;
     /// Indicates the support of the XSAVE/XRSTOR extended states feature, XSETBV/XGETBV instructions, and XCR0.
-    public bool XSAVE;
+    bool XSAVE;
     /// Indicates if the OS has set CR4.OSXSAVE[18] to enable XSETBV/XGETBV instructions for XCR0 and XSAVE.
-    public bool OSXSAVE;
+    bool OSXSAVE;
     /// 16-bit floating-point conversion instructions.
-    public bool F16C;
+    bool F16C;
     /// RDRAND instruction.
-    public bool RDRAND; // 30
+    bool RDRAND; // 30
     // -- EDX --
     /// Floating Point Unit On-Chip. The processor contains an x87 FPU.
-    public bool FPU; // 0
+    bool FPU; // 0
     /// Virtual 8086 Mode Enhancements.
-    public bool VME;
+    bool VME;
     /// Debugging Extensions.
-    public bool DE;
+    bool DE;
     /// Page Size Extension.
-    public bool PSE;
+    bool PSE;
     /// Time Stamp Counter.
-    public bool TSC;
+    bool TSC;
     /// Model Specific Registers RDMSR and WRMSR Instructions. 
-    public bool MSR;
+    bool MSR;
     /// Physical Address Extension.
-    public bool PAE;
+    bool PAE;
     /// Machine Check Exception.
-    public bool MCE;
+    bool MCE;
     /// CMPXCHG8B Instruction.
-    public bool CX8;
+    bool CX8;
     /// Indicates if the processor contains an Advanced Programmable Interrupt Controller.
-    public bool APIC;
+    bool APIC;
     /// SYSENTER and SYSEXIT Instructions.
-    public bool SEP;
+    bool SEP;
     /// Memory Type Range Registers.
-    public bool MTRR;
+    bool MTRR;
     /// Page Global Bit.
-    public bool PGE;
+    bool PGE;
     /// Machine Check Architecture.
-    public bool MCA;
+    bool MCA;
     /// Conditional Move Instructions.
-    public bool CMOV;
+    bool CMOV;
     /// Page Attribute Table.
-    public bool PAT;
+    bool PAT;
     /// 36-Bit Page Size Extension.
-    public bool PSE_36;
+    bool PSE_36;
     /// Processor Serial Number. 
-    public bool PSN;
+    bool PSN;
     /// CLFLUSH Instruction.
-    public bool CLFSH;
+    bool CLFSH;
     /// Debug Store.
-    public bool DS;
+    bool DS;
     /// Thermal Monitor and Software Controlled Clock Facilities.
-    public bool APCI;
+    bool APCI;
     /// FXSAVE and FXRSTOR Instructions.
-    public bool FXSR;
+    bool FXSR;
     /// Self Snoop.
-    public bool SS;
+    bool SS;
     /// Hyper-threading technology.
-    public bool HTT;
+    bool HTT;
     /// Thermal Monitor.
-    public bool TM;
+    bool TM;
     /// Pending Break Enable.
-    public bool PBE; // 31
+    bool PBE; // 31
 
     // ---- 06h - Thermal and Power Management Leaf ----
     /// Turbo Boost Technology (Intel)
-    public bool TurboBoost;
+    bool TurboBoost;
 
 
     // ---- 07h - Thermal and Power Management Leaf ----
     // -- EBX --
     /*
-     * Note: BMI1, BMI2, and SMEP were introduced in 4th Generation Core-ix processors.
+     * Note: BMI1, BMI2, and SMEP were introduced in 4th Generation Core processors.
      */
     /// Bit manipulation group 1 instruction support.
-    public bool BMI1; // 3
+    bool BMI1; // 3
     /// Supervisor Mode Execution Protection.
-    public bool SMEP; // 7
+    bool SMEP; // 7
     /// Bit manipulation group 2 instruction support.
-    public bool BMI2; // 8
+    bool BMI2; // 8
 
     // ---- 8000_0007 -  ----
     /// TSC Invariation support
-    public bool TscInvariant; // 8
+    bool TscInvariant; // 8
 } // Class CpuInfo
 } // version else
 
 /// Get the maximum leaf. 
-extern (C) export int getHighestLeaf() @nogc nothrow
+extern (C) export int getHighestLeaf() pure @nogc nothrow
 {
-    asm @nogc nothrow
-    {
+    asm pure @nogc nothrow {
         naked;
         mov EAX, 0;
         cpuid;
@@ -812,10 +814,9 @@ extern (C) export int getHighestLeaf() @nogc nothrow
 }
 
 /// Get the maximum extended leaf.
-extern (C) export int getHighestExtendedLeaf() @nogc nothrow
+extern (C) export int getHighestExtendedLeaf() pure @nogc nothrow
 {
-    asm @nogc nothrow
-    {
+    asm pure @nogc nothrow {
         naked;
         mov EAX, 0x8000_0000;
         cpuid;
@@ -847,14 +848,15 @@ extern (C) export uint getnlc()
     {
         case VENDOR_INTEL:
         if (ml >= 0xB) asm {
+            naked;
             mov EAX, 0xB;
             mov ECX, 0;
             cpuid;
-            mov cpubits, EAX;
+            mov [cpubits], EAX; // EAX or EBX?!
             mov EAX, 0xB;
             mov ECX, 1;
             cpuid;
-            mov corebits, EAX;
+            mov corebits, EAX; // Same as above
         } else if (ml >= 4) {
 
         } else {
@@ -879,34 +881,27 @@ extern (C) export uint getnlc()
 }*/
 
 /// Gets the CPU Vendor string.
-string getVendor()
+string getVendor() pure nothrow
 {
     char[12] s;
     char[12]* p = &s;
-    version (X86) asm {
+    asm pure @nogc nothrow {
         mov EDI, p;
         mov EAX, 0;
         cpuid;
         mov [EDI], EBX;
         mov [EDI+4], EDX;
         mov [EDI+8], ECX;
-    } else asm {
-        mov RDI, p;
-        mov RAX, 0;
-        cpuid;
-        mov [RDI], EBX;
-        mov [RDI+4], EDX;
-        mov [RDI+8], ECX;
     }
     return s.idup;
 }
 
 /// Get the Processor Brand string
-string getProcessorBrandString()
+string getProcessorBrandString() pure nothrow 
 {
     char[48] s;
     char[48]* ps = &s;
-    version (X86) asm {
+    asm pure @nogc nothrow {
         mov EDI, ps;
         mov EAX, 0x8000_0002;
         cpuid;
@@ -926,26 +921,6 @@ string getProcessorBrandString()
         mov [EDI+36], EBX;
         mov [EDI+40], ECX;
         mov [EDI+44], EDX;
-    } else asm {
-        mov RDI, ps;
-        mov EAX, 0x8000_0002;
-        cpuid;
-        mov [RDI], EAX;
-        mov [RDI+4], EBX;
-        mov [RDI+8], ECX;
-        mov [RDI+12], EDX;
-        mov EAX, 0x8000_0003;
-        cpuid;
-        mov [RDI+16], EAX;
-        mov [RDI+20], EBX;
-        mov [RDI+24], ECX;
-        mov [RDI+28], EDX;
-        mov EAX, 0x8000_0004;
-        cpuid;
-        mov [RDI+32], EAX;
-        mov [RDI+36], EBX;
-        mov [RDI+40], ECX;
-        mov [RDI+44], EDX;
     }
     return s.idup;
 }

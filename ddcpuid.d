@@ -48,8 +48,8 @@ void main(string[] args)
             writeln();
             writeln(" -d, --details      Show more information.");
             writeln(" -e, --experiments  Use experimental features.");
-            writeln(" -i                 Include field. (Not available)");
-            writeln(" -I                 Include field without field. (Not available)");
+            writeln(" -i                 Include field. (Not implemented)");
+            writeln(" -I                 Include field without field. (Not implemented)");
             writeln(" -o, --override     Override leafs to 20h and 8000_0020h.");
             writeln(" -V, --verbose      Show debugging information.");
             writeln(" -r, --raw          Only show raw CPUID data.");
@@ -129,8 +129,6 @@ void main(string[] args)
         {
             writeln("Vendor: ", Vendor);
             writeln("Model: ", ProcessorBrandString);
-            if (_exp)
-                writeln("Number of logical cores (Experimental): ", getnlc);
 
             if (_det)
                 writefln("Identification: Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh",
@@ -171,6 +169,8 @@ void main(string[] args)
                     case VENDOR_VIA  : write("VIA VT, "); break;
                     default          : write("VMX, "); break;
                 }
+            if (NX)
+                write("NX, ");
             if (AESNI)
                 write("AES-NI, ");
             if (AVX)
@@ -181,15 +181,11 @@ void main(string[] args)
                 write("TPM, ");
             if (FMA) 
                 write("FMA, ");
-            if (XSAVE)
-                write("XSAVE, ");
-            if (OSXSAVE)
-                write("OSXSAVE, ");
             writeln();
 
             if (_det)
             {
-                write("Instructions: [ ");
+                write("Instructions: \n  [ ");
                 if (MONITOR)
                     write("MONITOR/MWAIT, ");
                 if (PCLMULQDQ)
@@ -228,6 +224,10 @@ void main(string[] args)
                     writef("CLFLUSH (Line size: %d bytes), ", CLFLUSHLineSize * 8);
                 if (POPCNT)
                     write("POPCNT, ");
+                if (XSAVE)
+                    write("XSAVE/XRSTOR, ");
+                if (OSXSAVE)
+                    write("XSETBV/XGETBV, ");
                 if (FXSR)
                     write("FXSAVE/FXRSTOR, ");
                 writeln("]");
@@ -467,7 +467,7 @@ class CpuInfo
                     FXSR   = d >> 24 & 1;
                     SSE    = d >> 25 & 1;
                     SSE2   = d >> 26 & 1;
-                    HTT    =(d >> 28 & 1) && (MaxIDs > 1);
+                    HTT    = d >> 28 & 1;
                     break;
 
                 case 2: // 02h -- Cache and TLB Information. | AMD: Reserved
@@ -520,12 +520,11 @@ class CpuInfo
                             Virtualization = c >> 2 & 1; // SVM/VMX
                             SSE4a = c >> 6 & 1;
                             break;
-
                         default:
                     }
 
                     LongMode = d >> 29 & 1;
-
+                    NX = d >> 20 & 1;
                     break;
 
                 case 0x8000_0007:
@@ -558,9 +557,6 @@ class CpuInfo
     int MaximumLeaf;
     /// Maximum extended leaf supported by this processor.
     int MaximumExtendedLeaf;
-
-    /// Also known as Intel64 or AMD64.
-    bool LongMode;
 
     /// Number of physical cores.
     ushort NumberOfCores;
@@ -737,13 +733,18 @@ class CpuInfo
     /// Bit manipulation group 2 instruction support.
     bool BMI2; // 8
 
+    // ---- 8000_0001 ----
+    bool NX; // 20
+    /// Also known as Intel64 or AMD64.
+    bool LongMode; // 29
+
     // ---- 8000_0007 -  ----
     /// TSC Invariation support
     bool TscInvariant; // 8
 } // Class CpuInfo
 
 /// Get the maximum leaf. 
-extern (C) export int getHighestLeaf() pure @nogc nothrow
+extern (C) export uint getHighestLeaf() pure @nogc nothrow
 {
     asm pure @nogc nothrow {
         naked;
@@ -754,7 +755,7 @@ extern (C) export int getHighestLeaf() pure @nogc nothrow
 }
 
 /// Get the maximum extended leaf.
-extern (C) export int getHighestExtendedLeaf() pure @nogc nothrow
+extern (C) export uint getHighestExtendedLeaf() pure @nogc nothrow
 {
     asm pure @nogc nothrow {
         naked;
@@ -763,62 +764,6 @@ extern (C) export int getHighestExtendedLeaf() pure @nogc nothrow
         ret;
     }
 }
-
-extern (C) export uint getnlc()
-{
-    uint cpubits, count, corebits;
-    asm {
-        naked;
-        mov EAX, 1;
-        cpuid;
-        test EDX, 0x1000_0000; // Check if HTT
-        jno HTT;               // If HTT bit is set
-        mov EAX, 1;
-        ret;
-    HTT:
-        shr EBX, 16;
-        and EBX, 0xF;
-        mov count, EBX;
-    }
-
-    uint ml = getHighestLeaf,
-         eml = getHighestExtendedLeaf;
-
-    switch (getVendor)
-    {
-        case VENDOR_INTEL:
-        if (ml >= 0xB) asm {
-            naked;
-            mov EAX, 0xB;
-            mov ECX, 0;
-            cpuid;
-            mov [cpubits], EAX; // EAX or EBX?!
-            mov EAX, 0xB;
-            mov ECX, 1;
-            cpuid;
-            mov corebits, EAX; // Same as above
-        } else if (ml >= 4) {
-
-        } else {
-
-        }
-        break;
-
-        case VENDOR_AMD:
-        
-        break;
-
-        default: return 1;
-    }
-
-    return count;
-}
-
-
-/*void tgetFrequency()
-{
-    
-}*/
 
 /// Gets the CPU Vendor string.
 string getVendor() pure nothrow

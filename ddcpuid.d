@@ -4,9 +4,28 @@ import std.string : strip;
 /// Version
 const string appver = "0.2.0";
 
-const enum {
-    VENDOR_INTEL = "GenuineIntel",
-    VENDOR_AMD   = "AuthenticAMD"
+const enum { // Vendor strings
+    VENDOR_INTEL     = "GenuineIntel",
+    VENDOR_AMD       = "AuthenticAMD",
+    VENDOR_VIA       = "VIA VIA VIA ",
+    VENDOR_CENTAUR   = "CentaurHauls", // Including some VIA
+    VENDOR_TRANSMETA = "GenuineTMx86",
+    VENDOR_CYRIX     = "CyrixInstead",
+    VENDOR_NEXGEN    = "NexGenDriven",
+    VENDOR_UMC       = "UMC UMC UMC ",
+    VENDOR_SIS       = "SiS SiS SiS ",
+    VENDOR_NSC       = "Geode by NSC",
+    VENDOR_RISE      = "RiseRiseRise",
+    VENDOR_VORTEX    = "Vortex86 SoC",
+    VENDOR_NS        = "Geode by NSC", // National Semiconductor
+    // Older vendor strings
+    VENDOR_OLDAMD       = "AMDisbetter!", // Early K5
+    VENDOR_OLDTRANSMETA = "TransmetaCPU",
+    // Virtual Machines
+    VENDOR_VMWARE       = "VMwareVMware",
+    VENDOR_XENHVM       = "XenVMMXenVMM",
+    VENDOR_MICROSOFT_HV = "Microsoft Hv",
+    VENDOR_PARALLELS    = " lrpepyh vr"
 }
 
 version(DLL)
@@ -52,10 +71,11 @@ version(Windows) extern(Windows) void DllUnregisterServer() {}
 } else {
 void main(string[] args)
 {
-    bool raw = false; // Raw
-    bool det = false; // Detailed output
-    bool ovr = false; // Override max leaf
-    bool ver = false; // Verbose
+    bool _raw = false; // Raw
+    bool _det = false; // Detailed output
+    bool _ovr = false; // Override max leaf
+    bool _ver = false; // Verbose
+    bool _exp = false; // Experiments
 
     foreach (s; args)
     {
@@ -64,10 +84,11 @@ void main(string[] args)
         case "/?", "-h", "--help":
             writeln(" ddcpuid [<Options>]");
             writeln();
-            writeln(" -d, --details    Show more details.");
-            writeln(" -o, --override   Override leafs to 20h and 8000_0020h.");
-            writeln(" -V, --verbose    Show debugging information.");
-            writeln(" -r, --raw        Show raw CPUID information.");
+            writeln(" -d, --details      Show more details.");
+            writeln(" -e, --experiments  Use experimental features.");
+            writeln(" -o, --override     Override leafs to 20h and 8000_0020h.");
+            writeln(" -V, --verbose      Show debugging information.");
+            writeln(" -r, --raw          Show raw CPUID information.");
             writeln();
             writeln(" --help, -h, /?  Print help and quit.");
             writeln(" --version, -v   Print version and quit.");
@@ -83,26 +104,32 @@ void main(string[] args)
             return;
 
         case "-d", "--details", "/d", "/details":
-            if (ver)
+            if (_ver)
                 writefln("[%4d] Details flag ON.", __LINE__);
-            det = true;
+            _det = true;
+            break;
+
+        case "-e", "--experiments", "/e", "/experiments":
+            if (_ver)
+                writefln("[%4d] Experimental flag ON.", __LINE__);
+            _exp = true;
             break;
 
         case "-o", "--override", "/o", "/override":
-            if (ver)
+            if (_ver)
                 writefln("[%4d] Override flag ON.", __LINE__);
-            ovr = true;
+            _ovr = true;
             break;
 
         case "-r", "--raw", "/r", "/raw":
-            if (ver)
+            if (_ver)
                 writefln("[%4d] Raw flag ON.", __LINE__);
-            raw = true;
+            _raw = true;
             break;
 
         case "-V", "--verbose", "/V", "/Verbose":
-            ver = true;
-            if (ver)
+            _ver = true;
+            if (_ver)
                 writefln("[%4d] Verbose flag ON.", __LINE__);
             break;
 
@@ -110,18 +137,18 @@ void main(string[] args)
         }
     }
 
-    if (ver)
+    if (_ver)
         writefln("[%4d] Verbose mode on", __LINE__);
 
     // Maximum leaf
-    int max = ovr ? 0x20 : getHighestLeaf();
+    uint max = _ovr ? 0x20 : getHighestLeaf();
     // Maximum extended leaf
-    int emax = ovr ? 0x8000_0020 : getHighestExtendedLeaf();
+    uint emax = _ovr ? 0x8000_0020 : getHighestExtendedLeaf();
 
-    if (ver)
+    if (_ver)
         writefln("[%4d] Max: %d | Extended Max: %d", __LINE__, max, emax);
 
-    if (raw)
+    if (_raw)
     {
         writeln("|   Leaf   | S | EAX      | EBX      | ECX      | EDX      |");
         writeln("|----------|---|----------|----------|----------|----------| ");
@@ -175,7 +202,7 @@ void main(string[] args)
     }
     else
     {
-        if (ver)
+        if (_ver)
             writefln("[%4d] Getting info...", __LINE__);
 
         const CpuInfo ci = new CpuInfo;
@@ -184,9 +211,10 @@ void main(string[] args)
         {
             writeln("Vendor: ", Vendor);
             writeln("Model: ", ProcessorBrandString);
-            writeln("Number of logical cores (Experimental): ", getnlc);
+            if (_exp)
+                writeln("Number of logical cores (Experimental): ", getnlc);
 
-            if (det)
+            if (_det)
                 writefln("Identification: Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh",
                     Family, BaseFamily, ExtendedFamily, Model, BaseModel, ExtendedModel, Stepping);
             else
@@ -244,7 +272,7 @@ void main(string[] args)
                 write("OSXSAVE, ");
             writeln();
 
-            if (det)
+            if (_det)
             {
                 write("Single instructions: [ ");
                 if (MONITOR)
@@ -495,7 +523,7 @@ public class CpuInfo
                     FXSR   = d >> 24 & 1;
                     SSE    = d >> 25 & 1;
                     SSE2   = d >> 26 & 1;
-                    HTT    = (d >> 28 & 1) && (MaxIDs > 1);
+                    HTT    =(d >> 28 & 1) && (MaxIDs > 1);
                     break;
 
                 case 2: // 02h -- Cache and TLB Information. | AMD: Reserved
@@ -505,10 +533,9 @@ public class CpuInfo
                 case 6: // 06h -- Thermal and Power Management Leaf | AMD: Reversed
                     switch (Vendor)
                     {
-                        case "GenuineIntel":
+                        case VENDOR_INTEL:
                             TurboBoost = a >> 1 & 1;
                             break;
-
                         default:
                     }
                     break;
@@ -545,7 +572,7 @@ public class CpuInfo
                 case 0x8000_0001:
                     switch (Vendor)
                     {
-                        case "AuthenticAMD":
+                        case VENDOR_AMD:
                             Virtualization = c >> 2 & 1; // SVM/VMX
                             SSE4a = c >> 6 & 1;
                             break;
@@ -560,16 +587,14 @@ public class CpuInfo
                 case 0x8000_0007:
                     switch (Vendor)
                     {
-                        case "AuthenticAMD":
+                        case VENDOR_AMD:
                             TM = d >> 4 & 1;
                             break;
-
                         default:
                     }
 
                     TscInvariant = d >> 8 & 1;
                     break;
-
                 default:
             }
         }
@@ -581,9 +606,9 @@ public class CpuInfo
 
     // ---- Basic information ----
     /// Processor vendor.
-    public string Vendor;
+    string Vendor;
     /// Processor brand string.
-    public string ProcessorBrandString;
+    string ProcessorBrandString;
 
     /// Maximum leaf supported by this processor.
     public int MaximumLeaf;
@@ -802,6 +827,7 @@ extern (C) export uint getnlc()
 {
     uint cpubits, count, corebits;
     asm {
+        naked;
         mov EAX, 1;
         cpuid;
         test EDX, 0x1000_0000; // Check if HTT
@@ -814,8 +840,8 @@ extern (C) export uint getnlc()
         mov count, EBX;
     }
 
-    uint ml = getHighestLeaf;
-    uint eml = getHighestExtendedLeaf;
+    uint ml = getHighestLeaf,
+         eml = getHighestExtendedLeaf;
 
     switch (getVendor)
     {
@@ -842,6 +868,8 @@ extern (C) export uint getnlc()
 
         default: return 1;
     }
+
+    return count;
 }
 
 
@@ -855,17 +883,14 @@ string getVendor()
 {
     char[12] s;
     char[12]* p = &s;
-    version (X86) asm
-    {
+    version (X86) asm {
         mov EDI, p;
         mov EAX, 0;
         cpuid;
         mov [EDI], EBX;
         mov [EDI+4], EDX;
         mov [EDI+8], ECX;
-    }
-    else asm
-    {
+    } else asm {
         mov RDI, p;
         mov RAX, 0;
         cpuid;
@@ -873,7 +898,7 @@ string getVendor()
         mov [RDI+4], EDX;
         mov [RDI+8], ECX;
     }
-    return s.idup();
+    return s.idup;
 }
 
 /// Get the Processor Brand string
@@ -881,8 +906,7 @@ string getProcessorBrandString()
 {
     char[48] s;
     char[48]* ps = &s;
-    asm @nogc nothrow
-    {
+    version (X86) asm {
         mov EDI, ps;
         mov EAX, 0x8000_0002;
         cpuid;
@@ -902,6 +926,26 @@ string getProcessorBrandString()
         mov [EDI+36], EBX;
         mov [EDI+40], ECX;
         mov [EDI+44], EDX;
+    } else asm {
+        mov RDI, ps;
+        mov EAX, 0x8000_0002;
+        cpuid;
+        mov [RDI], EAX;
+        mov [RDI+4], EBX;
+        mov [RDI+8], ECX;
+        mov [RDI+12], EDX;
+        mov EAX, 0x8000_0003;
+        cpuid;
+        mov [RDI+16], EAX;
+        mov [RDI+20], EBX;
+        mov [RDI+24], ECX;
+        mov [RDI+28], EDX;
+        mov EAX, 0x8000_0004;
+        cpuid;
+        mov [RDI+32], EAX;
+        mov [RDI+36], EBX;
+        mov [RDI+40], ECX;
+        mov [RDI+44], EDX;
     }
-    return s.idup();
+    return s.idup;
 }

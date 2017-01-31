@@ -30,7 +30,7 @@ const enum { // Vendor strings
     VENDOR_PARALLELS    = " lrpepyh vr"
 }
 
-void main(string[] args)
+int main(string[] args)
 {
     bool _raw = false; // Raw
     bool _det = false; // Detailed output
@@ -38,25 +38,27 @@ void main(string[] args)
     bool _ver = false; // Verbose
     bool _exp = false; // Experiments
 
-    foreach (s; args)
+    size_t al = args.length;
+
+    for (size_t ai = 1; ai < al; ++ai)
     {
-        switch (s)
+        switch (args[ai])
         {
         case "/?", "-h", "--help":
             writefln(" %s [<Options>]", args[0]);
             writefln(" %s {-h|--help|/?|-v|--version}", args[0]);
             writeln();
             writeln(" -d, --details      Show more information.");
-            writeln(" -e, --experiments  Use experimental features.");
+            writeln(" -e, --experiments  Use experimental features, if any.");
             writeln(" -i                 Include field. (Not implemented)");
-            writeln(" -I                 Include field without field. (Not implemented)");
-            writeln(" -o, --override     Override leafs to 20h and 8000_0020h.");
-            writeln(" -V, --verbose      Show debugging information.");
+            writeln(" -I                 Include field without field name. (Not implemented)");
+            writeln(" -o, --override     Override leafs to 20h and 8000_0020h, useful with -r.");
             writeln(" -r, --raw          Only show raw CPUID data.");
+            writeln(" -V, --verbose      Show debugging information.");
             writeln();
             writeln(" --help, -h, /?  Print help and quit.");
             writeln(" --version, -v   Print version and quit.");
-            return;
+            return 0;
  
         case "-v", "--version", "/v", "/version":
             writefln("%s v%s", args[0], VERSION);
@@ -65,7 +67,7 @@ void main(string[] args)
             writeln("Project page: <https://github.com/guitarxhero/ddcpuid>");
             writefln("Compiled %s at %s, using %s version %s.",
                 __FILE__, __TIMESTAMP__, __VENDOR__, __VERSION__);
-            return;
+            return 0;
 
         case "-d", "--details", "/d", "/details":
             if (_ver)
@@ -140,6 +142,10 @@ void main(string[] args)
             write("Extensions: ");
             if (MMX)
                 write("MMX, ");
+            if (_3DNow)
+                write("3DNow!, ");
+            if (_3DNowExt)
+                write("3DNow!Ext, ");
             if (SSE)
                 write("SSE, ");
             if (SSE2)
@@ -161,7 +167,7 @@ void main(string[] args)
                     case VENDOR_AMD  : write("AMD64, "); break;
                     default          : write("x86-64, "); break;
                 }
-            if (Virtualization)
+            if (Virt)
                 switch (Vendor)
                 {
                     case VENDOR_INTEL: write("VT-x, "); break; // VMX
@@ -178,9 +184,7 @@ void main(string[] args)
             if (AVX2)
                 write("AVX2, ");
             if (SMX)
-                write("TPM, ");
-            if (FMA) 
-                write("FMA, ");
+                write("Intel TXT, ");
             writeln();
 
             if (_det)
@@ -197,7 +201,9 @@ void main(string[] args)
                 if (MOVBE)
                     write("MOVBE, "); // Intel Atom and quite a few AMD processorss.
                 if (RDRAND)
-                    write("RDRAND/RDSEED, ");
+                    write("RDRAND, ");
+                if (RDSEED)
+                    write("RDSEED, ");
                 if (MSR)
                     write("RDMSR/WRMSR, ");
                 if (SEP)
@@ -222,6 +228,10 @@ void main(string[] args)
                     write("FCOMI/FCMOV, ");
                 if (CLFSH)
                     writef("CLFLUSH (Line size: %d bytes), ", CLFLUSHLineSize * 8);
+                if (PREFETCHW)
+                    write("PREFETCHW, ");
+                if (LZCNT)
+                    write("LZCNT, ");
                 if (POPCNT)
                     write("POPCNT, ");
                 if (XSAVE)
@@ -230,8 +240,25 @@ void main(string[] args)
                     write("XSETBV/XGETBV, ");
                 if (FXSR)
                     write("FXSAVE/FXRSTOR, ");
+                if (FMA) 
+                    write("VFMADDx, ");
                 writeln("]");
+            }
 
+            switch (Vendor)
+            {
+                case VENDOR_INTEL:
+                writeln("Enhanced SpeedStep® Technology: ", EIST);
+                writeln("TurboBoost available: ", TurboBoost);
+                break;
+                case VENDOR_AMD:
+                
+                break;
+                default:
+            }
+
+            if (_det)
+            {
                 writefln("Highest Leaf: %02XH | Extended: %02XH", maxl, emaxl);
                 write("Processor type: ");
                 final switch (ProcessorType) // 2 bit value
@@ -263,6 +290,7 @@ void main(string[] args)
                 writeln("Memory and Paging");
                 writeln("  Page Size Extension [PAE]: ", PAE);
                 writeln("  36-Bit Page Size Extension [PSE-36]: ", PSE_36);
+                writeln("  1 GB Pages support [Page1GB]: ", Page1GB);
                 writeln("  Direct Cache Access [DCA]: ", DCA);
                 writeln("  Page Attribute Table [PAT]: ", PAT);
                 writeln("  Memory Type Range Registers [MTRR]: ", MTRR);
@@ -303,6 +331,8 @@ void main(string[] args)
             } // if (_det)
         } // with (c)
     } // if (_raw) else
+
+    return 0;
 } // main
 
 void print_cpuid(uint leaf, uint subl)
@@ -342,10 +372,10 @@ class CpuInfo
     /// Fetches the information 
     public void fetchInfo(bool verbose = false)
     {
-        Vendor = getVendor();
+        Vendor = getVendor(); // 0h.EBX:EDX:ECX
         ProcessorBrandString = strip(getProcessorBrandString());
 
-        MaximumLeaf = getHighestLeaf();
+        MaximumLeaf = getHighestLeaf(); // 0h.EAX
         MaximumExtendedLeaf = getHighestExtendedLeaf();
 
         uint a, b, c, d;
@@ -362,7 +392,7 @@ class CpuInfo
             }
 
             switch (leaf)
-            { // case 0 has already has been handled (max leaf and vendor).
+            {
                 case 1: // 01H -- Basic CPUID Information
                     // EAX
                     BaseFamily     = a >>  8 &  0xF; // EAX[11:8]
@@ -371,7 +401,7 @@ class CpuInfo
                     ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
                     switch (Vendor) // Vendor specific features.
                     {
-                        case "GenuineIntel":
+                        case VENDOR_INTEL:
                             if (BaseFamily != 0)
                                 Family = BaseFamily;
                             else
@@ -383,25 +413,25 @@ class CpuInfo
                                 Model = BaseModel;
 
                             // ECX
-                            DTES64         = c >>  2 & 1;
-                            DS_CPL         = c >>  4 & 1;
-                            Virtualization = c >>  5 & 1;
-                            SMX            = c >>  6 & 1;
-                            EIST           = c >>  7 & 1;
-                            CNXT_ID        = c >> 10 & 1;
-                            SDBG           = c >> 11 & 1;
-                            xTPR           = c >> 14 & 1;
-                            PDCM           = c >> 15 & 1;
-                            PCID           = c >> 17 & 1;
-                            DCA            = c >> 18 & 1;
-                            DS             = d >> 21 & 1;
-                            APCI           = d >> 22 & 1;
-                            SS             = d >> 27 & 1;
-                            TM             = d >> 29 & 1;
-                            PBE            = d >> 31 & 1;
+                            DTES64  = c >>  2 & 1;
+                            DS_CPL  = c >>  4 & 1;
+                            Virt    = c >>  5 & 1;
+                            SMX     = c >>  6 & 1;
+                            EIST    = c >>  7 & 1;
+                            CNXT_ID = c >> 10 & 1;
+                            SDBG    = c >> 11 & 1;
+                            xTPR    = c >> 14 & 1;
+                            PDCM    = c >> 15 & 1;
+                            PCID    = c >> 17 & 1;
+                            DCA     = c >> 18 & 1;
+                            DS      = d >> 21 & 1;
+                            APCI    = d >> 22 & 1;
+                            SS      = d >> 27 & 1;
+                            TM      = d >> 29 & 1;
+                            PBE     = d >> 31 & 1;
                             break;
 
-                        case "AuthenticAMD":
+                        case VENDOR_AMD:
                             if (BaseFamily < 0xF)
                             {
                                 Family = BaseFamily;
@@ -470,11 +500,11 @@ class CpuInfo
                     HTT    = d >> 28 & 1;
                     break;
 
-                case 2: // 02h -- Cache and TLB Information. | AMD: Reserved
+                case 2:
 
                     break;
 
-                case 6: // 06h -- Thermal and Power Management Leaf | AMD: Reversed
+                case 6:
                     switch (Vendor)
                     {
                         case VENDOR_INTEL:
@@ -487,6 +517,16 @@ class CpuInfo
                     default:
 
                 case 7:
+                    switch (Vendor)
+                    {
+                        case VENDOR_INTEL:
+                            TurboBoost = a >> 1 & 1;
+                            RDSEED     = b >> 18 & 1;
+                            break;
+                        default:
+                    }
+                    break;
+
                     BMI1 = b >> 3 & 1;
                     AVX2 = b >> 5 & 1;
                     SMEP = b >> 7 & 1;
@@ -517,14 +557,21 @@ class CpuInfo
                     switch (Vendor)
                     {
                         case VENDOR_AMD:
-                            Virtualization = c >> 2 & 1; // SVM/VMX
+                            Virt  = c >> 2 & 1; // SVM
                             SSE4a = c >> 6 & 1;
+
+                            _3DNowExt = d >> 30 & 1;
+                            _3DNow    = d >> 31 & 1;
                             break;
                         default:
                     }
 
+                    LZCNT     = c >> 5 & 1;
+                    PREFETCHW = c >> 8 & 1;
+
+                    NX       = d >> 20 & 1;
+                    Page1GB  = d >> 26 & 1;
                     LongMode = d >> 29 & 1;
-                    NX = d >> 20 & 1;
                     break;
 
                 case 0x8000_0007:
@@ -543,9 +590,9 @@ class CpuInfo
         }
     }
 
-    /*************************
-     * PROCESSOR INFORMATION *
-     *************************/
+    /*
+     * Properties
+     */
 
     // ---- Basic information ----
     /// Processor vendor.
@@ -594,7 +641,7 @@ class CpuInfo
     bool SSE41;
     /// Streaming SIMD Extensions 4.2.
     bool SSE42;
-    /// Streaming SIMD Extensions 4a. AMD-only.
+    /// Streaming SIMD Extensions 4a. AMD only.
     bool SSE4a;
     /// AESNI instruction extensions.
     bool AESNI;
@@ -603,7 +650,12 @@ class CpuInfo
     /// AVX2 instruction extensions.
     bool AVX2;
 
-    // ---- 01h : Basic CPUID Information ----
+    /// 3DNow! extension. AMD only. Deprecated in 2010.
+    bool _3DNow;
+    /// 3DNow! Extension supplements. See 3DNow!
+    bool _3DNowExt;
+
+    // ---- 01h ----
     // -- EBX --
     /// Brand index. See Table 3-24. If 0, use normal BrandString.
     ubyte BrandIndex;
@@ -623,7 +675,7 @@ class CpuInfo
     /// CPL Qualified Debug Store.
     bool DS_CPL;
     /// Virtualization | Virtual Machine eXtensions (Intel) | Secure Virtual Machine (AMD) 
-    bool Virtualization;
+    bool Virt;
     /// Safer Mode Extensions. Intel TXT/TPM
     bool SMX;
     /// Enhanced Intel SpeedStep® Technology.
@@ -716,12 +768,12 @@ class CpuInfo
     /// Pending Break Enable.
     bool PBE; // 31
 
-    // ---- 06h - Thermal and Power Management Leaf ----
+    // ---- 06h ----
     /// Turbo Boost Technology (Intel)
     bool TurboBoost;
 
 
-    // ---- 07h - Thermal and Power Management Leaf ----
+    // ---- 07h ----
     // -- EBX --
     /*
      * Note: BMI1, BMI2, and SMEP were introduced in 4th Generation Core processors.
@@ -734,11 +786,20 @@ class CpuInfo
     bool BMI2; // 8
 
     // ---- 8000_0001 ----
+    // ECX
+    /// Advanced Bit Manipulation under AMD. LZCUNT under Intel.
+    bool LZCNT;
+    /// PREFETCHW under Intel. 3DNowPrefetch under AMD.
+    bool PREFETCHW; // 8
+    // EDX
+    /// Intel: Execute Disable Bit. AMD: No-execute page protection.
     bool NX; // 20
+    // 1GB Pages
+    bool Page1GB; // 26
     /// Also known as Intel64 or AMD64.
     bool LongMode; // 29
 
-    // ---- 8000_0007 -  ----
+    // ---- 8000_0007 ----
     /// TSC Invariation support
     bool TscInvariant; // 8
 } // Class CpuInfo

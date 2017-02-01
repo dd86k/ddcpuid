@@ -37,9 +37,9 @@ dmd ddcpuid.d
 ```
 - Executable (Optimized, x86):
 ```
-dmd -O -release -inline -boundscheck=off ddcpuid.d
+dmd -O -release -boundscheck=off ddcpuid.d
 ```
-- Windows DLL (Windows, x86) (WIP):
+- Windows DLL (Windows, x86) (Reserved):
 ```
 dmd -version=DLL -ofddcpuid.dll -shared ddcpuid.d ddcpuid.def
 ```

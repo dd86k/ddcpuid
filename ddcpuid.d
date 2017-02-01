@@ -6,6 +6,11 @@ import std.string : strip;
 /// Version
 const enum VERSION = "0.3.0";
 
+const enum { // Maximum supported leafs
+    MAX_LEAF = 0x7,
+    MAX_ELEAF = 0x8000_0001
+}
+
 const enum { // Vendor strings
     VENDOR_INTEL     = "GenuineIntel",
     VENDOR_AMD       = "AuthenticAMD",
@@ -49,9 +54,9 @@ int main(string[] args)
             writefln(" %s {-h|--help|/?|-v|--version}", args[0]);
             writeln();
             writeln(" -d, --details      Show more information.");
-            writeln(" -e, --experiments  Use experimental features, if any.");
+            /+writeln(" -e, --experiments  Use experimental features, if any.");
             writeln(" -i                 Include field. (Not implemented)");
-            writeln(" -I                 Include field without field name. (Not implemented)");
+            writeln(" -I                 Include field without field name. (Not implemented)");+/
             writeln(" -o, --override     Override leafs to 20h and 8000_0020h, useful with -r.");
             writeln(" -r, --raw          Only show raw CPUID data.");
             writeln(" -V, --verbose      Show debugging information.");
@@ -70,38 +75,31 @@ int main(string[] args)
             return 0;
 
         case "-d", "--details", "/d", "/details":
-            if (_ver)
-                writefln("[%4d] Details flag ON.", __LINE__);
             _det = true;
             break;
 
         case "-e", "--experiments", "/e", "/experiments":
-            if (_ver)
-                writefln("[%4d] Experimental flag ON.", __LINE__);
             _exp = true;
             break;
 
         case "-o", "--override", "/o", "/override":
-            if (_ver)
-                writefln("[%4d] Override flag ON.", __LINE__);
             _ovr = true;
             break;
 
         case "-r", "--raw", "/r", "/raw":
-            if (_ver)
-                writefln("[%4d] Raw flag ON.", __LINE__);
             _raw = true;
             break;
 
-        case "-V", "--verbose", "/V", "/Verbose":
+        case "-V", "--verbose", "/V", "/verbose":
             _ver = true;
-            if (_ver)
-                writefln("[%4d] Verbose mode on.", __LINE__);
             break;
 
         default:
         }
     }
+
+    if (_ver)
+        writefln("[%4d] Getting maximum leafs...", __LINE__);
 
     // Maximum leaf
     uint maxl = _ovr ? 0x20 : getHighestLeaf();
@@ -142,6 +140,8 @@ int main(string[] args)
             write("Extensions: ");
             if (MMX)
                 write("MMX, ");
+            if (MMXExt)
+                write("Ext MMX, ");
             if (_3DNow)
                 write("3DNow!, ");
             if (_3DNowExt)
@@ -175,16 +175,21 @@ int main(string[] args)
                     case VENDOR_VIA  : write("VIA VT, "); break;
                     default          : write("VMX, "); break;
                 }
+            if (SMX)
+                write("Intel TXT (SMX), ");
             if (NX)
-                write("NX, ");
+                switch (Vendor)
+                {
+                    case VENDOR_INTEL: write("Intel XD (NX), "); break;
+                    case VENDOR_AMD  : write("AMD EVP (NX), "); break;
+                    default          : write("NX, "); break;
+                }
             if (AES)
                 write("AES, ");
             if (AVX)
                 write("AVX, ");
             if (AVX2)
                 write("AVX2, ");
-            if (SMX)
-                write("Intel TXT, ");
             writeln();
 
             if (_det)
@@ -240,19 +245,21 @@ int main(string[] args)
                     write("XSETBV/XGETBV, ");
                 if (FXSR)
                     write("FXSAVE/FXRSTOR, ");
-                if (FMA) 
-                    write("VFMADDx, ");
+                if (FMA || FMA4)
+                {
+                    write("VFMADDx (FMA");
+                    if (FMA4)
+                        write("4");
+                    write("), ");
+                }
                 writeln("]");
             }
 
             switch (Vendor)
             {
                 case VENDOR_INTEL:
-                writeln("Enhanced SpeedStep® Technology: ", EIST);
+                writeln("Enhanced SpeedStep(R) Technology: ", EIST);
                 writeln("TurboBoost available: ", TurboBoost);
-                break;
-                case VENDOR_AMD:
-                
                 break;
                 default:
             }
@@ -299,6 +306,7 @@ int main(string[] args)
 
                 writeln();
                 writeln("Debugging");
+                writeln("  Machine Check Exception [MCE]: ", MCE);
                 writeln("  Debugging Extensions [DE]: ", DE);
                 writeln("  Debug Store [DS]: ", DS);
                 writeln("  Debug Store CPL [DS-CPL]: ", DS_CPL);
@@ -311,7 +319,6 @@ int main(string[] args)
                 writeln("  L1 Context ID [CNXT-ID]: ", CNXT_ID);
                 writeln("  xTPR Update Control [xTPR]: ", xTPR);
                 writeln("  Process-context identifiers [PCID]: ", PCID);
-                writeln("  Machine Check Exception [MCE]: ", MCE);
                 writeln("  Machine Check Architecture [MCA]: ", MCA);
                 writeln("  Processor Serial Number [PSN]: ", PSN);
                 writeln("  Self Snoop [SS]: ", SS);
@@ -352,24 +359,19 @@ void print_cpuid(uint leaf, uint subl)
         leaf, subl, _eax, _ebx, _ecx, _edx);
 }
 
-
-/***********
- * Classes *
- ***********/
-
 /// <summary>
-/// Provides a set of information about the processor.
+/// Processor information class.
 /// </summary>
 class CpuInfo
 {
-    /// Initiates a CPU_INFO.
+    /// Constructs a CpuInfo.
     this(bool fetch = true, bool verbose = false)
     {
         if (fetch)
             fetchInfo(verbose);
     }
 
-    /// Fetches the information 
+    /// Fetch information and store it in class variables.
     public void fetchInfo(bool verbose = false)
     {
         Vendor = getVendor(); // 0h.EBX:EDX:ECX
@@ -378,9 +380,13 @@ class CpuInfo
         MaximumLeaf = getHighestLeaf(); // 0h.EAX
         MaximumExtendedLeaf = getHighestExtendedLeaf();
 
-        uint a, b, c, d; // Aliases to register EAX:EDX.
+        // To avoid unecessary loops.
+        uint mleaf = MaximumLeaf > MAX_LEAF ? MaximumLeaf : MAX_LEAF;
+        uint meleaf = MaximumExtendedLeaf > MAX_ELEAF ? MaximumExtendedLeaf : MAX_ELEAF;
 
-        for (int leaf = 1; leaf <= MaximumLeaf; ++leaf)
+        uint a, b, c, d; // EAX:EDX.
+
+        for (int leaf = 1; leaf <= mleaf; ++leaf)
         {
             asm @nogc nothrow
             {
@@ -395,13 +401,8 @@ class CpuInfo
 
             switch (leaf)
             {
-                case 1: // 01H -- Basic CPUID Information
-                    // EAX
-                    BaseFamily     = a >>  8 &  0xF; // EAX[11:8]
-                    ExtendedFamily = a >> 20 & 0xFF; // EAX[27:20]
-                    BaseModel      = a >>  4 &  0xF; // EAX[7:4]
-                    ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
-                    switch (Vendor) // Vendor specific features.
+                case 1:
+                    switch (Vendor)
                     {
                         case VENDOR_INTEL:
                             if (BaseFamily != 0)
@@ -434,13 +435,10 @@ class CpuInfo
                             break;
 
                         case VENDOR_AMD:
-                            if (BaseFamily < 0xF)
-                            {
+                            if (BaseFamily < 0xF) {
                                 Family = BaseFamily;
                                 Model = BaseModel;
-                            }
-                            else
-                            {
+                            } else {
                                 Family = cast(ubyte)(ExtendedFamily + BaseFamily);
                                 Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
                             }
@@ -448,6 +446,12 @@ class CpuInfo
 
                             default:
                     }
+
+                    // EAX
+                    BaseFamily     = a >>  8 &  0xF; // EAX[11:8]
+                    ExtendedFamily = a >> 20 & 0xFF; // EAX[27:20]
+                    BaseModel      = a >>  4 &  0xF; // EAX[7:4]
+                    ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
                     ProcessorType = (a >> 12) & 3; // EAX[13:12]
                     Stepping      = a & 0xF;       // EAX[3:0]
                     // EBX
@@ -469,7 +473,7 @@ class CpuInfo
                     MOVBE       = c >> 22 & 1;
                     POPCNT      = c >> 23 & 1;
                     TscDeadline = c >> 24 & 1;
-                    AES       = c >> 25 & 1;
+                    AES         = c >> 25 & 1;
                     XSAVE       = c >> 26 & 1;
                     OSXSAVE     = c >> 27 & 1;
                     AVX         = c >> 28 & 1;
@@ -500,10 +504,6 @@ class CpuInfo
                     SSE    = d >> 25 & 1;
                     SSE2   = d >> 26 & 1;
                     HTT    = d >> 28 & 1;
-                    break;
-
-                case 2:
-
                     break;
 
                 case 6:
@@ -541,7 +541,7 @@ class CpuInfo
          * Extended CPUID leafs
          */
 
-        for (int eleaf = 0x8000_0000; eleaf < MaximumExtendedLeaf; ++eleaf)
+        for (int eleaf = 0x8000_0000; eleaf < meleaf; ++eleaf)
         {
             asm @nogc nothrow
             {
@@ -560,9 +560,11 @@ class CpuInfo
                     switch (Vendor)
                     {
                         case VENDOR_AMD:
-                            Virt  = c >> 2 & 1; // SVM
-                            SSE4a = c >> 6 & 1;
+                            Virt  = c >>  2 & 1; // SVM
+                            SSE4a = c >>  6 & 1;
+                            FMA4  = c >> 16 & 1;
 
+                            MMXExt    = d >> 22 & 1;
                             _3DNowExt = d >> 30 & 1;
                             _3DNow    = d >> 31 & 1;
                             break;
@@ -635,6 +637,8 @@ class CpuInfo
 
     /// MMX Technology.
     bool MMX;
+    /// AMD MMX Extented set.
+    bool MMXExt;
     /// Streaming SIMD Extensions.
     bool SSE;
     /// Streaming SIMD Extensions 2.
@@ -694,6 +698,8 @@ class CpuInfo
     bool SDBG;
     /// FMA extensions using YMM state.
     bool FMA;
+    /// Four-operand FMA instruction support.
+    bool FMA4;
     /// CMPXCHG16B instruction.
     bool CMPXCHG16B;
     /// xTPR Update Control.
@@ -850,9 +856,10 @@ string getVendor() pure nothrow
     return s.idup;
 }
 
-/// Get the Processor Brand string
+/// Get the Extended Processor Brand string
 string getProcessorBrandString() pure nothrow 
 {
+    //TODO: Check older list.
     char[48] s;
     char[48]* ps = &s;
     asm pure @nogc nothrow {

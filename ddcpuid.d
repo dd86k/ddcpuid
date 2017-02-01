@@ -844,8 +844,15 @@ extern (C) export uint getHighestExtendedLeaf() pure @nogc nothrow
 string getVendor() pure nothrow
 {
     char[12] s;
-    char[12]* p = &s;
-    asm pure @nogc nothrow {
+    char[12]* p = &s; // size_t
+    version (X86_64) asm pure @nogc nothrow {
+        mov RDI, p;
+        mov EAX, 0;
+        cpuid;
+        mov [RDI], EBX;
+        mov [RDI+4], EDX;
+        mov [RDI+8], ECX;
+    } else asm pure @nogc nothrow {
         mov EDI, p;
         mov EAX, 0;
         cpuid;
@@ -862,7 +869,27 @@ string getProcessorBrandString() pure nothrow
     //TODO: Check older list.
     char[48] s;
     char[48]* ps = &s;
-    asm pure @nogc nothrow {
+    version (X86_64) asm pure @nogc nothrow {
+        mov RDI, ps;
+        mov EAX, 0x8000_0002;
+        cpuid;
+        mov [RDI], EAX;
+        mov [RDI+4], EBX;
+        mov [RDI+8], ECX;
+        mov [RDI+12], EDX;
+        mov EAX, 0x8000_0003;
+        cpuid;
+        mov [RDI+16], EAX;
+        mov [RDI+20], EBX;
+        mov [RDI+24], ECX;
+        mov [RDI+28], EDX;
+        mov EAX, 0x8000_0004;
+        cpuid;
+        mov [RDI+32], EAX;
+        mov [RDI+36], EBX;
+        mov [RDI+40], ECX;
+        mov [RDI+44], EDX;
+    } else asm pure @nogc nothrow {
         mov EDI, ps;
         mov EAX, 0x8000_0002;
         cpuid;

@@ -185,7 +185,7 @@ int main(string[] args)
                     default          : write("NX, "); break;
                 }
             if (AES)
-                write("AES, ");
+                write("AES-NI, ");
             if (AVX)
                 write("AVX, ");
             if (AVX2)
@@ -254,6 +254,8 @@ int main(string[] args)
                 }
                 writeln("]");
             }
+
+            writeln();
 
             switch (Vendor)
             {
@@ -402,6 +404,14 @@ class CpuInfo
             switch (leaf)
             {
                 case 1:
+                    // EAX
+                    Stepping       = a & 0xF;        // EAX[3:0]
+                    BaseModel      = a >>  4 &  0xF; // EAX[7:4]
+                    BaseFamily     = a >>  8 &  0xF; // EAX[11:8]
+                    ProcessorType  = a >> 12 & 0b11; // EAX[13:12]
+                    ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
+                    ExtendedFamily = a >> 20 & 0xFF; // EAX[27:20]
+                    
                     switch (Vendor)
                     {
                         case VENDOR_INTEL:
@@ -447,13 +457,6 @@ class CpuInfo
                             default:
                     }
 
-                    // EAX
-                    BaseFamily     = a >>  8 &  0xF; // EAX[11:8]
-                    ExtendedFamily = a >> 20 & 0xFF; // EAX[27:20]
-                    BaseModel      = a >>  4 &  0xF; // EAX[7:4]
-                    ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
-                    ProcessorType = (a >> 12) & 3; // EAX[13:12]
-                    Stepping      = a & 0xF;       // EAX[3:0]
                     // EBX
                     BrandIndex      = b & 0xFF;       // EBX[7:0]
                     CLFLUSHLineSize = b >> 8 & 0xFF;  // EBX[15:8]
@@ -619,7 +622,7 @@ class CpuInfo
     ushort NumberOfThreads;
 
     /// Processor family. ID and extended ID included.
-    ushort Family;
+    ubyte Family;
     /// Base Family ID
     ubyte BaseFamily;
     /// Extended Family ID

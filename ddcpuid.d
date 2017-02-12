@@ -4,7 +4,7 @@ import std.stdio : write, writef, writeln, writefln;
 import std.string : strip;
 
 /// Version
-const enum VERSION = "0.3.0";
+const enum VERSION = "0.3.1";
 
 const enum { // Maximum supported leafs
     MAX_LEAF = 0x7,
@@ -411,7 +411,7 @@ class CpuInfo
                     ProcessorType  = a >> 12 & 0b11; // EAX[13:12]
                     ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
                     ExtendedFamily = a >> 20 & 0xFF; // EAX[27:20]
-                    
+
                     switch (Vendor)
                     {
                         case VENDOR_INTEL:

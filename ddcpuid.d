@@ -137,7 +137,7 @@ int main(string[] args)
                 writefln("Identification: Family %d Model %d Stepping %d",
                     Family, Model, Stepping);
 
-            write("Extensions: ");
+            write("Extensions: \n  ");
             if (MMX)
                 write("MMX, ");
             if (MMXExt)

@@ -1,21 +1,24 @@
 module ddcpuid;
 
-import std.stdio : write, writef, writeln, writefln;
+import std.getopt;
+import std.stdio;
 import std.string : strip;
 
-/// Version
-const enum VERSION = "0.3.1";
+//TODO: Stop using a class maybe?
 
-const enum { // Maximum supported leafs
-    MAX_LEAF = 0x7,
-    MAX_ELEAF = 0x8000_0001
+/// Version
+enum VERSION = "0.3.1";
+
+enum { // Maximum supported leafs
+    MAX_LEAF = 0x20, /// Maximum leaf with -o
+    MAX_ELEAF = 0x8000_0020 /// Maximum extended leaf with -o
 }
 
-const enum { // Vendor strings
+enum { // Vendor strings
     VENDOR_INTEL     = "GenuineIntel",
     VENDOR_AMD       = "AuthenticAMD",
     VENDOR_VIA       = "VIA VIA VIA ",
-    VENDOR_CENTAUR   = "CentaurHauls", // VIA aquired Centaur
+    VENDOR_CENTAUR   = "CentaurHauls", /// Centaur (VIA)
     VENDOR_TRANSMETA = "GenuineTMx86",
     VENDOR_CYRIX     = "CyrixInstead",
     VENDOR_NEXGEN    = "NexGenDriven",
@@ -35,81 +38,55 @@ const enum { // Vendor strings
     VENDOR_PARALLELS    = " lrpepyh vr"
 }
 
+debug void dbgln(string msg, int line = __LINE__) {
+    writefln("[%d] %s", line, msg);
+}
+
 int main(string[] args)
 {
-    bool _raw = false; // Raw
-    bool _det = false; // Detailed output
-    bool _ovr = false; // Override max leaf
-    bool _ver = false; // Verbose
-    bool _exp = false; // Experiments
+    bool raw = false; // Raw
+    bool det = false; // Detailed output
+    bool ovr = false; // Override max leaf
 
-    size_t al = args.length;
+    GetoptResult r;
+	try {
+		r = getopt(args,
+            config.bundling, config.caseSensitive,
+            "r|raw", "Only show raw CPUID data.", &raw,
+            config.bundling, config.caseSensitive,
+            "d|details", "Show more information.", &det,
+            config.bundling, config.caseSensitive,
+			"o|override", "Override leafs to 20h each, useful with -r.", &ovr,
+            "version|v", "Print version information.", &PrintVersion);
+	} catch (GetOptException ex) {
+		stderr.writeln("Error: ", ex.msg);
+        return 1;
+	}
 
-    for (size_t ai = 1; ai < al; ++ai)
-    {
-        switch (args[ai])
-        {
-        case "/?", "-h", "--help":
-            writefln(" %s [<Options>]", args[0]);
-            writefln(" %s {-h|--help|/?|-v|--version}", args[0]);
-            writeln();
-            writeln(" -d, --details      Show more information.");
-            /+writeln(" -e, --experiments  Use experimental features, if any.");
-            writeln(" -i                 Include field. (Not implemented)");
-            writeln(" -I                 Include field without field name. (Not implemented)");+/
-            writeln(" -o, --override     Override leafs to 20h and 8000_0020h, useful with -r.");
-            writeln(" -r, --raw          Only show raw CPUID data.");
-            writeln(" -V, --verbose      Show debugging information.");
-            writeln();
-            writeln(" --help, -h, /?  Print help and quit.");
-            writeln(" --version, -v   Print version and quit.");
-            return 0;
- 
-        case "-v", "--version", "/v", "/version":
-            writefln("%s v%s", args[0], VERSION);
-            writeln("Copyright (c) dd86k 2016");
-            writeln("License: MIT License <http://opensource.org/licenses/MIT>");
-            writeln("Project page: <https://github.com/guitarxhero/ddcpuid>");
-            writefln("Compiled %s at %s, using %s version %s.",
-                __FILE__, __TIMESTAMP__, __VENDOR__, __VERSION__);
-            return 0;
-
-        case "-d", "--details", "/d", "/details":
-            _det = true;
-            break;
-
-        case "-e", "--experiments", "/e", "/experiments":
-            _exp = true;
-            break;
-
-        case "-o", "--override", "/o", "/override":
-            _ovr = true;
-            break;
-
-        case "-r", "--raw", "/r", "/raw":
-            _raw = true;
-            break;
-
-        case "-V", "--verbose", "/V", "/verbose":
-            _ver = true;
-            break;
-
-        default:
+    if (r.helpWanted) {
+        PrintHelp;
+        writeln("\nOption             Description");
+        foreach (it; r.options) { // "custom" defaultGetoptPrinter
+            writefln("%*s, %-*s%s%s",
+                4,  it.optShort,
+                12, it.optLong,
+                it.required ? "Required: " : " ",
+                it.help);
         }
+        return 0;
     }
 
-    if (_ver)
-        writefln("[%4d] Getting maximum leafs...", __LINE__);
+    debug dbgln("Getting maximum leafs...");
 
     // Maximum leaf
-    uint maxl = _ovr ? 0x20 : getHighestLeaf();
+    uint maxl = ovr ? MAX_LEAF : getHighestLeaf();
     // Maximum extended leaf
-    uint emaxl = _ovr ? 0x8000_0020 : getHighestExtendedLeaf();
+    uint emaxl = ovr ? MAX_ELEAF : getHighestExtendedLeaf();
 
-    if (_ver)
+    debug
         writefln("[%4d] Max leaf: %X | Extended: %X", __LINE__, maxl, emaxl);
 
-    if (_raw)
+    if (raw)
     {
         writeln("|   Leaf   | S | EAX      | EBX      | ECX      | EDX      |");
         writeln("|----------|---|----------|----------|----------|----------| ");
@@ -120,9 +97,6 @@ int main(string[] args)
     }
     else
     {
-        if (_ver)
-            writefln("[%4d] Getting info...", __LINE__);
-
         const CpuInfo ci = new CpuInfo;
         
         with (ci)
@@ -130,7 +104,7 @@ int main(string[] args)
             writeln("Vendor: ", Vendor);
             writeln("Model: ", ProcessorBrandString);
 
-            if (_det)
+            if (det)
                 writefln("Identification: Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh",
                     Family, BaseFamily, ExtendedFamily, Model, BaseModel, ExtendedModel, Stepping);
             else
@@ -192,7 +166,7 @@ int main(string[] args)
                 write("AVX2, ");
             writeln();
 
-            if (_det)
+            if (det)
             {
                 write("Instructions: \n  [ ");
                 if (MONITOR)
@@ -255,27 +229,27 @@ int main(string[] args)
                 writeln("]");
             }
 
-            writeln();
+            writeln;
 
             switch (Vendor)
             {
-                case VENDOR_INTEL:
-                writeln("Enhanced SpeedStep(R) Technology: ", EIST);
-                writeln("TurboBoost available: ", TurboBoost);
-                break;
-                default:
+            case VENDOR_INTEL:
+            writeln("Enhanced SpeedStep(R) Technology: ", EIST);
+            writeln("TurboBoost available: ", TurboBoost);
+            break;
+            default:
             }
 
-            if (_det)
+            if (det)
             {
                 writefln("Highest Leaf: %02XH | Extended: %02XH", maxl, emaxl);
                 write("Processor type: ");
                 final switch (ProcessorType) // 2 bit value
                 { // Should return 0 these days.
-                    case 0b00: writeln("Original OEM Processor"); break;
-                    case 0b01: writeln("Intel OverDrive Processor"); break;
-                    case 0b10: writeln("Dual processor"); break;
-                    case 0b11: writeln("Intel reserved"); break;
+                case 0b00: writeln("Original OEM Processor"); break;
+                case 0b01: writeln("Intel OverDrive Processor"); break;
+                case 0b10: writeln("Dual processor"); break;
+                case 0b11: writeln("Intel reserved"); break;
                 }
 
                 writeln();
@@ -344,11 +318,28 @@ int main(string[] args)
     return 0;
 } // main
 
+void PrintHelp()
+{
+    writeln("CPUID magic.");
+    writeln("  Usage: ddcpuid [<Options>]");
+}
+
+void PrintVersion()
+{
+    import core.stdc.stdlib;
+    writeln("ddcpuid v", VERSION);
+    writeln("Copyright (c) dd86k 2016-2017");
+    writeln("License: MIT License <http://opensource.org/licenses/MIT>");
+    writeln("Project page: <https://github.com/guitarxhero/ddcpuid>");
+    writefln("Compiled %s at %s, using %s version %s.",
+        __FILE__, __TIMESTAMP__, __VENDOR__, __VERSION__);
+    exit(0);
+}
+
 void print_cpuid(uint leaf, uint subl)
 {
     uint _eax, _ebx, _ecx, _edx;
-    asm
-    {
+    asm {
         mov EAX, leaf;
         mov ECX, subl;
         cpuid;
@@ -844,19 +835,18 @@ extern (C) export uint getHighestExtendedLeaf() pure @nogc nothrow
 }
 
 /// Gets the CPU Vendor string.
-string getVendor() pure nothrow
+string getVendor()
 {
     char[12] s;
-    char[12]* p = &s; // size_t
     version (X86_64) asm pure @nogc nothrow {
-        mov RDI, p;
+        lea RDI, s;
         mov EAX, 0;
         cpuid;
         mov [RDI], EBX;
         mov [RDI+4], EDX;
         mov [RDI+8], ECX;
     } else asm pure @nogc nothrow {
-        mov EDI, p;
+        lea EDI, s;
         mov EAX, 0;
         cpuid;
         mov [EDI], EBX;
@@ -867,13 +857,12 @@ string getVendor() pure nothrow
 }
 
 /// Get the Extended Processor Brand string
-string getProcessorBrandString() pure nothrow 
+string getProcessorBrandString()
 {
     //TODO: Check older list.
     char[48] s;
-    char[48]* ps = &s;
-    version (X86_64) asm pure @nogc nothrow {
-        mov RDI, ps;
+    version (X86_64) asm {
+        lea RDI, s;
         mov EAX, 0x8000_0002;
         cpuid;
         mov [RDI], EAX;
@@ -892,8 +881,8 @@ string getProcessorBrandString() pure nothrow
         mov [RDI+36], EBX;
         mov [RDI+40], ECX;
         mov [RDI+44], EDX;
-    } else asm pure @nogc nothrow {
-        mov EDI, ps;
+    } else asm {
+        lea EDI, s;
         mov EAX, 0x8000_0002;
         cpuid;
         mov [EDI], EAX;

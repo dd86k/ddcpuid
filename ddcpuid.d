@@ -132,20 +132,20 @@ int main(string[] args)
             printl;
             //TODO: Finish these
             writefln(
-            "| Instructions | MONITOR/MWAIT[%c] PCLMULQDQ[%c]  |\n"~
+            "| Instructions | MONITOR/MWAIT[%c] PCLMULQDQ[%c] SYSENTER/SYSEXIT[%c]  |\n"~
             "|              | CMPXCHG8B[%c] CMPXCHG16B[%c]  |\n"~
             "|              | RDRAND[%c] RDSEED[%c] |\n"~
-            "|              | CMOV[%c] FCOMI/FCMOV[%c] MOVBE[%c] |",
-            "|              | RDMSR/WRMSR[%c] RDTSC[%c] TSC-Deadline[%c] TSC-Invariant[%c] |",
-            "|              | SYSENTER/SYSEXIT[%c] LZCNT[%c] POPCNT[%c] |",
-            "|              | XSAVE/XRSTOR[%c] XSETBV/XGETBV[%c] FXSAVE/FXRSTOR[%c] |",
+            "|              | CMOV[%c] FCOMI/FCMOV[%c] MOVBE[%c] |\n"~
+            "|              | RDTSC[%c] TSC-Deadline[%c] TSC-Invariant[%c] |\n"~
+            "|              | LZCNT[%c] POPCNT[%c] RDMSR/WRMSR[%c] |\n"~
+            "|              | XSAVE/XRSTOR[%c] XSETBV/XGETBV[%c] FXSAVE/FXRSTOR[%c] |\n"~
             "|              | VFMADDx (FMA)[%c] (FMA4)[%c] |",
-                MONITOR ? Y : N, PCLMULQDQ ? Y : N,
+                MONITOR ? Y : N, PCLMULQDQ ? Y : N, SEP ? Y : N,
                 CX8 ? Y : N, CMPXCHG16B ? Y : N,
                 RDRAND ? Y : N, RDSEED ? Y : N,
                 CMOV ? Y : N, (FPU && CMOV)? Y : N, MOVBE ? Y : N,
-                MSR ? Y : N, TSC ? Y : N, TscDeadline ? Y : N, TscInvariant ? Y : N,
-                SEP ? Y : N, LZCNT ? Y : N, POPCNT ? Y : N,
+                TSC ? Y : N, TscDeadline ? Y : N, TscInvariant ? Y : N, MSR ? Y : N,
+                LZCNT ? Y : N, POPCNT ? Y : N,
                 XSAVE ? Y : N, OSXSAVE ? Y : N, FXSR ? Y : N,
                 FMA ? Y : N, FMA4 ? Y : N);
             } // if (det)

@@ -97,10 +97,8 @@ int main(string[] args)
     else
     {
         import core.stdc.string : memset;
-        enum T = 70, W = 51;
-        char[] line = new char[T];
-        memset(line.ptr, '-', T);
-        line[0] = line[T-1] = line[15] = '+';
+        enum W = 52;
+        enum LINE = "+--------------+------------------------------------------------------+";
 
         debug writeln("[L%04d] Fetching info...", __LINE__);
         ci = new CpuInfo;
@@ -108,23 +106,54 @@ int main(string[] args)
         with (ci)
         if (pre)
         {
-            void printl() { writeln(line); }
-            writeln(line);
-            writefln("| %s | %s%*s |",
-                Vendor, ProcessorBrandString,
-                W - ProcessorBrandString.length, " ");
+            void printl() { writeln(LINE); }
+            printl;
+            writefln("| %s | %-*s |",
+                Vendor, W, ProcessorBrandString);
 
             printl;
-            string buf = getIden(det);
-            writefln("| Identifier   | %s%*s |", buf, W - buf.length, " ");
+            writefln("| Identifier   | %-*s |", W, getIden(det));
 
-            writeln(line);
-            writefln("| Extensions   | ");
+            printl;
+            enum Y = 'x', N = ' ';
+            // I know this isn't the best code around but it's.. One way to do things. Sorry.
+            writefln(
+            "| Extensions   | MMX[%c] Extended MMX[%c] 3DNow![%c] Extended 3DNow![%c]  |\n"~
+            "|              | SSE[%c] SSE2[%c] SSE3[%c] SSSE3[%c]  x86-64[%c]           |\n"~
+            "|              | SSE4.1[%c] SSE4.2[%c] SSE4a[%c]  VMX[%c]  SMX[%c] NX[%c]   |\n"~
+            "|              | AES-NI[%c] AVX[%c] AVX2[%c]                             |",
+                MMX ? Y : N, MMXExt ? Y : N, _3DNow ? Y : N, _3DNowExt ? Y : N,
+                SSE ? Y : N, SSE2 ? Y : N, SSE3 ? Y : N, SSSE3 ? Y : N, LongMode ? Y : N,
+                SSE41 ? Y : N, SSE42 ? Y : N, SSE4a ? Y : N, Virt ? Y : N, SMX ? Y : N,
+                    NX ? Y : N,
+                SSE41 ? Y : N, SSE42 ? Y : N, SSE4a ? Y : N);
 
-            writeln(line);
+            if (det) {
+            printl;
+            //TODO: Finish these
+            writefln(
+            "| Instructions | MONITOR/MWAIT[%c] PCLMULQDQ[%c]  |\n"~
+            "|              | CMPXCHG8B[%c] CMPXCHG16B[%c]  |\n"~
+            "|              | RDRAND[%c] RDSEED[%c] |\n"~
+            "|              | CMOV[%c] FCOMI/FCMOV[%c] MOVBE[%c] |",
+            "|              | RDMSR/WRMSR[%c] RDTSC[%c] TSC-Deadline[%c] TSC-Invariant[%c] |",
+            "|              | SYSENTER/SYSEXIT[%c] LZCNT[%c] POPCNT[%c] |",
+            "|              | XSAVE/XRSTOR[%c] XSETBV/XGETBV[%c] FXSAVE/FXRSTOR[%c] |",
+            "|              | VFMADDx (FMA)[%c] (FMA4)[%c] |",
+                MONITOR ? Y : N, PCLMULQDQ ? Y : N,
+                CX8 ? Y : N, CMPXCHG16B ? Y : N,
+                RDRAND ? Y : N, RDSEED ? Y : N,
+                CMOV ? Y : N, (FPU && CMOV)? Y : N, MOVBE ? Y : N,
+                MSR ? Y : N, TSC ? Y : N, TscDeadline ? Y : N, TscInvariant ? Y : N,
+                SEP ? Y : N, LZCNT ? Y : N, POPCNT ? Y : N,
+                XSAVE ? Y : N, OSXSAVE ? Y : N, FXSR ? Y : N,
+                FMA ? Y : N, FMA4 ? Y : N);
+            } // if (det)
 
+            printl;
+            //TODO: Rest
 
-            writeln(line);
+            printl;
         }
         else
         {
@@ -135,59 +164,45 @@ int main(string[] args)
             writeln(getIden(det));
 
             write("Extensions: \n  ");
-            if (MMX)
-                write("MMX, ");
-            if (MMXExt)
-                write("Ext MMX, ");
-            if (_3DNow)
-                write("3DNow!, ");
-            if (_3DNowExt)
-                write("3DNow!Ext, ");
-            if (SSE)
-                write("SSE, ");
-            if (SSE2)
-                write("SSE2, ");
-            if (SSE3)
-                write("SSE3, ");
-            if (SSSE3)
-                write("SSSE3, ");
-            if (SSE41)
-                write("SSE4.1, ");
-            if (SSE42)
-                write("SSE4.2, ");
-            if (SSE4a)
-                write("SSE4a, ");
+            if (MMX) write("MMX, ");
+            if (MMXExt) write("Extended MMX, ");
+            if (_3DNow) write("3DNow!, ");
+            if (_3DNowExt) write("3DNow!Ext, ");
+            if (SSE) write("SSE, ");
+            if (SSE2) write("SSE2, ");
+            if (SSE3) write("SSE3, ");
+            if (SSSE3) write("SSSE3, ");
+            if (SSE41) write("SSE4.1, ");
+            if (SSE42) write("SSE4.2, ");
+            if (SSE4a) write("SSE4a, ");
             if (LongMode)
                 switch (Vendor)
                 {
-                    case VENDOR_INTEL: write("Intel64, "); break;
-                    case VENDOR_AMD  : write("AMD64, "); break;
-                    default          : write("x86-64, "); break;
+                case VENDOR_INTEL: write("Intel64, "); break;
+                case VENDOR_AMD  : write("AMD64, "); break;
+                default          : write("x86-64, "); break;
                 }
             if (Virt)
                 switch (Vendor)
                 {
-                    case VENDOR_INTEL: write("VT-x, "); break; // VMX
-                    case VENDOR_AMD  : write("AMD-V, "); break; // SVM
-                    case VENDOR_VIA  : write("VIA VT, "); break;
-                    default          : write("VMX, "); break;
+                case VENDOR_INTEL: write("VT-x, "); break; // VMX
+                case VENDOR_AMD  : write("AMD-V, "); break; // SVM
+                case VENDOR_VIA  : write("VIA VT, "); break;
+                default          : write("VMX, "); break;
                 }
-            if (SMX)
-                write("Intel TXT (SMX), ");
+            if (SMX) write("Intel TXT (SMX), ");
             if (NX)
                 switch (Vendor)
                 {
-                    case VENDOR_INTEL: write("Intel XD (NX), "); break;
-                    case VENDOR_AMD  : write("AMD EVP (NX), "); break;
-                    default          : write("NX, "); break;
+                case VENDOR_INTEL: write("Intel XD (NX), "); break;
+                case VENDOR_AMD  : write("AMD EVP (NX), "); break;
+                default          : write("NX, "); break;
                 }
-            if (AES)
-                write("AES-NI, ");
-            if (AVX)
-                write("AVX, ");
-            if (AVX2)
-                write("AVX2, ");
-            writeln();if (det)
+            if (AES) write("AES-NI, ");
+            if (AVX) write("AVX, ");
+            if (AVX2) write("AVX2, ");
+            writeln();
+            if (det)
             {
                 write("Instructions: \n  [ ");
                 if (MONITOR)
@@ -227,7 +242,7 @@ int main(string[] args)
                 if (FPU && CMOV)
                     write("FCOMI/FCMOV, ");
                 if (CLFSH)
-                    writef("CLFLUSH (Line size: %d bytes), ", CLFLUSHLineSize * 8);
+                    writef("CLFLUSH (%d bytes), ", CLFLUSHLineSize * 8);
                 if (PREFETCHW)
                     write("PREFETCHW, ");
                 if (LZCNT)
@@ -243,8 +258,7 @@ int main(string[] args)
                 if (FMA || FMA4)
                 {
                     write("VFMADDx (FMA");
-                    if (FMA4)
-                        write("4");
+                    if (FMA4) write("4");
                     write("), ");
                 }
                 writeln("]");
@@ -265,7 +279,7 @@ int main(string[] args)
             {
                 writefln("Highest Leaf: %02XH | Extended: %02XH",
                     MaximumLeaf, MaximumExtendedLeaf);
-                write("Processor type: ");
+                write("Type: ");
                 final switch (ProcessorType) // 2 bit value
                 { // Should return 0 nowadays.
                 case 0b00: writeln("Original OEM Processor"); break;

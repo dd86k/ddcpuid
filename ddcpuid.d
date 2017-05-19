@@ -7,7 +7,7 @@ import std.string : strip;
 //TODO: Stop using a class maybe?
 
 /// Version
-enum VERSION = "0.3.1";
+enum VERSION = "0.4.0";
 
 enum { // Maximum supported leafs
     MAX_LEAF = 0x20, /// Maximum leaf with -o
@@ -38,15 +38,14 @@ enum { // Vendor strings
     VENDOR_PARALLELS    = " lrpepyh vr"
 }
 
-debug void dbgln(string msg, int line = __LINE__) {
-    writefln("[%d] %s", line, msg);
-}
+CpuInfo ci;
 
 int main(string[] args)
 {
-    bool raw = false; // Raw
-    bool det = false; // Detailed output
-    bool ovr = false; // Override max leaf
+    bool pre; /// Pretty
+    bool raw; /// Raw
+    bool det; /// Detailed output
+    bool ovr; /// Override max leaf
 
     GetoptResult r;
 	try {
@@ -57,7 +56,9 @@ int main(string[] args)
             "d|details", "Show more information.", &det,
             config.bundling, config.caseSensitive,
 			"o|override", "Override leafs to 20h each, useful with -r.", &ovr,
-            "version|v", "Print version information.", &PrintVersion);
+            config.bundling, config.caseSensitive,
+			"p|pretty", "Pretty up the output to be more readable.", &pre,
+            "v|version", "Print version information.", &PrintVersion);
 	} catch (GetOptException ex) {
 		stderr.writeln("Error: ", ex.msg);
         return 1;
@@ -76,20 +77,18 @@ int main(string[] args)
         return 0;
     }
 
-    debug dbgln("Getting maximum leafs...");
-
-    // Maximum leaf
-    uint maxl = ovr ? MAX_LEAF : getHighestLeaf();
-    // Maximum extended leaf
-    uint emaxl = ovr ? MAX_ELEAF : getHighestExtendedLeaf();
-
-    debug
-        writefln("[%4d] Max leaf: %X | Extended: %X", __LINE__, maxl, emaxl);
-
     if (raw)
     {
+        // Maximum leaf
+        const uint maxl = ovr ? MAX_LEAF : getHighestLeaf();
+        // Maximum extended leaf
+        const uint emaxl = ovr ? MAX_ELEAF : getHighestExtendedLeaf();
+
+        debug
+        writefln("[%4d] Max leaf: %X | Extended: %X", __LINE__, maxl, emaxl);
+
         writeln("|   Leaf   | S | EAX      | EBX      | ECX      | EDX      |");
-        writeln("|----------|---|----------|----------|----------|----------| ");
+        writeln("|:--------:|:-:|:---------|:---------|:---------|:---------| ");
         for (uint leaf = 0; leaf <= maxl; ++leaf)
             print_cpuid(leaf, 0);
         for (uint eleaf = 0x8000_0000; eleaf <= emaxl; ++eleaf)
@@ -97,19 +96,43 @@ int main(string[] args)
     }
     else
     {
-        const CpuInfo ci = new CpuInfo;
-        
+        import core.stdc.string : memset;
+        enum T = 70, W = 51;
+        char[] line = new char[T];
+        memset(line.ptr, '-', T);
+        line[0] = line[T-1] = line[15] = '+';
+
+        debug writeln("[L%04d] Fetching info...", __LINE__);
+        ci = new CpuInfo;
+
         with (ci)
+        if (pre)
+        {
+            void printl() { writeln(line); }
+            writeln(line);
+            writefln("| %s | %s%*s |",
+                Vendor, ProcessorBrandString,
+                W - ProcessorBrandString.length, " ");
+
+            printl;
+            string buf = getIden(det);
+            writefln("| Identifier   | %s%*s |", buf, W - buf.length, " ");
+
+            writeln(line);
+            writefln("| Extensions   | ");
+
+            writeln(line);
+
+
+            writeln(line);
+        }
+        else
         {
             writeln("Vendor: ", Vendor);
             writeln("Model: ", ProcessorBrandString);
 
-            if (det)
-                writefln("Identification: Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh",
-                    Family, BaseFamily, ExtendedFamily, Model, BaseModel, ExtendedModel, Stepping);
-            else
-                writefln("Identification: Family %d Model %d Stepping %d",
-                    Family, Model, Stepping);
+            write("Identifier: ");
+            writeln(getIden(det));
 
             write("Extensions: \n  ");
             if (MMX)
@@ -164,9 +187,7 @@ int main(string[] args)
                 write("AVX, ");
             if (AVX2)
                 write("AVX2, ");
-            writeln();
-
-            if (det)
+            writeln();if (det)
             {
                 write("Instructions: \n  [ ");
                 if (MONITOR)
@@ -231,21 +252,22 @@ int main(string[] args)
 
             writeln;
 
-            switch (Vendor)
+            switch (Vendor) // VENDOR SPECIFIC
             {
             case VENDOR_INTEL:
-            writeln("Enhanced SpeedStep(R) Technology: ", EIST);
-            writeln("TurboBoost available: ", TurboBoost);
-            break;
+                writeln("Enhanced SpeedStep(R) Technology: ", EIST);
+                writeln("TurboBoost available: ", TurboBoost);
+                break;
             default:
             }
 
             if (det)
             {
-                writefln("Highest Leaf: %02XH | Extended: %02XH", maxl, emaxl);
+                writefln("Highest Leaf: %02XH | Extended: %02XH",
+                    MaximumLeaf, MaximumExtendedLeaf);
                 write("Processor type: ");
                 final switch (ProcessorType) // 2 bit value
-                { // Should return 0 these days.
+                { // Should return 0 nowadays.
                 case 0b00: writeln("Original OEM Processor"); break;
                 case 0b01: writeln("Intel OverDrive Processor"); break;
                 case 0b10: writeln("Dual processor"); break;
@@ -311,9 +333,9 @@ int main(string[] args)
                 }
                 else
                     writeln("None");
-            } // if (_det)
-        } // with (c)
-    } // if (_raw) else
+            } // if (det)
+        }
+    }
 
     return 0;
 } // main
@@ -326,7 +348,7 @@ void PrintHelp()
 
 void PrintVersion()
 {
-    import core.stdc.stdlib;
+    import core.stdc.stdlib : exit;
     writeln("ddcpuid v", VERSION);
     writeln("Copyright (c) dd86k 2016-2017");
     writeln("License: MIT License <http://opensource.org/licenses/MIT>");
@@ -334,6 +356,20 @@ void PrintVersion()
     writefln("Compiled %s at %s, using %s version %s.",
         __FILE__, __TIMESTAMP__, __VENDOR__, __VERSION__);
     exit(0);
+}
+
+string getIden(bool more)
+{
+    import std.format;
+    with (ci)
+    if (more)
+        return format(
+            "Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh",
+            Family, BaseFamily, ExtendedFamily,
+            Model, BaseModel, ExtendedModel, Stepping);
+    else
+        return format("Family %d Model %d Stepping %d",
+            Family, Model, Stepping);
 }
 
 void print_cpuid(uint leaf, uint subl)
@@ -352,30 +388,31 @@ void print_cpuid(uint leaf, uint subl)
         leaf, subl, _eax, _ebx, _ecx, _edx);
 }
 
+
+
+/*********************
+ * CPU INFO
+ *****************************/
+
 /// <summary>
 /// Processor information class.
 /// </summary>
 class CpuInfo
 {
     /// Constructs a CpuInfo.
-    this(bool fetch = true, bool verbose = false)
+    this(bool fetch = true)
     {
-        if (fetch)
-            fetchInfo(verbose);
+        if (fetch) fetchInfo;
     }
 
     /// Fetch information and store it in class variables.
-    public void fetchInfo(bool verbose = false)
+    public void fetchInfo()
     {
-        Vendor = getVendor(); // 0h.EBX:EDX:ECX
-        ProcessorBrandString = strip(getProcessorBrandString());
+        Vendor = getVendor; // 0h.EBX:EDX:ECX
+        ProcessorBrandString = strip(getProcessorBrandString);
 
-        MaximumLeaf = getHighestLeaf(); // 0h.EAX
-        MaximumExtendedLeaf = getHighestExtendedLeaf();
-
-        // To avoid unecessary loops.
-        uint mleaf = MaximumLeaf > MAX_LEAF ? MaximumLeaf : MAX_LEAF;
-        uint meleaf = MaximumExtendedLeaf > MAX_ELEAF ? MaximumExtendedLeaf : MAX_ELEAF;
+        const uint mleaf = MaximumLeaf = getHighestLeaf(); // 0h.EAX
+        const uint meleaf = MaximumExtendedLeaf = getHighestExtendedLeaf();
 
         uint a, b, c, d; // EAX:EDX.
 
@@ -838,14 +875,14 @@ extern (C) export uint getHighestExtendedLeaf() pure @nogc nothrow
 string getVendor()
 {
     char[12] s;
-    version (X86_64) asm pure @nogc nothrow {
+    version (X86_64) asm {
         lea RDI, s;
         mov EAX, 0;
         cpuid;
         mov [RDI], EBX;
         mov [RDI+4], EDX;
         mov [RDI+8], ECX;
-    } else asm pure @nogc nothrow {
+    } else asm {
         lea EDI, s;
         mov EAX, 0;
         cpuid;

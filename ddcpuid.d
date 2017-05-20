@@ -9,37 +9,39 @@ import std.string : strip;
 /// Version
 enum VERSION = "0.4.0";
 
-enum { // Maximum supported leafs
+enum // Maximum supported leafs
     MAX_LEAF = 0x20, /// Maximum leaf with -o
-    MAX_ELEAF = 0x8000_0020 /// Maximum extended leaf with -o
-}
+    MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf with -o
 
 enum { // Vendor strings
-    VENDOR_INTEL     = "GenuineIntel",
-    VENDOR_AMD       = "AuthenticAMD",
-    VENDOR_VIA       = "VIA VIA VIA ",
+    VENDOR_INTEL     = "GenuineIntel", /// Intel
+    VENDOR_AMD       = "AuthenticAMD", /// AMD
+    VENDOR_VIA       = "VIA VIA VIA ", /// VIA
     VENDOR_CENTAUR   = "CentaurHauls", /// Centaur (VIA)
-    VENDOR_TRANSMETA = "GenuineTMx86",
-    VENDOR_CYRIX     = "CyrixInstead",
-    VENDOR_NEXGEN    = "NexGenDriven",
-    VENDOR_UMC       = "UMC UMC UMC ",
-    VENDOR_SIS       = "SiS SiS SiS ",
-    VENDOR_NSC       = "Geode by NSC",
-    VENDOR_RISE      = "RiseRiseRise",
-    VENDOR_VORTEX    = "Vortex86 SoC",
-    VENDOR_NS        = "Geode by NSC", // National Semiconductor
+    VENDOR_TRANSMETA = "GenuineTMx86", /// Transmeta
+    VENDOR_CYRIX     = "CyrixInstead", /// Cyrix
+    VENDOR_NEXGEN    = "NexGenDriven", /// Nexgen
+    VENDOR_UMC       = "UMC UMC UMC ", /// UMC
+    VENDOR_SIS       = "SiS SiS SiS ", /// SiS
+    VENDOR_NSC       = "Geode by NSC", /// Geode
+    VENDOR_RISE      = "RiseRiseRise", /// Rise
+    VENDOR_VORTEX    = "Vortex86 SoC", /// Vortex
+    VENDOR_NS        = "Geode by NSC", /// National Semiconductor
     // Older vendor strings
-    VENDOR_OLDAMD       = "AMDisbetter!", // Early K5
-    VENDOR_OLDTRANSMETA = "TransmetaCPU",
+    VENDOR_OLDAMD       = "AMDisbetter!", /// Early K5 AMD string
+    VENDOR_OLDTRANSMETA = "TransmetaCPU", /// Old Transmeta string
     // Virtual Machines
-    VENDOR_VMWARE       = "VMwareVMware",
-    VENDOR_XENHVM       = "XenVMMXenVMM",
-    VENDOR_MICROSOFT_HV = "Microsoft Hv",
-    VENDOR_PARALLELS    = " lrpepyh vr"
+    VENDOR_VMWARE       = "VMwareVMware", /// VMware
+    VENDOR_XENHVM       = "XenVMMXenVMM", /// Xen VMM
+    VENDOR_MICROSOFT_HV = "Microsoft Hv", /// Microsoft Hyper-V
+    VENDOR_PARALLELS    = " lrpepyh vr"   /// Parallels
 }
 
-CpuInfo ci;
-
+/**
+ * Starting point.
+ * Params: args = CLI Arguments
+ * Returns: Error code.
+ */
 int main(string[] args)
 {
     bool pre; /// Pretty
@@ -132,17 +134,15 @@ int main(string[] args)
             printl;
             //TODO: Finish these
             writefln(
-            "| Instructions | MONITOR/MWAIT[%c] PCLMULQDQ[%c] SYSENTER/SYSEXIT[%c]  |\n"~
-            "|              | CMPXCHG8B[%c] CMPXCHG16B[%c]  |\n"~
-            "|              | RDRAND[%c] RDSEED[%c] |\n"~
-            "|              | CMOV[%c] FCOMI/FCMOV[%c] MOVBE[%c] |\n"~
-            "|              | RDTSC[%c] TSC-Deadline[%c] TSC-Invariant[%c] |\n"~
-            "|              | LZCNT[%c] POPCNT[%c] RDMSR/WRMSR[%c] |\n"~
-            "|              | XSAVE/XRSTOR[%c] XSETBV/XGETBV[%c] FXSAVE/FXRSTOR[%c] |\n"~
-            "|              | VFMADDx (FMA)[%c] (FMA4)[%c] |",
+            "| Instructions | MONITOR/MWAIT[%c] PCLMULQDQ[%c] SYSENTER/SYSEXIT[%c]    |\n"~
+            "|              | CMPXCHG8B[%c] CMPXCHG16B[%c] RDRAND[%c] RDSEED[%c]       |\n"~
+            "|              | CMOV[%c] FCOMI/FCMOV[%c] MOVBE[%c]                      |\n"~
+            "|              | RDTSC[%c] TSC-Deadline[%c] TSC-Invariant[%c]            |\n"~
+            "|              | LZCNT[%c] POPCNT[%c] RDMSR/WRMSR[%c]                    |\n"~
+            "|              | XSAVE/XRSTOR[%c] XSETBV/XGETBV[%c] FXSAVE/FXRSTOR[%c]   |\n"~
+            "|              | VFMADDx (FMA)[%c] (FMA4)[%c]                           |",
                 MONITOR ? Y : N, PCLMULQDQ ? Y : N, SEP ? Y : N,
-                CX8 ? Y : N, CMPXCHG16B ? Y : N,
-                RDRAND ? Y : N, RDSEED ? Y : N,
+                CX8 ? Y : N, CMPXCHG16B ? Y : N, RDRAND ? Y : N, RDSEED ? Y : N,
                 CMOV ? Y : N, (FPU && CMOV)? Y : N, MOVBE ? Y : N,
                 TSC ? Y : N, TscDeadline ? Y : N, TscInvariant ? Y : N, MSR ? Y : N,
                 LZCNT ? Y : N, POPCNT ? Y : N,
@@ -354,27 +354,37 @@ int main(string[] args)
     return 0;
 } // main
 
+/// Print description and sinopsys
 void PrintHelp()
 {
     writeln("CPUID magic.");
     writeln("  Usage: ddcpuid [<Options>]");
 }
 
+/// Print version and exits.
 void PrintVersion()
 {
     import core.stdc.stdlib : exit;
     writeln("ddcpuid v", VERSION);
     writeln("Copyright (c) dd86k 2016-2017");
     writeln("License: MIT License <http://opensource.org/licenses/MIT>");
-    writeln("Project page: <https://github.com/guitarxhero/ddcpuid>");
+    writeln("Project page: <https://github.com/dd86k/ddcpuid>");
     writefln("Compiled %s at %s, using %s version %s.",
         __FILE__, __TIMESTAMP__, __VENDOR__, __VERSION__);
     exit(0);
 }
 
+/// public CpuInfo object
+CpuInfo ci;
+
+/**
+ * Get identifier string from ci object.
+ * Params: more = More details
+ * Returns: Identifier string
+ */
 string getIden(bool more)
 {
-    import std.format;
+    import std.format : format;
     with (ci)
     if (more)
         return format(
@@ -386,6 +396,12 @@ string getIden(bool more)
             Family, Model, Stepping);
 }
 
+/**
+ * Print CPU registers on screen from leaf and sub-leaf
+ * Params:
+ *   leaf = EAX leaf
+ *   subl = ECX sub-leaf
+ */
 void print_cpuid(uint leaf, uint subl)
 {
     uint _eax, _ebx, _ecx, _edx;
@@ -425,12 +441,12 @@ class CpuInfo
         Vendor = getVendor; // 0h.EBX:EDX:ECX
         ProcessorBrandString = strip(getProcessorBrandString);
 
-        const uint mleaf = MaximumLeaf = getHighestLeaf(); // 0h.EAX
-        const uint meleaf = MaximumExtendedLeaf = getHighestExtendedLeaf();
+        MaximumLeaf = getHighestLeaf(); // 0h.EAX
+        MaximumExtendedLeaf = getHighestExtendedLeaf(); // 8000_0000h.EAX
 
         uint a, b, c, d; // EAX:EDX.
 
-        for (int leaf = 1; leaf <= mleaf; ++leaf)
+        for (int leaf = 1; leaf <= MaximumLeaf; ++leaf)
         {
             asm @nogc nothrow
             {
@@ -494,6 +510,8 @@ class CpuInfo
                                 Family = cast(ubyte)(ExtendedFamily + BaseFamily);
                                 Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
                             }
+
+                            //TODO: Check AMD features in 1H.ECX
                             break;
 
                             default:
@@ -586,7 +604,7 @@ class CpuInfo
          * Extended CPUID leafs
          */
 
-        for (int eleaf = 0x8000_0000; eleaf < meleaf; ++eleaf)
+        for (int eleaf = 0x8000_0000; eleaf < MaximumExtendedLeaf; ++eleaf)
         {
             asm @nogc nothrow
             {
@@ -849,11 +867,12 @@ class CpuInfo
     /// PREFETCHW under Intel. 3DNowPrefetch under AMD.
     bool PREFETCHW; // 8
 
+    /// RDSEED instruction
     bool RDSEED;
     // EDX
     /// Intel: Execute Disable Bit. AMD: No-execute page protection.
     bool NX; // 20
-    // 1GB Pages
+    /// 1GB Pages
     bool Page1GB; // 26
     /// Also known as Intel64 or AMD64.
     bool LongMode; // 29
@@ -863,11 +882,11 @@ class CpuInfo
     bool TscInvariant; // 8
 } // Class CpuInfo
 
-/// Get the maximum leaf. 
+/// Get the maximum leaf.
+/// Returns: Maximum leaf
 extern (C) export uint getHighestLeaf() pure @nogc nothrow
 {
-    asm pure @nogc nothrow {
-        naked;
+    asm pure @nogc nothrow { naked;
         mov EAX, 0;
         cpuid;
         ret;
@@ -875,10 +894,10 @@ extern (C) export uint getHighestLeaf() pure @nogc nothrow
 }
 
 /// Get the maximum extended leaf.
+/// Returns: Maximum extended leaf
 extern (C) export uint getHighestExtendedLeaf() pure @nogc nothrow
 {
-    asm pure @nogc nothrow {
-        naked;
+    asm pure @nogc nothrow { naked;
         mov EAX, 0x8000_0000;
         cpuid;
         ret;
@@ -886,6 +905,7 @@ extern (C) export uint getHighestExtendedLeaf() pure @nogc nothrow
 }
 
 /// Gets the CPU Vendor string.
+/// Returns: Vendor string
 string getVendor()
 {
     char[12] s;
@@ -908,6 +928,7 @@ string getVendor()
 }
 
 /// Get the Extended Processor Brand string
+/// Returns: Processor Brand string
 string getProcessorBrandString()
 {
     //TODO: Check older list.

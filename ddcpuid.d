@@ -153,8 +153,8 @@ int main(string[] args)
             printl;
 
             void printc(string c) {
-                writefln("| %*s |", 67, c);
                 writeln(E);
+                writefln("| %*s |", 67, c);
             }
             void printn(string n) {
                 writefln("| %-*s |", 67, n);

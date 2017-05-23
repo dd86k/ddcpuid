@@ -125,7 +125,7 @@ int main(string[] args)
             writefln(
             "| Extensions   | MMX[%c] Extended MMX[%c] 3DNow![%c] Extended 3DNow![%c]  |\n"~
             "|              | SSE[%c] SSE2[%c] SSE3[%c] SSSE3[%c]  x86-64[%c]           |\n"~
-            "|              | SSE4.1[%c] SSE4.2[%c] SSE4a[%c]  VMX[%c]  SMX[%c] NX[%c]   |\n"~
+            "|              | SSE4.1[%c] SSE4.2[%c] SSE4a[%c]  VMX[%c]  SMX[%c]  NX[%c]  |\n"~
             "|              | AES-NI[%c] AVX[%c] AVX2[%c]                             |",
                 MMX ? Y : N, MMXExt ? Y : N, _3DNow ? Y : N, _3DNowExt ? Y : N,
                 SSE ? Y : N, SSE2 ? Y : N, SSE3 ? Y : N, SSSE3 ? Y : N, LongMode ? Y : N,

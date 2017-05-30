@@ -984,9 +984,9 @@ class CpuInfo
 extern (C) uint getHighestLeaf() pure @nogc nothrow
 {
     asm pure @nogc nothrow { naked;
-        mov EAX, 0;
-        cpuid;
-        ret;
+    mov EAX, 0;
+    cpuid;
+    ret;
     }
 }
 
@@ -995,23 +995,11 @@ extern (C) uint getHighestLeaf() pure @nogc nothrow
 extern (C) uint getHighestExtendedLeaf() pure @nogc nothrow
 {
     asm pure @nogc nothrow { naked;
-        mov EAX, 0x8000_0000;
-        cpuid;
-        ret;
+    mov EAX, 0x8000_0000;
+    cpuid;
+    ret;
     }
 }
-
-/*extern (C) uint getLogicalCores()
-{
-    asm { naked; // Intel
-        mov EAX, 0xb;
-        mov ECX, 1;
-        cpuid;
-        mov EAX, EBX;
-        and EAX, 0xffff;
-        ret;
-    }
-}*/
 
 /// Gets the CPU Vendor string.
 /// Returns: Vendor string
@@ -1019,19 +1007,19 @@ string getVendor()
 {
     char[12] s;
     version (X86_64) asm {
-        lea RDI, s;
-        mov EAX, 0;
-        cpuid;
-        mov [RDI], EBX;
-        mov [RDI+4], EDX;
-        mov [RDI+8], ECX;
+    lea RDI, s;
+    mov EAX, 0;
+    cpuid;
+    mov [RDI], EBX;
+    mov [RDI+4], EDX;
+    mov [RDI+8], ECX;
     } else asm {
-        lea EDI, s;
-        mov EAX, 0;
-        cpuid;
-        mov [EDI], EBX;
-        mov [EDI+4], EDX;
-        mov [EDI+8], ECX;
+    lea EDI, s;
+    mov EAX, 0;
+    cpuid;
+    mov [EDI], EBX;
+    mov [EDI+4], EDX;
+    mov [EDI+8], ECX;
     }
     return s.idup;
 }
@@ -1043,45 +1031,101 @@ string getProcessorBrandString()
     //TODO: Check older list.
     char[48] s;
     version (X86_64) asm {
-        lea RDI, s;
-        mov EAX, 0x8000_0002;
-        cpuid;
-        mov [RDI], EAX;
-        mov [RDI+4], EBX;
-        mov [RDI+8], ECX;
-        mov [RDI+12], EDX;
-        mov EAX, 0x8000_0003;
-        cpuid;
-        mov [RDI+16], EAX;
-        mov [RDI+20], EBX;
-        mov [RDI+24], ECX;
-        mov [RDI+28], EDX;
-        mov EAX, 0x8000_0004;
-        cpuid;
-        mov [RDI+32], EAX;
-        mov [RDI+36], EBX;
-        mov [RDI+40], ECX;
-        mov [RDI+44], EDX;
+    lea RDI, s;
+    mov EAX, 0x8000_0002;
+    cpuid;
+    mov [RDI], EAX;
+    mov [RDI+4], EBX;
+    mov [RDI+8], ECX;
+    mov [RDI+12], EDX;
+    mov EAX, 0x8000_0003;
+    cpuid;
+    mov [RDI+16], EAX;
+    mov [RDI+20], EBX;
+    mov [RDI+24], ECX;
+    mov [RDI+28], EDX;
+    mov EAX, 0x8000_0004;
+    cpuid;
+    mov [RDI+32], EAX;
+    mov [RDI+36], EBX;
+    mov [RDI+40], ECX;
+    mov [RDI+44], EDX;
     } else asm {
-        lea EDI, s;
-        mov EAX, 0x8000_0002;
-        cpuid;
-        mov [EDI], EAX;
-        mov [EDI+4], EBX;
-        mov [EDI+8], ECX;
-        mov [EDI+12], EDX;
-        mov EAX, 0x8000_0003;
-        cpuid;
-        mov [EDI+16], EAX;
-        mov [EDI+20], EBX;
-        mov [EDI+24], ECX;
-        mov [EDI+28], EDX;
-        mov EAX, 0x8000_0004;
-        cpuid;
-        mov [EDI+32], EAX;
-        mov [EDI+36], EBX;
-        mov [EDI+40], ECX;
-        mov [EDI+44], EDX;
+    lea EDI, s;
+    mov EAX, 0x8000_0002;
+    cpuid;
+    mov [EDI], EAX;
+    mov [EDI+4], EBX;
+    mov [EDI+8], ECX;
+    mov [EDI+12], EDX;
+    mov EAX, 0x8000_0003;
+    cpuid;
+    mov [EDI+16], EAX;
+    mov [EDI+20], EBX;
+    mov [EDI+24], ECX;
+    mov [EDI+28], EDX;
+    mov EAX, 0x8000_0004;
+    cpuid;
+    mov [EDI+32], EAX;
+    mov [EDI+36], EBX;
+    mov [EDI+40], ECX;
+    mov [EDI+44], EDX;
     }
     return s.idup;
+}
+
+string getSocVendorIntel()
+{
+    char[16] c;
+    asm { naked;
+    mov EAX, 0;
+    cpuid;
+    cmp EAX, 0x17;
+    jge INTEL_S;
+    mov AX, -2;
+    ret;
+    }
+    version (X86) asm {
+INTEL_S:
+    lea EDI, c;
+    mov [EDI], EAX;
+    mov [EDI+4], EBX;
+    mov [EDI+8], ECX;
+    mov [EDI+12], EDX;
+    } else version (X86_64) asm {
+INTEL_S:
+    lea RDI, c;
+    mov [RDI], EAX;
+    mov [RDI+4], EBX;
+    mov [RDI+8], ECX;
+    mov [RDI+12], EDX;
+    }
+    return c.idup;
+}
+
+/**
+ * Get the number of logical cores for an Intel processor.
+ * Returns:
+ *   The number of logical cores.
+ *   Bit 15-0 are 
+ * Errorcodes:
+ *   -2 = Feature not supported.
+ */
+extern (C) short getCoresIntel()
+{
+    asm { naked;
+    mov EAX, 0;
+    cpuid;
+    cmp EAX, 0xB;
+    jge INTEL_S;
+    mov AX, -2;
+    ret;
+
+INTEL_S:
+    mov EAX, 0xB;
+    mov ECX, 1;
+    cpuid;
+    mov AX, BX;
+    ret;
+    }
 }

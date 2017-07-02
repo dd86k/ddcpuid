@@ -4,8 +4,6 @@ import std.getopt;
 import std.stdio;
 import std.string : strip;
 
-//TODO: Stop using a class maybe?
-
 /// Version
 enum VERSION = "0.4.0";
 
@@ -105,7 +103,7 @@ int main(string[] args)
         enum E    = "+---------------------------------------------------------------------+";
 
         debug writeln("[L%04d] Fetching info...", __LINE__);
-        ci = new CpuInfo;
+        CpuInfo ci; ci.fetchInfo;
 
         with (ci)
         if (pre)
@@ -503,37 +501,31 @@ string getIden(bool more)
  */
 void print_cpuid(uint leaf, uint subl)
 {
-    uint _eax, _ebx, _ecx, _edx;
+    uint a, b, c, d;
     asm {
         mov EAX, leaf;
         mov ECX, subl;
         cpuid;
-        mov _eax, EAX;
-        mov _ebx, EBX;
-        mov _ecx, ECX;
-        mov _edx, EDX;
+        mov a, EAX;
+        mov b, EBX;
+        mov c, ECX;
+        mov d, EDX;
     }
     writefln("| %8X | %X | %8X | %8X | %8X | %8X |",
-        leaf, subl, _eax, _ebx, _ecx, _edx);
+        leaf, subl, a, b, c, d);
 }
 
 
 
-/*********************
+/*****************************
  * CPU INFO
  *****************************/
 
 /// <summary>
 /// Processor information class.
 /// </summary>
-class CpuInfo
+struct CpuInfo
 {
-    /// Constructs a CpuInfo.
-    this(bool fetch = true)
-    {
-        if (fetch) fetchInfo;
-    }
-
     /// Fetch information and store it in class variables.
     public void fetchInfo()
     {
@@ -984,9 +976,9 @@ class CpuInfo
 extern (C) uint getHighestLeaf() pure @nogc nothrow
 {
     asm pure @nogc nothrow { naked;
-    mov EAX, 0;
-    cpuid;
-    ret;
+        mov EAX, 0;
+        cpuid;
+        ret;
     }
 }
 
@@ -995,9 +987,9 @@ extern (C) uint getHighestLeaf() pure @nogc nothrow
 extern (C) uint getHighestExtendedLeaf() pure @nogc nothrow
 {
     asm pure @nogc nothrow { naked;
-    mov EAX, 0x8000_0000;
-    cpuid;
-    ret;
+        mov EAX, 0x8000_0000;
+        cpuid;
+        ret;
     }
 }
 
@@ -1007,19 +999,19 @@ string getVendor()
 {
     char[12] s;
     version (X86_64) asm {
-    lea RDI, s;
-    mov EAX, 0;
-    cpuid;
-    mov [RDI], EBX;
-    mov [RDI+4], EDX;
-    mov [RDI+8], ECX;
+        lea RDI, s;
+        mov EAX, 0;
+        cpuid;
+        mov [RDI  ], EBX;
+        mov [RDI+4], EDX;
+        mov [RDI+8], ECX;
     } else asm {
-    lea EDI, s;
-    mov EAX, 0;
-    cpuid;
-    mov [EDI], EBX;
-    mov [EDI+4], EDX;
-    mov [EDI+8], ECX;
+        lea EDI, s;
+        mov EAX, 0;
+        cpuid;
+        mov [EDI  ], EBX;
+        mov [EDI+4], EDX;
+        mov [EDI+8], ECX;
     }
     return s.idup;
 }
@@ -1028,104 +1020,102 @@ string getVendor()
 /// Returns: Processor Brand string
 string getProcessorBrandString()
 {
-    //TODO: Check older list.
+    //TODO: Check older list?
     char[48] s;
     version (X86_64) asm {
-    lea RDI, s;
-    mov EAX, 0x8000_0002;
-    cpuid;
-    mov [RDI], EAX;
-    mov [RDI+4], EBX;
-    mov [RDI+8], ECX;
-    mov [RDI+12], EDX;
-    mov EAX, 0x8000_0003;
-    cpuid;
-    mov [RDI+16], EAX;
-    mov [RDI+20], EBX;
-    mov [RDI+24], ECX;
-    mov [RDI+28], EDX;
-    mov EAX, 0x8000_0004;
-    cpuid;
-    mov [RDI+32], EAX;
-    mov [RDI+36], EBX;
-    mov [RDI+40], ECX;
-    mov [RDI+44], EDX;
+        lea RDI, s;
+        mov EAX, 0x8000_0002;
+        cpuid;
+        mov [RDI   ], EAX;
+        mov [RDI+4 ], EBX;
+        mov [RDI+8 ], ECX;
+        mov [RDI+12], EDX;
+        mov EAX, 0x8000_0003;
+        cpuid;
+        mov [RDI+16], EAX;
+        mov [RDI+20], EBX;
+        mov [RDI+24], ECX;
+        mov [RDI+28], EDX;
+        mov EAX, 0x8000_0004;
+        cpuid;
+        mov [RDI+32], EAX;
+        mov [RDI+36], EBX;
+        mov [RDI+40], ECX;
+        mov [RDI+44], EDX;
     } else asm {
-    lea EDI, s;
-    mov EAX, 0x8000_0002;
-    cpuid;
-    mov [EDI], EAX;
-    mov [EDI+4], EBX;
-    mov [EDI+8], ECX;
-    mov [EDI+12], EDX;
-    mov EAX, 0x8000_0003;
-    cpuid;
-    mov [EDI+16], EAX;
-    mov [EDI+20], EBX;
-    mov [EDI+24], ECX;
-    mov [EDI+28], EDX;
-    mov EAX, 0x8000_0004;
-    cpuid;
-    mov [EDI+32], EAX;
-    mov [EDI+36], EBX;
-    mov [EDI+40], ECX;
-    mov [EDI+44], EDX;
+        lea EDI, s;
+        mov EAX, 0x8000_0002;
+        cpuid;
+        mov [EDI   ], EAX;
+        mov [EDI+4 ], EBX;
+        mov [EDI+8 ], ECX;
+        mov [EDI+12], EDX;
+        mov EAX, 0x8000_0003;
+        cpuid;
+        mov [EDI+16], EAX;
+        mov [EDI+20], EBX;
+        mov [EDI+24], ECX;
+        mov [EDI+28], EDX;
+        mov EAX, 0x8000_0004;
+        cpuid;
+        mov [EDI+32], EAX;
+        mov [EDI+36], EBX;
+        mov [EDI+40], ECX;
+        mov [EDI+44], EDX;
     }
     return s.idup;
 }
 
-string getSocVendorIntel()
+/*string getSocVendorIntel()
 {
     char[16] c;
     asm { naked;
-    mov EAX, 0;
-    cpuid;
-    cmp EAX, 0x17;
-    jge INTEL_S;
-    mov AX, -2;
-    ret;
+        mov EAX, 0;
+        cpuid;
+        cmp EAX, 0x17;
+        jge INTEL_S;
+        mov AX, -2;
+        ret;
     }
     version (X86) asm {
 INTEL_S:
-    lea EDI, c;
-    mov [EDI], EAX;
-    mov [EDI+4], EBX;
-    mov [EDI+8], ECX;
-    mov [EDI+12], EDX;
+        lea EDI, c;
+        mov [EDI], EAX;
+        mov [EDI+4], EBX;
+        mov [EDI+8], ECX;
+        mov [EDI+12], EDX;
     } else version (X86_64) asm {
 INTEL_S:
-    lea RDI, c;
-    mov [RDI], EAX;
-    mov [RDI+4], EBX;
-    mov [RDI+8], ECX;
-    mov [RDI+12], EDX;
+        lea RDI, c;
+        mov [RDI], EAX;
+        mov [RDI+4], EBX;
+        mov [RDI+8], ECX;
+        mov [RDI+12], EDX;
     }
     return c.idup;
-}
+}*/
 
 /**
  * Get the number of logical cores for an Intel processor.
  * Returns:
  *   The number of logical cores.
- *   Bit 15-0 are 
  * Errorcodes:
  *   -2 = Feature not supported.
  */
 extern (C) short getCoresIntel()
 {
     asm { naked;
-    mov EAX, 0;
-    cpuid;
-    cmp EAX, 0xB;
-    jge INTEL_S;
-    mov AX, -2;
-    ret;
-
+        mov EAX, 0;
+        cpuid;
+        cmp EAX, 0xB;
+        jge INTEL_S;
+        mov AX, -2; //TODO: go accross NUMA nodes instead
+        ret;
 INTEL_S:
-    mov EAX, 0xB;
-    mov ECX, 1;
-    cpuid;
-    mov AX, BX;
-    ret;
+        mov EAX, 0xB;
+        mov ECX, 1;
+        cpuid;
+        mov AX, BX;
+        ret;
     }
 }

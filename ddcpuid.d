@@ -535,11 +535,11 @@ struct CpuInfo
         MaximumLeaf = getHighestLeaf(); // 0h.EAX
         MaximumExtendedLeaf = getHighestExtendedLeaf(); // 8000_0000h.EAX
 
-        uint a, b, c, d; // EAX:EDX.
+        uint a, b, c, d; // EAX:EDX
 
         for (int leaf = 1; leaf <= MaximumLeaf; ++leaf)
         {
-            asm @nogc nothrow
+            asm @nogc nothrow pure
             {
                 mov EAX, leaf;
                 mov ECX, 0;
@@ -998,14 +998,14 @@ extern (C) uint getHighestExtendedLeaf() pure @nogc nothrow
 string getVendor()
 {
     char[12] s;
-    version (X86_64) asm {
+    version (X86_64) asm pure @nogc nothrow {
         lea RDI, s;
         mov EAX, 0;
         cpuid;
         mov [RDI  ], EBX;
         mov [RDI+4], EDX;
         mov [RDI+8], ECX;
-    } else asm {
+    } else asm pure @nogc nothrow {
         lea EDI, s;
         mov EAX, 0;
         cpuid;
@@ -1019,10 +1019,9 @@ string getVendor()
 /// Get the Extended Processor Brand string
 /// Returns: Processor Brand string
 string getProcessorBrandString()
-{
-    //TODO: Check older list?
+{ //TODO: Check older list?
     char[48] s;
-    version (X86_64) asm {
+    version (X86_64) asm pure @nogc nothrow {
         lea RDI, s;
         mov EAX, 0x8000_0002;
         cpuid;
@@ -1042,7 +1041,7 @@ string getProcessorBrandString()
         mov [RDI+36], EBX;
         mov [RDI+40], ECX;
         mov [RDI+44], EDX;
-    } else asm {
+    } else asm pure @nogc nothrow {
         lea EDI, s;
         mov EAX, 0x8000_0002;
         cpuid;
@@ -1102,9 +1101,8 @@ INTEL_S:
  * Errorcodes:
  *   -2 = Feature not supported.
  */
-extern (C) short getCoresIntel()
-{
-    asm { naked;
+extern (C) short getCoresIntel() {
+    asm pure @nogc nothrow { naked;
         mov EAX, 0;
         cpuid;
         cmp EAX, 0xB;

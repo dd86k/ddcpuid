@@ -1,5 +1,7 @@
 # ddcpuid, A CPUID tool
 
+![Screenshot of ddhx](https://dd86k.github.io/imgs/ddcpuid2.png)
+
 This small utility will reveal everything through the CPUID instruction without any library or third-party help. 
 
 THIS TOOL IS ONLY FOR x86 AND x86-64 (AMD64) BASED PROCESSORS.

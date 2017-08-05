@@ -89,7 +89,7 @@ int main(string[] args)
 
         writeln("|   Leaf   | S | EAX      | EBX      | ECX      | EDX      |");
         writeln("|:--------:|:-:|:---------|:---------|:---------|:---------| ");
-        for (uint leaf = 0; leaf <= maxl; ++leaf)
+        for (uint leaf; leaf <= maxl; ++leaf)
             print_cpuid(leaf, 0);
         for (uint eleaf = 0x8000_0000; eleaf <= emaxl; ++eleaf)
             print_cpuid(eleaf, 0);
@@ -695,7 +695,7 @@ struct CpuInfo
 
         for (int eleaf = 0x8000_0000; eleaf < MaximumExtendedLeaf; ++eleaf)
         {
-            asm @nogc nothrow
+            asm @nogc nothrow pure
             {
                 mov EAX, eleaf;
                 mov ECX, 0;

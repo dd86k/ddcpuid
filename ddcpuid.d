@@ -3,9 +3,10 @@ module ddcpuid;
 import std.getopt;
 import std.stdio;
 import std.string : strip;
+import core.stdc.stdio : printf;
 
 /// Version
-enum VERSION = "0.4.0";
+enum VERSION = "0.5.0";
 
 enum // Maximum supported leafs
     MAX_LEAF = 0x20, /// Maximum leaf with -o
@@ -32,32 +33,26 @@ enum { // Vendor strings
     VENDOR_VMWARE       = "VMwareVMware", /// VMware
     VENDOR_XENHVM       = "XenVMMXenVMM", /// Xen VMM
     VENDOR_MICROSOFT_HV = "Microsoft Hv", /// Microsoft Hyper-V
-    VENDOR_PARALLELS    = " lrpepyh vr"   /// Parallels
+    VENDOR_PARALLELS    = " lrpepyh  vr"  /// Parallels
 }
 
-/**
- * Starting point.
- * Params: args = CLI Arguments
- * Returns: Error code.
- */
-int main(string[] args)
-{
-    bool pre; /// Pretty
-    bool raw; /// Raw
-    bool det; /// Detailed output
-    bool ovr; /// Override max leaf
+/// public CpuInfo object
+CpuInfo ci;
 
+bool Raw; /// Raw
+bool Details; /// Detailed output
+bool Override; /// Override max leaf
+
+private int main(string[] args) {
     GetoptResult r;
 	try {
 		r = getopt(args,
             config.bundling, config.caseSensitive,
-            "r|raw", "Only show raw CPUID data.", &raw,
+            "r|Raw", "Only show Raw CPUID data.", &Raw,
             config.bundling, config.caseSensitive,
-            "d|details", "Show more information.", &det,
+            "d|details", "Show more information.", &Details,
             config.bundling, config.caseSensitive,
-			"o|override", "Override leafs to 20h each, useful with -r.", &ovr,
-            config.bundling, config.caseSensitive,
-			"p|pretty", "Pretty up the output to be more readable.", &pre,
+			"o|override", "Override leafs to 20h each, useful with -r.", &Override,
             "v|version", "Print version information.", &PrintVersion);
 	} catch (GetOptException ex) {
 		stderr.writeln("Error: ", ex.msg);
@@ -77,12 +72,11 @@ int main(string[] args)
         return 0;
     }
 
-    if (raw)
-    {
+    if (Raw) { // if Raw
         // Maximum leaf
-        const uint maxl = ovr ? MAX_LEAF : getHighestLeaf();
+        const uint maxl = Override ? MAX_LEAF : getHighestLeaf();
         // Maximum extended leaf
-        const uint emaxl = ovr ? MAX_ELEAF : getHighestExtendedLeaf();
+        const uint emaxl = Override ? MAX_ELEAF : getHighestExtendedLeaf();
 
         debug
         writefln("[%4d] Max leaf: %X | Extended: %X", __LINE__, maxl, emaxl);
@@ -93,172 +87,24 @@ int main(string[] args)
             print_cpuid(leaf, 0);
         for (uint eleaf = 0x8000_0000; eleaf <= emaxl; ++eleaf)
             print_cpuid(eleaf, 0);
-    }
-    else
-    {
-        import core.stdc.string : memset;
-        //TODO: Improve this section someday
-        enum W = 52;
-        enum LINE = "+--------------+------------------------------------------------------+";
-        enum E    = "+---------------------------------------------------------------------+";
-
+    } else {
         debug writeln("[L%04d] Fetching info...", __LINE__);
-        CpuInfo ci; ci.fetchInfo;
+        ci.fetchInfo;
 
-        with (ci)
-        if (pre)
-        {
-            void printl() { writeln(LINE); }
-            printl;
-            writefln("| %s | %-*s |",
-                VendorString, W, ProcessorBrandString);
-
-            printl;
-            writefln("| Identifier   | %-*s |", W, getIden(det));
-
-            printl;
-            enum Y = 'x', N = ' ';
-            // I know this isn't the best code around but it's.. One way to do things. Sorry.
-            // I'm lazy
-            writefln(
-            "| Extensions   | MMX[%c] Extended MMX[%c] 3DNow![%c] Extended 3DNow![%c]  |\n"~
-            "|              | SSE[%c] SSE2[%c] SSE3[%c] SSSE3[%c]  x86-64[%c]           |\n"~
-            "|              | SSE4.1[%c] SSE4.2[%c] SSE4a[%c]  VMX[%c]  SMX[%c]  NX[%c]  |\n"~
-            "|              | AES-NI[%c] AVX[%c] AVX2[%c]                             |",
-                MMX ? Y : N, MMXExt ? Y : N, _3DNow ? Y : N, _3DNowExt ? Y : N,
-                SSE ? Y : N, SSE2 ? Y : N, SSE3 ? Y : N, SSSE3 ? Y : N, LongMode ? Y : N,
-                SSE41 ? Y : N, SSE42 ? Y : N, SSE4a ? Y : N, Virt ? Y : N, SMX ? Y : N,
-                    NX ? Y : N,
-                SSE41 ? Y : N, SSE42 ? Y : N, SSE4a ? Y : N);
-
-            if (det) {
-            printl;
-            writefln(
-            "| Instructions | MONITOR/MWAIT[%c]  PCLMULQDQ[%c]  SYSENTER/SYSEXIT[%c]  |\n"~
-            "|              | CMPXCHG8B[%c]  CMPXCHG16B[%c]  RDRAND[%c]  RDSEED[%c]    |\n"~
-            "|              | CMOV[%c]  FCOMI/FCMOV[%c]  MOVBE[%c]                    |\n"~
-            "|              | RDTSC[%c]  TSC-Deadline[%c]  TSC-Invariant[%c]          |\n"~
-            "|              | LZCNT[%c]  POPCNT[%c]  RDMSR/WRMSR[%c]                  |\n"~
-            "|              | XSAVE/XRSTOR[%c]  XSETBV/XGETBV[%c]  FXSAVE/FXRSTOR[%c] |\n"~
-            "|              | VFMADDx (FMA)[%c] (FMA4)[%c]                           |",
-                MONITOR ? Y : N, PCLMULQDQ ? Y : N, SEP ? Y : N,
-                CX8 ? Y : N, CMPXCHG16B ? Y : N, RDRAND ? Y : N, RDSEED ? Y : N,
-                CMOV ? Y : N, (FPU && CMOV)? Y : N, MOVBE ? Y : N,
-                TSC ? Y : N, TscDeadline ? Y : N, TscInvariant ? Y : N,
-                LZCNT ? Y : N, POPCNT ? Y : N, MSR ? Y : N,
-                XSAVE ? Y : N, OSXSAVE ? Y : N, FXSR ? Y : N,
-                FMA ? Y : N, FMA4 ? Y : N);
-            printl;
-
-            void printc(string c) {
-                writeln(E);
-                writefln("| %*s |", 67, c);
-            }
-            void printn(string n) {
-                writefln("| %-*s |", 67, n);
-            }
-            writefln("| Highest Leaf: %02XH | Extended: %08XH                             |",
-                MaximumLeaf, MaximumExtendedLeaf);
-            final switch (ProcessorType) // 2 bit value
-            { // Should return 0 nowadays.
-            case 0b00: printn("Type: Original OEM Processor"); break;
-            case 0b01: printn("Type: Intel OverDrive Processor"); break;
-            case 0b10: printn("Type: Dual processor"); break;
-            case 0b11: printn("Type: Intel reserved"); break;
-            }
-
-            printc("FPU");
-            if (FPU) {
-                printn("FPU Present [FPU]");
-                printn("16-bit conversion [F16C]");
-            }
-
-            printc("APCI");
-            if (APIC)
-                printn("APIC [APIC]");
-            if (x2APIC)
-                printn("x2APIC [x2APIC]");
-            if (TM)
-                printn("Thermal Monitor [TM]");
-            if (TM2)
-                printn("Thermal Monitor 2 [TM2]");
-
-            printc("Virtualization");
-            if (Virt) {
-                switch (VendorString)
-                {
-                case VENDOR_INTEL: printn("VT-x"); break; // VMX
-                case VENDOR_AMD  : printn("AMD-V"); break; // SVM
-                case VENDOR_VIA  : printn("VIA VT"); break;
-                default          : printn("VMX"); break;
-                }
-                printn("Virtual 8086 Mode Enhancements [VME]",);
-            }
-
-            printc("Memory and Paging");
-            if (PAE)
-                printn("Page Size Extension [PAE]");
-            if (PSE_36)
-                printn("36-Bit Page Size Extension [PSE-36]");
-            if (Page1GB)
-                printn("1 GB Pages support [Page1GB]");
-            if (DCA)
-                printn("Direct Cache Access [DCA]");
-            if (PAT)
-                printn("Page Attribute Table [PAT]");
-            if (MTRR)
-                printn("Memory Type Range Registers [MTRR]");
-            if (PGE)
-                printn("Page Global Bit [PGE]");
-            if (DTES64)
-                printn("64-bit DS Area [DTES64]");
-
-            printc("Debugging");
-            if (MCE)
-                printn("Machine Check Exception [MCE]");
-            if (DE)
-                printn("Debugging Extensions [DE]");
-            if (DS)
-                printn("Debug Store [DS]");
-            if (DS_CPL)
-                printn("Debug Store CPL [DS-CPL]");
-            if (PDCM)
-                printn("Perfmon and Debug Capability [PDCM]");
-            if (SDBG)
-                printn("SDBG");
-
-            printc("Other features");
-            if (CNXT_ID)
-                printn("L1 Context ID [CNXT-ID]");
-            if (xTPR)
-                printn("xTPR Update Control [xTPR]");
-            if (PCID)
-                printn("Process-context identifiers [PCID]");
-            if (MCA)
-                printn("Machine Check Architecture [MCA]");
-            if (PSN)
-                printn("Processor Serial Number [PSN]");
-            if (SS)
-                printn("Self Snoop [SS]");
-            if (PBE)
-                printn("Pending Break Enable [PBE]");
-            if (SMEP)
-                printn("Supervisor Mode Execution Protection [SMEP]");
-            if (BMI1)
-                printn("Bit Manipulation Instructions 1 [BMI1]");
-            if (BMI2)
-                printn("Bit Manipulation Instructions 1 [BMI2]");
-            } // if (det)
-
-            writeln(E);
-        }
-        else
-        {
+        with (ci) {
             writeln("Vendor: ", VendorString);
             writeln("Model: ", ProcessorBrandString);
 
             write("Identifier: ");
-            writeln(getIden(det));
+            
+            if (Details)
+                printf(
+                    "Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh\n",
+                    Family, BaseFamily, ExtendedFamily,
+                    Model, BaseModel, ExtendedModel, Stepping);
+            else
+                printf("Family %d Model %d Stepping %d",
+                    Family, Model, Stepping);
 
             write("Extensions: \n  ");
             if (MMX) write("MMX, ");
@@ -273,15 +119,13 @@ int main(string[] args)
             if (SSE42) write("SSE4.2, ");
             if (SSE4a) write("SSE4a, ");
             if (LongMode)
-                switch (VendorString)
-                {
+                switch (VendorString) {
                 case VENDOR_INTEL: write("Intel64, "); break;
                 case VENDOR_AMD  : write("AMD64, "); break;
                 default          : write("x86-64, "); break;
                 }
             if (Virt)
-                switch (VendorString)
-                {
+                switch (VendorString) {
                 case VENDOR_INTEL: write("VT-x, "); break; // VMX
                 case VENDOR_AMD  : write("AMD-V, "); break; // SVM
                 case VENDOR_VIA  : write("VIA VT, "); break;
@@ -289,8 +133,7 @@ int main(string[] args)
                 }
             if (SMX) write("Intel TXT (SMX), ");
             if (NX)
-                switch (VendorString)
-                {
+                switch (VendorString) {
                 case VENDOR_INTEL: write("Intel XD (NX), "); break;
                 case VENDOR_AMD  : write("AMD EVP (NX), "); break;
                 default          : write("NX, "); break;
@@ -299,8 +142,7 @@ int main(string[] args)
             if (AVX) write("AVX, ");
             if (AVX2) write("AVX2, ");
             writeln();
-            if (det)
-            {
+            if (Details) {
                 write("Instructions: \n  [ ");
                 if (MONITOR)
                     write("MONITOR/MWAIT, ");
@@ -320,11 +162,9 @@ int main(string[] args)
                     write("RDMSR/WRMSR, ");
                 if (SEP)
                     write("SYSENTER/SYSEXIT, ");
-                if (TSC)
-                {
+                if (TSC) {
                     write("RDTSC");
-                    if (TscDeadline || TscInvariant)
-                    {
+                    if (TscDeadline || TscInvariant) {
                         write(" (");
                         if (TscDeadline)
                             write("TSC-Deadline");
@@ -339,7 +179,7 @@ int main(string[] args)
                 if (FPU && CMOV)
                     write("FCOMI/FCMOV, ");
                 if (CLFSH)
-                    writef("CLFLUSH (%d bytes), ", CLFLUSHLineSize * 8);
+                    printf("CLFLUSH (%d bytes), ", CLFLUSHLineSize * 8);
                 if (PREFETCHW)
                     write("PREFETCHW, ");
                 if (LZCNT)
@@ -352,8 +192,7 @@ int main(string[] args)
                     write("XSETBV/XGETBV, ");
                 if (FXSR)
                     write("FXSAVE/FXRSTOR, ");
-                if (FMA || FMA4)
-                {
+                if (FMA || FMA4) {
                     write("VFMADDx (FMA");
                     if (FMA4) write("4");
                     write("), ");
@@ -372,13 +211,11 @@ int main(string[] args)
             default:
             }
 
-            if (det)
-            {
-                writefln("Highest Leaf: %02XH | Extended: %02XH",
+            if (Details) {
+                printf("Highest Leaf: %02XH | Extended: %02XH\n",
                     MaximumLeaf, MaximumExtendedLeaf);
                 write("Type: ");
-                final switch (ProcessorType) // 2 bit value
-                { // Should return 0 nowadays.
+                final switch (ProcessorType) { // 2 bit value
                 case 0b00: writeln("Original OEM Processor"); break;
                 case 0b01: writeln("Intel OverDrive Processor"); break;
                 case 0b10: writeln("Dual processor"); break;
@@ -452,15 +289,13 @@ int main(string[] args)
 } // main
 
 /// Print description and sinopsys
-void PrintHelp()
-{
+void PrintHelp() {
     writeln("CPUID magic.");
-    writeln("  Usage: ddcpuid [<Options>]");
+    writeln("  Usage: ddcpuid [<options>]");
 }
 
 /// Print version and exits.
-void PrintVersion()
-{
+void PrintVersion() {
     import core.stdc.stdlib : exit;
     writeln("ddcpuid v", VERSION);
     writeln("Copyright (c) dd86k 2016-2017");
@@ -471,38 +306,15 @@ void PrintVersion()
     exit(0);
 }
 
-/// public CpuInfo object
-CpuInfo ci;
-
-/**
- * Get identifier string from ci object.
- * Params: more = More details
- * Returns: Identifier string
- */
-string getIden(bool more)
-{
-    import std.format : format;
-    with (ci)
-    if (more)
-        return format(
-            "Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh",
-            Family, BaseFamily, ExtendedFamily,
-            Model, BaseModel, ExtendedModel, Stepping);
-    else
-        return format("Family %d Model %d Stepping %d",
-            Family, Model, Stepping);
-}
-
 /**
  * Print CPU registers on screen from leaf and sub-leaf
  * Params:
- *   leaf = EAX leaf
- *   subl = ECX sub-leaf
+ *   leaf = EAX, leaf
+ *   subl = ECX, sub-leaf
  */
-void print_cpuid(uint leaf, uint subl)
-{
+void print_cpuid(uint leaf, uint subl) @nogc nothrow {
     uint a, b, c, d;
-    asm {
+    asm pure @nogc nothrow {
         mov EAX, leaf;
         mov ECX, subl;
         cpuid;
@@ -511,36 +323,30 @@ void print_cpuid(uint leaf, uint subl)
         mov c, ECX;
         mov d, EDX;
     }
-    writefln("| %8X | %X | %8X | %8X | %8X | %8X |",
-        leaf, subl, a, b, c, d);
+    printf("| %8X | %X | %8X | %8X | %8X | %8X |\n", leaf, subl, a, b, c, d);
 }
-
-
 
 /*****************************
  * CPU INFO
  *****************************/
 
-/// <summary>
 /// Processor information class.
-/// </summary>
-struct CpuInfo
-{
+struct CpuInfo {
     /// Fetch information and store it in class variables.
-    public void fetchInfo()
-    {
+    public void fetchInfo() {
         VendorString = getVendor; // 0h.EBX:EDX:ECX
         ProcessorBrandString = strip(getProcessorBrandString);
 
         MaximumLeaf = getHighestLeaf(); // 0h.EAX
         MaximumExtendedLeaf = getHighestExtendedLeaf(); // 8000_0000h.EAX
 
+        const uint max = Override ? MAX_LEAF : MaximumLeaf;
+        const uint emax = Override ? MAX_ELEAF : MaximumExtendedLeaf;
+
         uint a, b, c, d; // EAX:EDX
 
-        for (int leaf = 1; leaf <= MaximumLeaf; ++leaf)
-        {
-            asm @nogc nothrow pure
-            {
+        for (int leaf = 1; leaf <= max; ++leaf) {
+            asm @nogc nothrow pure {
                 mov EAX, leaf;
                 mov ECX, 0;
                 cpuid;
@@ -550,8 +356,7 @@ struct CpuInfo
                 mov d, EDX;
             }
 
-            switch (leaf)
-            {
+            switch (leaf) {
                 case 1:
                     // EAX
                     Stepping       = a & 0xF;        // EAX[3:0]
@@ -561,49 +366,48 @@ struct CpuInfo
                     ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
                     ExtendedFamily = a >> 20 & 0xFF; // EAX[27:20]
 
-                    switch (VendorString)
-                    {
-                        case VENDOR_INTEL:
-                            if (BaseFamily != 0)
-                                Family = BaseFamily;
-                            else
-                                Family = cast(ubyte)(ExtendedFamily + BaseFamily);
+                    switch (VendorString) {
+                    case VENDOR_INTEL:
+                        if (BaseFamily != 0)
+                            Family = BaseFamily;
+                        else
+                            Family = cast(ubyte)(ExtendedFamily + BaseFamily);
 
-                            if (BaseFamily == 6 || BaseFamily == 0)
-                                Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
-                            else // DisplayModel = Model_ID;
-                                Model = BaseModel;
+                        if (BaseFamily == 6 || BaseFamily == 0)
+                            Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
+                        else // DisplayModel = Model_ID;
+                            Model = BaseModel;
 
-                            // ECX
-                            DTES64  = c >>  2 & 1;
-                            DS_CPL  = c >>  4 & 1;
-                            Virt    = c >>  5 & 1;
-                            SMX     = c >>  6 & 1;
-                            EIST    = c >>  7 & 1;
-                            CNXT_ID = c >> 10 & 1;
-                            SDBG    = c >> 11 & 1;
-                            xTPR    = c >> 14 & 1;
-                            PDCM    = c >> 15 & 1;
-                            PCID    = c >> 17 & 1;
-                            DCA     = c >> 18 & 1;
-                            DS      = d >> 21 & 1;
-                            APCI    = d >> 22 & 1;
-                            SS      = d >> 27 & 1;
-                            TM      = d >> 29 & 1;
-                            PBE     = d >> 31 & 1;
-                            break;
+                        // ECX
+                        DTES64  = c >>  2 & 1;
+                        DS_CPL  = c >>  4 & 1;
+                        Virt    = c >>  5 & 1;
+                        SMX     = c >>  6 & 1;
+                        EIST    = c >>  7 & 1;
+                        CNXT_ID = c >> 10 & 1;
+                        SDBG    = c >> 11 & 1;
+                        xTPR    = c >> 14 & 1;
+                        PDCM    = c >> 15 & 1;
+                        PCID    = c >> 17 & 1;
+                        DCA     = c >> 18 & 1;
+                        DS      = d >> 21 & 1;
+                        APCI    = d >> 22 & 1;
+                        SS      = d >> 27 & 1;
+                        TM      = d >> 29 & 1;
+                        PBE     = d >> 31 & 1;
+                        break;
 
-                        case VENDOR_AMD:
-                            if (BaseFamily < 0xF) {
-                                Family = BaseFamily;
-                                Model = BaseModel;
-                            } else {
-                                Family = cast(ubyte)(ExtendedFamily + BaseFamily);
-                                Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
-                            }
-                            break;
+                    case VENDOR_AMD:
+                        if (BaseFamily < 0xF) {
+                            Family = BaseFamily;
+                            Model = BaseModel;
+                        } else {
+                            Family = cast(ubyte)(ExtendedFamily + BaseFamily);
+                            Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
+                        }
+                        break;
 
-                            default:
+                        default:
                     }
 
                     // EBX
@@ -658,25 +462,24 @@ struct CpuInfo
                     HTT    = d >> 28 & 1;
                     break;
 
+                //TODO: CHECK TURBOBOOST
                 case 6:
-                    switch (VendorString)
-                    {
-                        case VENDOR_INTEL:
-                            TurboBoost = a >> 1 & 1;
-                            break;
-                        default:
+                    switch (VendorString) {
+                    case VENDOR_INTEL:
+                        TurboBoost = a >> 1 & 1;
+                        break;
+                    default:
                     }
                     break;
 
                     default:
 
                 case 7:
-                    switch (VendorString)
-                    {
-                        case VENDOR_INTEL:
-                            TurboBoost = a >> 1 & 1;
-                            break;
-                        default:
+                    switch (VendorString) {
+                    case VENDOR_INTEL:
+                        TurboBoost = a >> 1 & 1;
+                        break;
+                    default:
                     }
                     break;
 
@@ -693,10 +496,8 @@ struct CpuInfo
          * Extended CPUID leafs
          */
 
-        for (int eleaf = 0x8000_0000; eleaf < MaximumExtendedLeaf; ++eleaf)
-        {
-            asm @nogc nothrow pure
-            {
+        for (int eleaf = 0x8000_0000; eleaf < emax; ++eleaf) {
+            asm @nogc nothrow pure {
                 mov EAX, eleaf;
                 mov ECX, 0;
                 cpuid;
@@ -706,8 +507,7 @@ struct CpuInfo
                 mov d, EDX;
             }
 
-            switch (eleaf)
-            {
+            switch (eleaf) {
                 case 0x8000_0001:
                     switch (VendorString)
                     {
@@ -1101,7 +901,7 @@ INTEL_S:
  * Errorcodes:
  *   -2 = Feature not supported.
  */
-extern (C) short getCoresIntel() {
+/*extern (C) short getCoresIntel() {
     asm pure @nogc nothrow { naked;
         mov EAX, 0;
         cpuid;
@@ -1116,4 +916,4 @@ INTEL_S:
         mov AX, BX;
         ret;
     }
-}
+}*/

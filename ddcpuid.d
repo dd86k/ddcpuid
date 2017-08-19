@@ -83,7 +83,7 @@ private int main(string[] args) {
 
         writeln("|   Leaf   | S | EAX      | EBX      | ECX      | EDX      |");
         writeln("|:--------:|:-:|:---------|:---------|:---------|:---------| ");
-        for (uint leaf; leaf <= maxl; ++leaf)
+        for (uint leaf; leaf <= maxl; ++leaf) 
             print_cpuid(leaf, 0);
         for (uint eleaf = 0x8000_0000; eleaf <= emaxl; ++eleaf)
             print_cpuid(eleaf, 0);
@@ -96,14 +96,14 @@ private int main(string[] args) {
             writeln("Model: ", ProcessorBrandString);
 
             write("Identifier: ");
-            
+
             if (Details)
                 printf(
                     "Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh\n",
                     Family, BaseFamily, ExtendedFamily,
                     Model, BaseModel, ExtendedModel, Stepping);
             else
-                printf("Family %d Model %d Stepping %d",
+                printf("Family %d Model %d Stepping %d\n",
                     Family, Model, Stepping);
 
             write("Extensions: \n  ");
@@ -202,8 +202,7 @@ private int main(string[] args) {
 
             writeln;
 
-            switch (VendorString) // VENDOR SPECIFIC
-            {
+            switch (VendorString) { // VENDOR SPECIFIC
             case VENDOR_INTEL:
                 writeln("Enhanced SpeedStep(R) Technology: ", EIST);
                 writeln("TurboBoost available: ", TurboBoost);
@@ -214,6 +213,7 @@ private int main(string[] args) {
             if (Details) {
                 printf("Highest Leaf: %02XH | Extended: %02XH\n",
                     MaximumLeaf, MaximumExtendedLeaf);
+
                 write("Type: ");
                 final switch (ProcessorType) { // 2 bit value
                 case 0b00: writeln("Original OEM Processor"); break;
@@ -230,7 +230,8 @@ private int main(string[] args) {
                 writeln();
                 writeln("APCI");
                 writeln("  APCI: ", APCI);
-                writefln("  APIC: %s (Initial ID: %d, Max: %d)", APIC, InitialAPICID, MaxIDs);
+                write  ("  APIC: ", APIC);
+                printf(" (Initial ID: %d, Max: %d)\n", InitialAPICID, MaxIDs);
                 writeln("  x2APIC: ", x2APIC);
                 writeln("  Thermal Monitor: ", TM);
                 writeln("  Thermal Monitor 2: ", TM2);
@@ -271,15 +272,13 @@ private int main(string[] args) {
                 writeln("  Pending Break Enable [PBE]: ", PBE);
                 writeln("  Supervisor Mode Execution Protection [SMEP]: ", SMEP);
                 write("  Bit manipulation groups: ");
-                if (BMI1 || BMI2)
-                {
+                if (BMI1 || BMI2) {
                     if (BMI1)
                         write("BMI1");
                     if (BMI2)
                         write(", BMI2");
-                    writeln();
-                }
-                else
+                    writeln;
+                } else
                     writeln("None");
             } // if (det)
         }
@@ -357,138 +356,130 @@ struct CpuInfo {
             }
 
             switch (leaf) {
-                case 1:
-                    // EAX
-                    Stepping       = a & 0xF;        // EAX[3:0]
-                    BaseModel      = a >>  4 &  0xF; // EAX[7:4]
-                    BaseFamily     = a >>  8 &  0xF; // EAX[11:8]
-                    ProcessorType  = a >> 12 & 0b11; // EAX[13:12]
-                    ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
-                    ExtendedFamily = a >> 20 & 0xFF; // EAX[27:20]
+            case 1:
+                // EAX
+                Stepping       = a & 0xF;        // EAX[3:0]
+                BaseModel      = a >>  4 &  0xF; // EAX[7:4]
+                BaseFamily     = a >>  8 &  0xF; // EAX[11:8]
+                ProcessorType  = a >> 12 & 0b11; // EAX[13:12]
+                ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
+                ExtendedFamily = a >> 20 & 0xFF; // EAX[27:20]
 
-                    switch (VendorString) {
-                    case VENDOR_INTEL:
-                        if (BaseFamily != 0)
-                            Family = BaseFamily;
-                        else
-                            Family = cast(ubyte)(ExtendedFamily + BaseFamily);
+                switch (VendorString) {
+                case VENDOR_INTEL:
+                    if (BaseFamily != 0)
+                        Family = BaseFamily;
+                    else
+                        Family = cast(ubyte)(ExtendedFamily + BaseFamily);
 
-                        if (BaseFamily == 6 || BaseFamily == 0)
-                            Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
-                        else // DisplayModel = Model_ID;
-                            Model = BaseModel;
+                    if (BaseFamily == 6 || BaseFamily == 0)
+                        Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
+                    else // DisplayModel = Model_ID;
+                        Model = BaseModel;
 
-                        // ECX
-                        DTES64  = c >>  2 & 1;
-                        DS_CPL  = c >>  4 & 1;
-                        Virt    = c >>  5 & 1;
-                        SMX     = c >>  6 & 1;
-                        EIST    = c >>  7 & 1;
-                        CNXT_ID = c >> 10 & 1;
-                        SDBG    = c >> 11 & 1;
-                        xTPR    = c >> 14 & 1;
-                        PDCM    = c >> 15 & 1;
-                        PCID    = c >> 17 & 1;
-                        DCA     = c >> 18 & 1;
-                        DS      = d >> 21 & 1;
-                        APCI    = d >> 22 & 1;
-                        SS      = d >> 27 & 1;
-                        TM      = d >> 29 & 1;
-                        PBE     = d >> 31 & 1;
-                        break;
-
-                    case VENDOR_AMD:
-                        if (BaseFamily < 0xF) {
-                            Family = BaseFamily;
-                            Model = BaseModel;
-                        } else {
-                            Family = cast(ubyte)(ExtendedFamily + BaseFamily);
-                            Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
-                        }
-                        break;
-
-                        default:
-                    }
-
-                    // EBX
-                    BrandIndex      = b & 0xFF;       // EBX[7:0]
-                    CLFLUSHLineSize = b >> 8 & 0xFF;  // EBX[15:8]
-                    MaxIDs          = b >> 16 & 0xFF; // EBX[23:16]
-                    InitialAPICID   = b >> 24 & 0xFF; // EBX[31:24]
                     // ECX
-                    SSE3        = c & 1;
-                    PCLMULQDQ   = c >>  1 & 1;
-                    MONITOR     = c >>  3 & 1;
-                    TM2         = c >>  8 & 1;
-                    SSSE3       = c >>  9 & 1;
-                    FMA         = c >> 12 & 1;
-                    CMPXCHG16B  = c >> 13 & 1;
-                    SSE41       = c >> 19 & 1;
-                    SSE42       = c >> 20 & 1;
-                    x2APIC      = c >> 21 & 1;
-                    MOVBE       = c >> 22 & 1;
-                    POPCNT      = c >> 23 & 1;
-                    TscDeadline = c >> 24 & 1;
-                    AES         = c >> 25 & 1;
-                    XSAVE       = c >> 26 & 1;
-                    OSXSAVE     = c >> 27 & 1;
-                    AVX         = c >> 28 & 1;
-                    F16C        = c >> 29 & 1;
-                    RDRAND      = c >> 30 & 1;
-                    // EDX
-                    FPU    = d & 1;
-                    VME    = d >>  1 & 1;
-                    DE     = d >>  2 & 1;
-                    PSE    = d >>  3 & 1;
-                    TSC    = d >>  4 & 1;
-                    MSR    = d >>  5 & 1;
-                    PAE    = d >>  6 & 1;
-                    MCE    = d >>  7 & 1;
-                    CX8    = d >>  8 & 1;
-                    APIC   = d >>  9 & 1;
-                    SEP    = d >> 11 & 1;
-                    MTRR   = d >> 12 & 1;
-                    PGE    = d >> 13 & 1;
-                    MCA    = d >> 14 & 1;
-                    CMOV   = d >> 15 & 1;
-                    PAT    = d >> 16 & 1;
-                    PSE_36 = d >> 17 & 1;
-                    PSN    = d >> 18 & 1;
-                    CLFSH  = d >> 19 & 1;
-                    MMX    = d >> 23 & 1;
-                    FXSR   = d >> 24 & 1;
-                    SSE    = d >> 25 & 1;
-                    SSE2   = d >> 26 & 1;
-                    HTT    = d >> 28 & 1;
+                    DTES64  = c >>  2 & 1;
+                    DS_CPL  = c >>  4 & 1;
+                    Virt    = c >>  5 & 1;
+                    SMX     = c >>  6 & 1;
+                    EIST    = c >>  7 & 1;
+                    CNXT_ID = c >> 10 & 1;
+                    SDBG    = c >> 11 & 1;
+                    xTPR    = c >> 14 & 1;
+                    PDCM    = c >> 15 & 1;
+                    PCID    = c >> 17 & 1;
+                    DCA     = c >> 18 & 1;
+                    DS      = d >> 21 & 1;
+                    APCI    = d >> 22 & 1;
+                    SS      = d >> 27 & 1;
+                    TM      = d >> 29 & 1;
+                    PBE     = d >> 31 & 1;
                     break;
 
-                //TODO: CHECK TURBOBOOST
-                case 6:
-                    switch (VendorString) {
-                    case VENDOR_INTEL:
-                        TurboBoost = a >> 1 & 1;
-                        break;
-                    default:
+                case VENDOR_AMD:
+                    if (BaseFamily < 0xF) {
+                        Family = BaseFamily;
+                        Model = BaseModel;
+                    } else {
+                        Family = cast(ubyte)(ExtendedFamily + BaseFamily);
+                        Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
                     }
                     break;
 
                     default:
+                }
 
-                case 7:
-                    switch (VendorString) {
-                    case VENDOR_INTEL:
-                        TurboBoost = a >> 1 & 1;
-                        break;
-                    default:
-                    }
-                    break;
+                // EBX
+                BrandIndex      = b & 0xFF;       // EBX[7:0]
+                CLFLUSHLineSize = b >> 8 & 0xFF;  // EBX[15:8]
+                MaxIDs          = b >> 16 & 0xFF; // EBX[23:16]
+                InitialAPICID   = b >> 24 & 0xFF; // EBX[31:24]
+                // ECX
+                SSE3        = c & 1;
+                PCLMULQDQ   = c >>  1 & 1;
+                MONITOR     = c >>  3 & 1;
+                TM2         = c >>  8 & 1;
+                SSSE3       = c >>  9 & 1;
+                FMA         = c >> 12 & 1;
+                CMPXCHG16B  = c >> 13 & 1;
+                SSE41       = c >> 19 & 1;
+                SSE42       = c >> 20 & 1;
+                x2APIC      = c >> 21 & 1;
+                MOVBE       = c >> 22 & 1;
+                POPCNT      = c >> 23 & 1;
+                TscDeadline = c >> 24 & 1;
+                AES         = c >> 25 & 1;
+                XSAVE       = c >> 26 & 1;
+                OSXSAVE     = c >> 27 & 1;
+                AVX         = c >> 28 & 1;
+                F16C        = c >> 29 & 1;
+                RDRAND      = c >> 30 & 1;
+                // EDX
+                FPU    = d & 1;
+                VME    = d >>  1 & 1;
+                DE     = d >>  2 & 1;
+                PSE    = d >>  3 & 1;
+                TSC    = d >>  4 & 1;
+                MSR    = d >>  5 & 1;
+                PAE    = d >>  6 & 1;
+                MCE    = d >>  7 & 1;
+                CX8    = d >>  8 & 1;
+                APIC   = d >>  9 & 1;
+                SEP    = d >> 11 & 1;
+                MTRR   = d >> 12 & 1;
+                PGE    = d >> 13 & 1;
+                MCA    = d >> 14 & 1;
+                CMOV   = d >> 15 & 1;
+                PAT    = d >> 16 & 1;
+                PSE_36 = d >> 17 & 1;
+                PSN    = d >> 18 & 1;
+                CLFSH  = d >> 19 & 1;
+                MMX    = d >> 23 & 1;
+                FXSR   = d >> 24 & 1;
+                SSE    = d >> 25 & 1;
+                SSE2   = d >> 26 & 1;
+                HTT    = d >> 28 & 1;
+                break;
 
-                    RDSEED = b >> 18 & 1;
-                    BMI1 = b >> 3 & 1;
-                    AVX2 = b >> 5 & 1;
-                    SMEP = b >> 7 & 1;
-                    BMI2 = b >> 8 & 1;
+            //TODO: CHECK TURBOBOOST
+            case 6:
+                switch (VendorString) {
+                case VENDOR_INTEL:
+                    TurboBoost = a >> 1 & 1;
                     break;
+                default:
+                }
+                break;
+
+            case 7:
+                RDSEED = b >> 18 & 1;
+                BMI1 = b >> 3 & 1;
+                AVX2 = b >> 5 & 1;
+                SMEP = b >> 7 & 1;
+                BMI2 = b >> 8 & 1;
+                break;
+
+                default:
             }
         }
         
@@ -508,44 +499,42 @@ struct CpuInfo {
             }
 
             switch (eleaf) {
-                case 0x8000_0001:
-                    switch (VendorString)
-                    {
-                        case VENDOR_AMD:
-                            Virt  = c >>  2 & 1; // SVM
-                            SSE4a = c >>  6 & 1;
-                            FMA4  = c >> 16 & 1;
+            case 0x8000_0001:
+                switch (VendorString) {
+                case VENDOR_AMD:
+                    Virt  = c >>  2 & 1; // SVM
+                    SSE4a = c >>  6 & 1;
+                    FMA4  = c >> 16 & 1;
 
-                            MMXExt    = d >> 22 & 1;
-                            _3DNowExt = d >> 30 & 1;
-                            _3DNow    = d >> 31 & 1;
-                            break;
-                        default:
-                    }
-
-                    LZCNT     = c >> 5 & 1;
-                    PREFETCHW = c >> 8 & 1;
-
-                    NX       = d >> 20 & 1;
-                    Page1GB  = d >> 26 & 1;
-                    LongMode = d >> 29 & 1;
-                    break;
-
-                case 0x8000_0007:
-                    switch (VendorString)
-                    {
-                        case VENDOR_INTEL:
-                            RDSEED = b >> 18 & 1;
-                            break;
-                        case VENDOR_AMD:
-                            TM = d >> 4 & 1;
-                            break;
-                        default:
-                    }
-
-                    TscInvariant = d >> 8 & 1;
+                    MMXExt    = d >> 22 & 1;
+                    _3DNowExt = d >> 30 & 1;
+                    _3DNow    = d >> 31 & 1;
                     break;
                 default:
+                }
+
+                LZCNT     = c >> 5 & 1;
+                PREFETCHW = c >> 8 & 1;
+
+                NX       = d >> 20 & 1;
+                Page1GB  = d >> 26 & 1;
+                LongMode = d >> 29 & 1;
+                break;
+
+            case 0x8000_0007:
+                switch (VendorString) {
+                case VENDOR_INTEL:
+                    RDSEED = b >> 18 & 1;
+                    break;
+                case VENDOR_AMD:
+                    TM = d >> 4 & 1;
+                    break;
+                default:
+                }
+
+                TscInvariant = d >> 8 & 1;
+                break;
+            default:
             }
         }
     }

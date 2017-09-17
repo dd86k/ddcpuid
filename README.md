@@ -1,6 +1,6 @@
 # ddcpuid, A CPUID tool
 
-![Screenshot of ddcpuid](https://dd86k.github.io/imgs/ddcpuid2.png)
+![Screenshot of ddcpuid](https://dd86k.github.io/imgs/ddcpuid3.png)
 
 This small utility will reveal everything through the CPUID instruction without any library or third-party help. 
 

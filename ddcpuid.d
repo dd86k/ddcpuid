@@ -6,11 +6,11 @@ import std.string : strip;
 import core.stdc.stdio : printf;
 
 /// Version
-enum VERSION = "0.5.0";
+enum VERSION = "0.5.1";
 
 enum // Maximum supported leafs
     MAX_LEAF = 0x20, /// Maximum leaf with -o
-    MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf with -o
+    MAX_ELEAF = 0x80000020; /// Maximum extended leaf with -o
 
 enum { // Vendor strings
     VENDOR_INTEL     = "GenuineIntel", /// Intel
@@ -36,19 +36,18 @@ enum { // Vendor strings
     VENDOR_PARALLELS    = " lrpepyh  vr"  /// Parallels
 }
 
-/// public CpuInfo object
-CpuInfo ci;
-
-bool Raw; /// Raw
-bool Details; /// Detailed output
-bool Override; /// Override max leaf
+private:
+__gshared CpuInfo ci;
+__gshared bool Raw; /// Raw
+__gshared bool Details; /// Detailed output
+__gshared bool Override; /// Override max leaf
 
 private int main(string[] args) {
     GetoptResult r;
 	try {
 		r = getopt(args,
             config.bundling, config.caseSensitive,
-            "r|Raw", "Only show Raw CPUID data.", &Raw,
+            "r|raw", "Only show Raw CPUID data.", &Raw,
             config.bundling, config.caseSensitive,
             "d|details", "Show more information.", &Details,
             config.bundling, config.caseSensitive,
@@ -61,7 +60,7 @@ private int main(string[] args) {
 
     if (r.helpWanted) {
         PrintHelp;
-        writeln("\nOption             Description");
+        printf("\nOption             Description\n");
         foreach (it; r.options) { // "custom" defaultGetoptPrinter
             writefln("%*s, %-*s%s%s",
                 4,  it.optShort,
@@ -74,15 +73,15 @@ private int main(string[] args) {
 
     if (Raw) { // if Raw
         // Maximum leaf
-        const uint maxl = Override ? MAX_LEAF : getHighestLeaf();
+        const uint maxl = Override ? MAX_LEAF : getHighestLeaf;
         // Maximum extended leaf
-        const uint emaxl = Override ? MAX_ELEAF : getHighestExtendedLeaf();
+        const uint emaxl = Override ? MAX_ELEAF : getHighestExtendedLeaf;
 
         debug
         writefln("[%4d] Max leaf: %X | Extended: %X", __LINE__, maxl, emaxl);
 
-        writeln("|   Leaf   | S | EAX      | EBX      | ECX      | EDX      |");
-        writeln("|:--------:|:-:|:---------|:---------|:---------|:---------| ");
+        printf("|   Leaf   | S | EAX      | EBX      | ECX      | EDX      |\n");
+        printf("|:--------:|:-:|:---------|:---------|:---------|:---------|\n");
         for (uint leaf; leaf <= maxl; ++leaf) 
             print_cpuid(leaf, 0);
         for (uint eleaf = 0x8000_0000; eleaf <= emaxl; ++eleaf)
@@ -95,7 +94,7 @@ private int main(string[] args) {
             writeln("Vendor: ", VendorString);
             writeln("Model: ", ProcessorBrandString);
 
-            write("Identifier: ");
+            printf("Identifier: ");
 
             if (Details)
                 printf(
@@ -106,101 +105,101 @@ private int main(string[] args) {
                 printf("Family %d Model %d Stepping %d\n",
                     Family, Model, Stepping);
 
-            write("Extensions: \n  ");
-            if (MMX) write("MMX, ");
-            if (MMXExt) write("Extended MMX, ");
-            if (_3DNow) write("3DNow!, ");
-            if (_3DNowExt) write("3DNow!Ext, ");
-            if (SSE) write("SSE, ");
-            if (SSE2) write("SSE2, ");
-            if (SSE3) write("SSE3, ");
-            if (SSSE3) write("SSSE3, ");
-            if (SSE41) write("SSE4.1, ");
-            if (SSE42) write("SSE4.2, ");
-            if (SSE4a) write("SSE4a, ");
+            printf("Extensions: \n  ");
+            if (MMX) printf("MMX, ");
+            if (MMXExt) printf("Extended MMX, ");
+            if (_3DNow) printf("3DNow!, ");
+            if (_3DNowExt) printf("3DNow!Ext, ");
+            if (SSE) printf("SSE, ");
+            if (SSE2) printf("SSE2, ");
+            if (SSE3) printf("SSE3, ");
+            if (SSSE3) printf("SSSE3, ");
+            if (SSE41) printf("SSE4.1, ");
+            if (SSE42) printf("SSE4.2, ");
+            if (SSE4a) printf("SSE4a, ");
             if (LongMode)
                 switch (VendorString) {
-                case VENDOR_INTEL: write("Intel64, "); break;
-                case VENDOR_AMD  : write("AMD64, "); break;
-                default          : write("x86-64, "); break;
+                case VENDOR_INTEL: printf("Intel64, "); break;
+                case VENDOR_AMD: printf("AMD64, "); break;
+                default: printf("x86-64, "); break;
                 }
             if (Virt)
                 switch (VendorString) {
-                case VENDOR_INTEL: write("VT-x, "); break; // VMX
-                case VENDOR_AMD  : write("AMD-V, "); break; // SVM
-                case VENDOR_VIA  : write("VIA VT, "); break;
-                default          : write("VMX, "); break;
+                case VENDOR_INTEL: printf("VT-x, "); break; // VMX
+                case VENDOR_AMD: printf("AMD-V, "); break; // SVM
+                case VENDOR_VIA: printf("VIA VT, "); break;
+                default: printf("VMX, "); break;
                 }
-            if (SMX) write("Intel TXT (SMX), ");
+            if (SMX) printf("Intel TXT (SMX), ");
             if (NX)
                 switch (VendorString) {
-                case VENDOR_INTEL: write("Intel XD (NX), "); break;
-                case VENDOR_AMD  : write("AMD EVP (NX), "); break;
-                default          : write("NX, "); break;
+                case VENDOR_INTEL: printf("Intel XD (NX), "); break;
+                case VENDOR_AMD  : printf("AMD EVP (NX), "); break;
+                default          : printf("NX, "); break;
                 }
-            if (AES) write("AES-NI, ");
-            if (AVX) write("AVX, ");
-            if (AVX2) write("AVX2, ");
-            writeln();
+            if (AES) printf("AES-NI, ");
+            if (AVX) printf("AVX, ");
+            if (AVX2) printf("AVX2, ");
+            printf("\n");
             if (Details) {
-                write("Instructions: \n  [ ");
+                printf("Instructions: \n  [ ");
                 if (MONITOR)
-                    write("MONITOR/MWAIT, ");
+                    printf("MONITOR/MWAIT, ");
                 if (PCLMULQDQ)
-                    write("PCLMULQDQ, ");
+                    printf("PCLMULQDQ, ");
                 if (CX8)
-                    write("CMPXCHG8B, ");
+                    printf("CMPXCHG8B, ");
                 if (CMPXCHG16B)
-                    write("CMPXCHG16B, ");
+                    printf("CMPXCHG16B, ");
                 if (MOVBE)
-                    write("MOVBE, "); // Intel Atom and quite a few AMD processorss.
+                    printf("MOVBE, "); // Intel Atom and quite a few AMD processorss.
                 if (RDRAND)
-                    write("RDRAND, ");
+                    printf("RDRAND, ");
                 if (RDSEED)
-                    write("RDSEED, ");
+                    printf("RDSEED, ");
                 if (MSR)
-                    write("RDMSR/WRMSR, ");
+                    printf("RDMSR/WRMSR, ");
                 if (SEP)
-                    write("SYSENTER/SYSEXIT, ");
+                    printf("SYSENTER/SYSEXIT, ");
                 if (TSC) {
-                    write("RDTSC");
+                    printf("RDTSC");
                     if (TscDeadline || TscInvariant) {
-                        write(" (");
+                        printf(" (");
                         if (TscDeadline)
-                            write("TSC-Deadline");
+                            printf("TSC-Deadline");
                         if (TscInvariant)
-                            write(", TSC-Invariant");
-                        write(")");
+                            printf(", TSC-Invariant");
+                        printf(")");
                     }
-                    write(", ");
+                    printf(", ");
                 }
                 if (CMOV)
-                    write("CMOV, ");
+                    printf("CMOV, ");
                 if (FPU && CMOV)
-                    write("FCOMI/FCMOV, ");
+                    printf("FCOMI/FCMOV, ");
                 if (CLFSH)
                     printf("CLFLUSH (%d bytes), ", CLFLUSHLineSize * 8);
                 if (PREFETCHW)
-                    write("PREFETCHW, ");
+                    printf("PREFETCHW, ");
                 if (LZCNT)
-                    write("LZCNT, ");
+                    printf("LZCNT, ");
                 if (POPCNT)
-                    write("POPCNT, ");
+                    printf("POPCNT, ");
                 if (XSAVE)
-                    write("XSAVE/XRSTOR, ");
+                    printf("XSAVE/XRSTOR, ");
                 if (OSXSAVE)
-                    write("XSETBV/XGETBV, ");
+                    printf("XSETBV/XGETBV, ");
                 if (FXSR)
-                    write("FXSAVE/FXRSTOR, ");
+                    printf("FXSAVE/FXRSTOR, ");
                 if (FMA || FMA4) {
-                    write("VFMADDx (FMA");
-                    if (FMA4) write("4");
-                    write("), ");
+                    printf("VFMADDx (FMA");
+                    if (FMA4) printf("4");
+                    printf("), ");
                 }
-                writeln("]");
+                printf("]\n");
             }
 
-            writeln;
+            printf("\n");
 
             switch (VendorString) { // VENDOR SPECIFIC
             case VENDOR_INTEL:
@@ -214,21 +213,21 @@ private int main(string[] args) {
                 printf("Highest Leaf: %02XH | Extended: %02XH\n",
                     MaximumLeaf, MaximumExtendedLeaf);
 
-                write("Type: ");
+                printf("Type: ");
                 final switch (ProcessorType) { // 2 bit value
-                case 0b00: writeln("Original OEM Processor"); break;
-                case 0b01: writeln("Intel OverDrive Processor"); break;
-                case 0b10: writeln("Dual processor"); break;
-                case 0b11: writeln("Intel reserved"); break;
+                case 0b00: printf("Original OEM Processor\n"); break;
+                case 0b01: printf("Intel OverDrive Processor\n"); break;
+                case 0b10: printf("Dual processor\n"); break;
+                case 0b11: printf("Intel reserved\n"); break;
                 }
 
-                writeln();
-                writeln("FPU");
+                printf("\n");
+                printf("FPU\n");
                 writeln("  Floating Point Unit [FPU]: ", FPU);
                 writeln("  16-bit conversion [F16]: ", F16C);
 
-                writeln();
-                writeln("APCI");
+                printf("\n");
+                printf("APCI\n");
                 writeln("  APCI: ", APCI);
                 write  ("  APIC: ", APIC);
                 printf(" (Initial ID: %d, Max: %d)\n", InitialAPICID, MaxIDs);
@@ -236,11 +235,11 @@ private int main(string[] args) {
                 writeln("  Thermal Monitor: ", TM);
                 writeln("  Thermal Monitor 2: ", TM2);
 
-                writeln();
+                printf("\n");
                 writeln("Virtualization");
                 writeln("  Virtual 8086 Mode Enhancements [VME]: ", VME);
 
-                writeln();
+                printf("\n");
                 writeln("Memory and Paging");
                 writeln("  Page Size Extension [PAE]: ", PAE);
                 writeln("  36-Bit Page Size Extension [PSE-36]: ", PSE_36);
@@ -251,7 +250,7 @@ private int main(string[] args) {
                 writeln("  Page Global Bit [PGE]: ", PGE);
                 writeln("  64-bit DS Area [DTES64]: ", DTES64);
 
-                writeln();
+                printf("\n");
                 writeln("Debugging");
                 writeln("  Machine Check Exception [MCE]: ", MCE);
                 writeln("  Debugging Extensions [DE]: ", DE);
@@ -260,7 +259,7 @@ private int main(string[] args) {
                 writeln("  Perfmon and Debug Capability [PDCM]: ", PDCM);
                 writeln("  SDBG: ", SDBG);
 
-                writeln();
+                printf("\n");
                 writeln("Other features");
                 writeln("  Brand Index: ", BrandIndex);
                 writeln("  L1 Context ID [CNXT-ID]: ", CNXT_ID);
@@ -271,15 +270,15 @@ private int main(string[] args) {
                 writeln("  Self Snoop [SS]: ", SS);
                 writeln("  Pending Break Enable [PBE]: ", PBE);
                 writeln("  Supervisor Mode Execution Protection [SMEP]: ", SMEP);
-                write("  Bit manipulation groups: ");
+                printf("  Bit manipulation groups: ");
                 if (BMI1 || BMI2) {
                     if (BMI1)
-                        write("BMI1");
+                        printf("BMI1");
                     if (BMI2)
-                        write(", BMI2");
-                    writeln;
+                        printf(", BMI2");
+                    printf("\n");
                 } else
-                    writeln("None");
+                    printf("None\n");
             } // if (det)
         }
     }
@@ -287,31 +286,27 @@ private int main(string[] args) {
     return 0;
 } // main
 
-/// Print description and sinopsys
-void PrintHelp() {
-    writeln("CPUID magic.");
-    writeln("  Usage: ddcpuid [<options>]");
+extern(C) void PrintHelp() {
+    printf("CPUID magic.\n");
+    printf("  Usage: ddcpuid [<options>]\n");
 }
 
-/// Print version and exits.
-void PrintVersion() {
+extern(C) void PrintVersion() {
     import core.stdc.stdlib : exit;
-    writeln("ddcpuid v", VERSION);
-    writeln("Copyright (c) dd86k 2016-2017");
-    writeln("License: MIT License <http://opensource.org/licenses/MIT>");
-    writeln("Project page: <https://github.com/dd86k/ddcpuid>");
-    writefln("Compiled %s at %s, using %s version %s.",
-        __FILE__, __TIMESTAMP__, __VENDOR__, __VERSION__);
+    printf("ddcpuid v%s\n", &VERSION[0]);
+    printf("Copyright (c) dd86k 2016-2017\n");
+    printf("License: MIT License <http://opensource.org/licenses/MIT>\n");
+    printf("Project page: <https://github.com/dd86k/ddcpuid>\n");
+    printf("Compiled %s at %s, using %s v%d.\n",
+        &__FILE__[0], &__TIMESTAMP__[0], &__VENDOR__[0], __VERSION__);
     exit(0);
 }
 
-/**
- * Print CPU registers on screen from leaf and sub-leaf
- * Params:
- *   leaf = EAX, leaf
- *   subl = ECX, sub-leaf
- */
-void print_cpuid(uint leaf, uint subl) @nogc nothrow {
+extern(C) void print_bool(bool c) {
+    printf(c ? "Yes" : "No");
+}
+
+extern(C) void print_cpuid(uint leaf, uint subl) @nogc nothrow {
     uint a, b, c, d;
     asm pure @nogc nothrow {
         mov EAX, leaf;
@@ -342,7 +337,7 @@ struct CpuInfo {
         const uint max = Override ? MAX_LEAF : MaximumLeaf;
         const uint emax = Override ? MAX_ELEAF : MaximumExtendedLeaf;
 
-        uint a, b, c, d; // EAX:EDX
+        uint a, b, c, d; // EAX to EDX
 
         for (int leaf = 1; leaf <= max; ++leaf) {
             asm @nogc nothrow pure {
@@ -815,8 +810,8 @@ string getProcessorBrandString()
         mov EAX, 0x8000_0002;
         cpuid;
         mov [RDI   ], EAX;
-        mov [RDI+4 ], EBX;
-        mov [RDI+8 ], ECX;
+        mov [RDI+ 4], EBX;
+        mov [RDI+ 8], ECX;
         mov [RDI+12], EDX;
         mov EAX, 0x8000_0003;
         cpuid;
@@ -835,8 +830,8 @@ string getProcessorBrandString()
         mov EAX, 0x8000_0002;
         cpuid;
         mov [EDI   ], EAX;
-        mov [EDI+4 ], EBX;
-        mov [EDI+8 ], ECX;
+        mov [EDI+ 4], EBX;
+        mov [EDI+ 8], ECX;
         mov [EDI+12], EDX;
         mov EAX, 0x8000_0003;
         cpuid;

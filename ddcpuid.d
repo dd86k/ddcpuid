@@ -773,7 +773,7 @@ extern (C) uint getHighestExtendedLeaf() {
 /// Gets the CPU Vendor string.
 /// Returns: Vendor string
 string getVendor() {
-    char[12] s;
+    char[13] s;
     version (X86_64) asm pure @nogc nothrow {
         lea RDI, s;
         mov EAX, 0;
@@ -781,6 +781,7 @@ string getVendor() {
         mov [RDI  ], EBX;
         mov [RDI+4], EDX;
         mov [RDI+8], ECX;
+        mov byte ptr [RDI+12], 0;
     } else asm pure @nogc nothrow {
         lea EDI, s;
         mov EAX, 0;
@@ -788,6 +789,7 @@ string getVendor() {
         mov [EDI  ], EBX;
         mov [EDI+4], EDX;
         mov [EDI+8], ECX;
+        mov byte ptr [EDI+12], 0;
     }
     return s.idup;
 }

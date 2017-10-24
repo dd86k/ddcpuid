@@ -323,7 +323,7 @@ extern(C) void print_cpuid(uint leaf, uint subl) @nogc nothrow {
 
 /// Fetch information and store it in class variables.
 public void fetchInfo() {
-    VendorString = getVendor; // 0h->EBX:EDX:ECX
+    VendorString = getVendor[0..$-1]; // 0h->EBX:EDX:ECX
     ProcessorBrandString = strip(getProcessorBrandString);
     switch (VendorString) {
         case VENDOR_INTEL: VendorID = ID_INTEL; break;

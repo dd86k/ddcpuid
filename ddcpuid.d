@@ -6,7 +6,7 @@ import std.string : strip;
 import core.stdc.stdio : printf;
 
 /// Version
-enum VERSION = "0.5.1";
+enum VERSION = "0.5.2";
 
 enum // Maximum supported leafs
     MAX_LEAF = 0x20, /// Maximum leaf with -o

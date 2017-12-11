@@ -1,3 +1,7 @@
 # ddcpuid, A CPUID tool
 
-I plan to remake this in C.
+A simple CPUID tool.
+
+## Compiling
+
+I highly recommend that `-betterC` switch!

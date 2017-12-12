@@ -1,7 +1,10 @@
 # ddcpuid, A CPUID tool
 
-A simple CPUID tool.
+A simple/dumb CPUID tool.
 
 ## Compiling
 
-I highly recommend that `-betterC` switch!
+I highly recommend the `-betterC` switch:
+```
+dmd -betterC -boundscheck=off -release ddcpuid
+```

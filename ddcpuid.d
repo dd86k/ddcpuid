@@ -238,7 +238,7 @@ extern(C) int main(int argc, char** argv) {
 			if (FMA4) printf("4");
 			printf("), ");
 		}
-		printf("]\n");
+		puts("]");
 	}
 
 	puts("");
@@ -252,23 +252,23 @@ extern(C) int main(int argc, char** argv) {
 	}
 
 	if (Details) {
-		printf("\n== Details ==\n\n");
+		puts("\n== Details ==\n");
 		printf("Highest Leaf: %02XH | Extended: %02XH\n",
 			MaximumLeaf, MaximumExtendedLeaf);
 
 		printf("Type: ");
 		final switch (ProcessorType) { // 2 bit value
-		case 0b00: printf("Original OEM Processor\n"); break;
-		case 0b01: printf("Intel OverDrive Processor\n"); break;
-		case 0b10: printf("Dual processor\n"); break;
-		case 0b11: printf("Intel reserved\n"); break;
+		case 0b00: puts("Original OEM Processor"); break;
+		case 0b01: puts("Intel OverDrive Processor"); break;
+		case 0b10: puts("Dual processor"); break;
+		case 0b11: puts("Intel reserved"); break;
 		}
 
-		printf("\nFPU\n");
+		puts("\nFPU");
 		printf("  Floating Point Unit [FPU]: %s\n", _B(FPU));
 		printf("  16-bit conversion [F16]: %s\n", _B(F16C));
 
-		printf("\nAPCI\n");
+		puts("\nAPCI");
 		printf("  APCI: %s\n", _B(APCI));
 		printf("  APIC: %s (Initial ID: %d, Max: %d)\n",
 			_B(APIC), InitialAPICID, MaxIDs);
@@ -276,10 +276,10 @@ extern(C) int main(int argc, char** argv) {
 		printf("  Thermal Monitor: %s\n", _B(TM));
 		printf("  Thermal Monitor 2: %s\n", _B(TM2));
 
-		printf("\nVirtualization\n");
+		puts("\nVirtualization");
 		printf("  Virtual 8086 Mode Enhancements [VME]: %s\n", _B(VME));
 
-		printf("\nMemory and Paging\n");
+		puts("\nMemory and Paging");
 		printf("  Page Size Extension [PAE]: %s\n", _B(PAE));
 		printf("  36-Bit Page Size Extension [PSE-36]: %s\n", _B(PSE_36));
 		printf("  1 GB Pages support [Page1GB]: %s\n", _B(Page1GB));
@@ -289,7 +289,7 @@ extern(C) int main(int argc, char** argv) {
 		printf("  Page Global Bit [PGE]: %s\n", _B(PGE));
 		printf("  64-bit DS Area [DTES64]: %s\n", _B(DTES64));
 
-		printf("\nDebugging\n");
+		puts("\nDebugging");
 		printf("  Machine Check Exception [MCE]: %s\n", _B(MCE));
 		printf("  Debugging Extensions [DE]: %s\n", _B(DE));
 		printf("  Debug Store [DS]: %s\n", _B(DS));
@@ -297,7 +297,7 @@ extern(C) int main(int argc, char** argv) {
 		printf("  Perfmon and Debug Capability [PDCM]: %s\n", _B(PDCM));
 		printf("  SDBG: %s\n", _B(SDBG));
 
-		printf("\nOther features\n");
+		puts("\nOther features");
 		printf("  Brand Index: %d\n", BrandIndex);
 		printf("  L1 Context ID [CNXT-ID]: %s\n", _B(CNXT_ID));
 		printf("  xTPR Update Control [xTPR]: %s\n", _B(xTPR));
@@ -313,9 +313,9 @@ extern(C) int main(int argc, char** argv) {
 				printf("BMI1");
 			if (BMI2)
 				printf(", BMI2");
-			printf("\n");
+			puts("");
 		} else
-			printf("None\n");
+			puts("None");
 	} // if (det)
 
 	return 0;
@@ -344,7 +344,6 @@ extern(C) void print_cpuid(uint leaf, uint subl) {
  * CPU INFO
  *****************************/
 
-/// Fetch information and store it in class variables.
 extern(C) void fetchInfo() {
 	version (X86_64) asm {
 		lea RDI, VendorString;
@@ -408,8 +407,10 @@ extern(C) void fetchInfo() {
 
 	if (_strcmp_l(cast(char*)VendorString, cast(char*)VENDOR_INTEL, 12) == 0)
 		VendorID = ID_INTEL;
+	if (!VendorID) // If none yet
 	if (_strcmp_l(cast(char*)VendorString, cast(char*)VENDOR_AMD, 12) == 0)
 		VendorID = ID_AMD;
+	if (!VendorID) // Ditto
 	if (_strcmp_l(cast(char*)VendorString, cast(char*)VENDOR_VIA, 12) == 0)
 		VendorID = ID_VIA;
 
@@ -613,9 +614,9 @@ extern(C) void fetchInfo() {
 	}
 }
 
-/*
+/***************************
  * Properties
- */
+ ***************************/
 
 // ---- Basic information ----
 /// Processor vendor.

@@ -8,6 +8,7 @@ ehthumbs.db
 *.lib
 *.o
 *.di
+*.zip
 
 .vscode
 

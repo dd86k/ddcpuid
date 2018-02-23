@@ -1,18 +1,19 @@
 import core.stdc.stdio : printf, puts;
 import core.stdc.stdlib : exit;
 
-/// Version
-enum VERSION = "0.6.1-1";
+enum VERSION = "0.6.1-2"; /// Program version
 
-enum // Maximum supported leafs
-	MAX_LEAF = 0x20, /// Maximum leaf with -o
-	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf with -o
+enum
+	MAX_LEAF = 0x20, /// Maximum leaf (-o)
+	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
 
-enum { // Vendor strings, only ones I've seen used are the first three
-	VENDOR_INTEL     = cast(char*)"GenuineIntel", /// Intel
+// UPDATE 2018-02-22: These were used to compare vendors, see enum below
+/*enum { // Vendor strings
+	/*VENDOR_INTEL     = cast(char*)"GenuineIntel", /// Intel
 	VENDOR_AMD       = cast(char*)"AuthenticAMD", /// AMD
 	VENDOR_VIA       = cast(char*)"VIA VIA VIA ", /// VIA
-	/*VENDOR_CENTAUR   = "CentaurHauls", /// Centaur (VIA)
+	// Unseen from my eyes
+	VENDOR_CENTAUR   = "CentaurHauls", /// Centaur (VIA)
 	VENDOR_TRANSMETA = "GenuineTMx86", /// Transmeta
 	VENDOR_CYRIX     = "CyrixInstead", /// Cyrix
 	VENDOR_NEXGEN    = "NexGenDriven", /// Nexgen
@@ -29,20 +30,27 @@ enum { // Vendor strings, only ones I've seen used are the first three
 	VENDOR_VMWARE       = "VMwareVMware", /// VMware
 	VENDOR_XENHVM       = "XenVMMXenVMM", /// Xen VMM
 	VENDOR_MICROSOFT_HV = "Microsoft Hv", /// Microsoft Hyper-V
-	VENDOR_PARALLELS    = " lrpepyh  vr"  /// Parallels*/
-}
+	VENDOR_PARALLELS    = " lrpepyh  vr"  /// Parallels
+}*/
 
-enum : ubyte { // Self-made vendor "IDs" for faster look-up
-	UNKNOWN = 0,
-	ID_INTEL = 1,
-	ID_AMD = 2,
-	ID_VIA = 3
+/*
+ * Self-made vendor "IDs" for faster look-ups, LSB-based.
+ * These are the first four bytes of the vendor. If even the four first bytes
+ * re-appear in another vendor, get the next four bytes.
+ */
+enum : uint {
+	OTHER = 0,
+	ID_INTEL = 0x756e6547, // "Genu"
+	ID_AMD = 0x68747541, // "Auth"
+	ID_VIA = 0x20414956 // "VIA "
 }
-__gshared ubyte VendorID; /// Vendor "ID"
+__gshared uint VendorID; /// Vendor "ID"
 
-__gshared bool Raw; /// Raw
-__gshared bool Details; /// Detailed output
-__gshared bool Override; /// Override max leaf
+__gshared bool Raw; /// Raw option (-r)
+__gshared bool Details; /// Detailed output option (-d)
+__gshared bool Override; /// Override max leaf option (-o)
+
+@nogc:
 
 extern(C) int _strcmp_l(char* s1, char* s2, size_t l) {
 	while (--l) {
@@ -58,9 +66,8 @@ extern(C) void sa(char* a) {
 		case 'o': Override = 1; break;
 		case 'd': Details = 1; break;
 		case 'r': Raw = 1; break;
-		case 'h':
+		case 'h', '?':
 			help;
-			exit(0);
 			return;
 		case 'v':
 			_version;
@@ -73,14 +80,10 @@ extern(C) void sa(char* a) {
 }
 
 extern(C) void sb(char* a) {
-	if (_strcmp_l(a, cast(char*)"help", 4) == 0) {
-		help();
-		return;
-	}
-	if (_strcmp_l(a, cast(char*)"version", 7) == 0) {
-		_version();
-		return;
-	}
+	if (_strcmp_l(a, cast(char*)"help", 4) == 0)
+		help;
+	if (_strcmp_l(a, cast(char*)"version", 7) == 0)
+		_version;
 	printf("Unknown parameter: %s\n", a);
 	exit(0);
 }
@@ -89,10 +92,12 @@ extern(C) void help() {
 	puts(
 `CPUID information tool.
   Usage: ddcpuid OPTIONS
-  -d    Show more information
-  -r    Only show Raw CPUID data
-  -o    Override standard and extended leaves, useful with -r
+
+  -d    Show more, detailed information
+  -r    Only show raw CPUID data
+  -o    Override leaves, useful along -r
         Respectively to 20h and 8000_0020h
+
   -v, --version   Print version information
   -h, --help      Print this help screen`
 	);
@@ -101,21 +106,19 @@ extern(C) void help() {
 
 extern(C) void _version() {
 	printf(
-`ddcpuid v%s (%s)
-Copyright (c) dd86k 2016-2017
+`ddcpuid v` ~ VERSION ~ ` (` ~ __TIMESTAMP__ ~ `)
+Copyright (c) dd86k 2016-2018
 License: MIT License <http://opensource.org/licenses/MIT>
 Project page: <https://github.com/dd86k/ddcpuid>
-Compiler: %s v%d
-`,
-		cast(char*)VERSION, cast(char*)__TIMESTAMP__,
-		cast(char*)__FILE__, cast(char*)__VENDOR__, __VERSION__);
+Compiler: ` ~ __VENDOR__ ~ " v%d\n", __VERSION__
+	);
 	exit(0);
 }
 
 extern(C) int main(int argc, char** argv) {
 	while (--argc >= 1) {
 		if (argv[argc][1] == '-') {
-			sb(argv[argc]+2);
+			sb(argv[argc] + 2);
 		} else if (argv[argc][0] == '-') {
 			sa(argv[argc]);
 		}
@@ -129,34 +132,37 @@ extern(C) int main(int argc, char** argv) {
 		MaximumExtendedLeaf = getHighestExtendedLeaf;
 	}
 
-	if (Raw) { // if Raw
+	if (Raw) { // -r
 		puts(
-`|   Leaf   | S | EAX      | EBX      | ECX      | EDX      |
-|:--------:|:-:|:---------|:---------|:---------|:---------|`
+`| Leaf     | EAX      | EBX      | ECX      | EDX      |
+|----------|----------|----------|----------|----------|`
 );
-		uint l;
-		for (; l <= MaximumLeaf; ++l) print_cpuid(l);
-		l = 0x8000_0000; // Extended
-		for (; l <= MaximumExtendedLeaf; ++l) print_cpuid(l);
+		__gshared uint l;
+		for (; l <= MaximumLeaf; ++l)
+			print_cpuid(l);
+		l = 0x8000_0000; // Extended minimum
+		for (; l <= MaximumExtendedLeaf; ++l)
+			print_cpuid(l);
 		return 0;
 	}
 
 	debug printf("[L%04d] Fetching info...", __LINE__);
+
 	fetchInfo;
 
-	printf("Vendor: %s\nString: %s\n",
-		cast(char*)vendorString, cast(char*)cpuString);
+	printf(
+`Vendor: %s
+String: %s
+Identifier: Family %d Model %d Stepping %d
+            %Xh [%Xh:%Xh] %Xh [%Xh:%Xh] %Xh
+`,
+		cast(char*)vendorString, cast(char*)cpuString,
+		Family, Model, Stepping,
+		Family, BaseFamily, ExtendedFamily,
+		Model, BaseModel, ExtendedModel, Stepping
+	);
 
-	if (Details)
-		printf(
-	"Identifier: Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh\n",
-			Family, BaseFamily, ExtendedFamily,
-			Model, BaseModel, ExtendedModel, Stepping);
-	else
-		printf("Identifier: Family %d Model %d Stepping %d\n",
-			Family, Model, Stepping);
-
-	printf("Extensions: \n  ");
+	printf("\nExtensions \n  ");
 	if (MMX) printf("MMX, ");
 	if (MMXExt) printf("Extended MMX, ");
 	if (_3DNow) printf("3DNow!, ");
@@ -193,7 +199,7 @@ extern(C) int main(int argc, char** argv) {
 	if (AVX2) printf("AVX2, ");
 
 	if (Details) {
-		printf("\nInstructions: \n  ");
+		printf("\n\nInstructions \n  ");
 		if (MONITOR)
 			printf("MONITOR/MWAIT, ");
 		if (PCLMULQDQ)
@@ -214,14 +220,10 @@ extern(C) int main(int argc, char** argv) {
 			printf("SYSENTER/SYSEXIT, ");
 		if (TSC) {
 			printf("RDTSC");
-			if (TscDeadline || TscInvariant) {
-				printf(" (");
-				if (TscDeadline)
-					printf("TSC-Deadline");
-				if (TscInvariant)
-					printf(", TSC-Invariant");
-				printf(")");
-			}
+			if (TscDeadline)
+				printf(" +TSC-Deadline");
+			if (TscInvariant)
+				printf(" +TSC-Invariant");
 			printf(", ");
 		}
 		if (CMOV)
@@ -390,8 +392,8 @@ extern(C) immutable(char)* _B(uint c) pure {
 }
 
 extern(C) void print_cpuid(uint leaf) {
-	uint a, b, c, d;
-	asm {
+	__gshared uint a, b, c, d;
+	asm @nogc {
 		mov EAX, leaf;
 		mov ECX, 0;
 		cpuid;
@@ -400,7 +402,7 @@ extern(C) void print_cpuid(uint leaf) {
 		mov c, ECX;
 		mov d, EDX;
 	}
-	printf("| %8X | 0 | %8X | %8X | %8X | %8X |\n", leaf, a, b, c, d);
+	printf("| %8X | %8X | %8X | %8X | %8X |\n", leaf, a, b, c, d);
 }
 
 /*****************************
@@ -408,29 +410,29 @@ extern(C) void print_cpuid(uint leaf) {
  *****************************/
 
 extern(C) void fetchInfo() {
-	version (X86_64) asm {
+	version (X86_64) asm @nogc {
 		lea RDI, vendorString;
 		mov EAX, 0;
 		cpuid;
-		mov [RDI  ], EBX;
+		mov [RDI], EBX;
 		mov [RDI+4], EDX;
 		mov [RDI+8], ECX;
 		mov byte ptr [RDI+12], 0;
-	} else asm {
+	} else asm @nogc {
 		lea EDI, vendorString;
 		mov EAX, 0;
 		cpuid;
-		mov [EDI  ], EBX;
+		mov [EDI], EBX;
 		mov [EDI+4], EDX;
 		mov [EDI+8], ECX;
 		mov byte ptr [EDI+12], 0;
 	}
 
-	version (X86_64) asm {
+	version (X86_64) asm @nogc {
 		lea RDI, cpuString;
 		mov EAX, 0x8000_0002;
 		cpuid;
-		mov [RDI   ], EAX;
+		mov [RDI], EAX;
 		mov [RDI+ 4], EBX;
 		mov [RDI+ 8], ECX;
 		mov [RDI+12], EDX;
@@ -446,11 +448,11 @@ extern(C) void fetchInfo() {
 		mov [RDI+36], EBX;
 		mov [RDI+40], ECX;
 		mov [RDI+44], EDX;
-	} else asm {
+	} else asm @nogc {
 		lea EDI, cpuString;
 		mov EAX, 0x8000_0002;
 		cpuid;
-		mov [EDI   ], EAX;
+		mov [EDI], EAX;
 		mov [EDI+ 4], EBX;
 		mov [EDI+ 8], ECX;
 		mov [EDI+12], EDX;
@@ -468,19 +470,25 @@ extern(C) void fetchInfo() {
 		mov [EDI+44], EDX;
 	}
 
-	// Check if Intel first, since it's the most used, then AMD, then VIA
-	if (_strcmp_l(cast(char*)vendorString, VENDOR_INTEL, 12)) {
+	/*
+	 * Check if Intel first, since it's the most used, then AMD, then VIA.
+	 * If one is _at least_ found, stop.
+	 */
+	/*if (_strcmp_l(cast(char*)vendorString, VENDOR_INTEL, 12)) {
 		if (_strcmp_l(cast(char*)vendorString, VENDOR_AMD, 12)) {
 			if (_strcmp_l(cast(char*)vendorString, VENDOR_VIA, 12) == 0)
 				VendorID = ID_VIA;
 		} else VendorID = ID_AMD;
-	} else VendorID = ID_INTEL;
+	} else VendorID = ID_INTEL;*/
 
-	uint a, b, c, d; // EAX to EDX
+	// Why compare strings when you can just compare numbers?
+	VendorID = *cast(uint*)vendorString;
 
-	uint l = 1;
+	__gshared uint a, b, c, d; // EAX to EDX
+
+	__gshared uint l = 1;
 	for (; l <= MaximumLeaf; ++l) {
-		asm {
+		asm @nogc {
 			mov EAX, l;
 			mov ECX, 0;
 			cpuid;
@@ -621,7 +629,7 @@ extern(C) void fetchInfo() {
 
 	l = 0x8000_0000;
 	for (; l < MaximumExtendedLeaf; ++l) {
-		asm {
+		asm @nogc {
 			mov EAX, l;
 			mov ECX, 0;
 			cpuid;
@@ -688,9 +696,9 @@ __gshared uint MaximumLeaf;
 __gshared uint MaximumExtendedLeaf;
 
 /// Number of physical cores.
-__gshared ushort NumberOfCores;
+//__gshared ushort NumberOfCores;
 /// Number of logical cores.
-__gshared ushort NumberOfThreads;
+//__gshared ushort NumberOfThreads;
 
 /// Processor family. ID and extended ID included.
 __gshared ubyte Family;
@@ -893,7 +901,7 @@ __gshared uint TscInvariant; // 8
 /// Get the maximum leaf.
 /// Returns: Maximum leaf
 extern (C) uint getHighestLeaf() {
-	asm { naked;
+	asm @nogc { naked;
 		mov EAX, 0;
 		cpuid;
 		ret;
@@ -903,7 +911,7 @@ extern (C) uint getHighestLeaf() {
 /// Get the maximum extended leaf.
 /// Returns: Maximum extended leaf
 extern (C) uint getHighestExtendedLeaf() {
-	asm { naked;
+	asm @nogc { naked;
 		mov EAX, 0x8000_0000;
 		cpuid;
 		ret;
@@ -918,7 +926,7 @@ extern (C) uint getHighestExtendedLeaf() {
  *   -2 = Feature not supported.
  */
 /*extern (C) short getCoresIntel() {
-	asm { naked;
+	asm @nogc { naked;
 		mov EAX, 0;
 		cpuid;
 		cmp EAX, 0xB;

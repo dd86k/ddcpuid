@@ -417,7 +417,6 @@ extern(C) void fetchInfo() {
 		mov [RDI], EBX;
 		mov [RDI+4], EDX;
 		mov [RDI+8], ECX;
-		mov byte ptr [RDI+12], 0;
 	} else asm @nogc {
 		lea EDI, vendorString;
 		mov EAX, 0;
@@ -425,7 +424,6 @@ extern(C) void fetchInfo() {
 		mov [EDI], EBX;
 		mov [EDI+4], EDX;
 		mov [EDI+8], ECX;
-		mov byte ptr [EDI+12], 0;
 	}
 
 	version (X86_64) asm @nogc {

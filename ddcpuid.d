@@ -1,7 +1,7 @@
 import core.stdc.stdio : printf, puts;
 import core.stdc.stdlib : exit;
 
-enum VERSION = "0.6.1-2"; /// Program version
+enum VERSION = "0.6.2"; /// Program version
 
 enum
 	MAX_LEAF = 0x20, /// Maximum leaf (-o)
@@ -40,17 +40,15 @@ enum
  */
 enum : uint {
 	OTHER = 0,
-	ID_INTEL = 0x756e6547, // "Genu"
-	ID_AMD = 0x68747541, // "Auth"
-	ID_VIA = 0x20414956 // "VIA "
+	VENDOR_INTEL = 0x756e6547, // "Genu" LE
+	VENDOR_AMD = 0x68747541, // "Auth" LE
+	VENDOR_VIA = 0x20414956 // "VIA " LE
 }
 __gshared uint VendorID; /// Vendor "ID"
 
-__gshared bool Raw; /// Raw option (-r)
-__gshared bool Details; /// Detailed output option (-d)
-__gshared bool Override; /// Override max leaf option (-o)
-
-@nogc:
+__gshared char Raw = 0; /// Raw option (-r)
+__gshared char Details = 0; /// Detailed output option (-d)
+__gshared char Override = 0; /// Override max leaf option (-o)
 
 extern(C) int _strcmp_l(char* s1, char* s2, size_t l) {
 	while (--l) {
@@ -63,15 +61,11 @@ extern(C) int _strcmp_l(char* s1, char* s2, size_t l) {
 extern(C) void sa(char* a) {
 	while (*++a != 0) {
 		switch (*a) {
-		case 'o': Override = 1; break;
-		case 'd': Details = 1; break;
-		case 'r': Raw = 1; break;
-		case 'h', '?':
-			help;
-			return;
-		case 'v':
-			_version;
-			return;
+		case 'o': ++Override; break;
+		case 'd': ++Details; break;
+		case 'r': ++Raw; break;
+		case 'h', '?': help; return;
+		case 'v': _version; return;
 		default:
 			printf("Unknown parameter: %c\n", *a);
 			exit(0);
@@ -105,15 +99,17 @@ extern(C) void help() {
 }
 
 extern(C) void _version() {
-	printf(
+	puts(
 `ddcpuid v` ~ VERSION ~ ` (` ~ __TIMESTAMP__ ~ `)
 Copyright (c) dd86k 2016-2018
 License: MIT License <http://opensource.org/licenses/MIT>
 Project page: <https://github.com/dd86k/ddcpuid>
-Compiler: ` ~ __VENDOR__ ~ " v%d\n", __VERSION__
+Compiler: ` ~ __VENDOR__
 	);
 	exit(0);
 }
+
+//TODO: Add AMD Fn8000_001F_EAX
 
 extern(C) int main(int argc, char** argv) {
 	while (--argc >= 1) {
@@ -138,11 +134,13 @@ extern(C) int main(int argc, char** argv) {
 |----------|----------|----------|----------|----------|`
 );
 		__gshared uint l;
-		for (; l <= MaximumLeaf; ++l)
-			print_cpuid(l);
+		do {
+			printc(l);
+		} while (++l <= MaximumLeaf);
 		l = 0x8000_0000; // Extended minimum
-		for (; l <= MaximumExtendedLeaf; ++l)
-			print_cpuid(l);
+		do {
+			printc(l);
+		} while (++l <= MaximumExtendedLeaf);
 		return 0;
 	}
 
@@ -156,13 +154,13 @@ String: %s
 Identifier: Family %d Model %d Stepping %d
             %Xh [%Xh:%Xh] %Xh [%Xh:%Xh] %Xh
 `,
-		cast(char*)vendorString, cast(char*)cpuString,
+		cast(char*)vendorString, cast(char*)cpuString+8,
 		Family, Model, Stepping,
 		Family, BaseFamily, ExtendedFamily,
 		Model, BaseModel, ExtendedModel, Stepping
 	);
 
-	printf("\nExtensions \n  ");
+	printf("Extensions: ");
 	if (MMX) printf("MMX, ");
 	if (MMXExt) printf("Extended MMX, ");
 	if (_3DNow) printf("3DNow!, ");
@@ -176,21 +174,21 @@ Identifier: Family %d Model %d Stepping %d
 	if (SSE4a) printf("SSE4a, ");
 	if (LongMode)
 		switch (VendorID) {
-		case ID_INTEL: printf("Intel64, "); break;
-		case ID_AMD: printf("AMD64, "); break;
+		case VENDOR_INTEL: printf("Intel64, "); break;
+		case VENDOR_AMD: printf("AMD64, "); break;
 		default: printf("x86-64, "); break;
 		}
 	if (Virt)
 		switch (VendorID) {
-		case ID_INTEL: printf("VT-x, "); break; // VMX
-		case ID_AMD: printf("AMD-V, "); break; // SVM
-		case ID_VIA: printf("VIA VT, "); break;
+		case VENDOR_INTEL: printf("VT-x, "); break; // VMX
+		case VENDOR_AMD: printf("AMD-V, "); break; // SVM
+		case VENDOR_VIA: printf("VIA VT, "); break;
 		default: printf("VMX, "); break;
 		}
 	if (NX)
 		switch (VendorID) {
-		case ID_INTEL: printf("Intel XD (NX), "); break;
-		case ID_AMD  : printf("AMD EVP (NX), "); break;
+		case VENDOR_INTEL: printf("Intel XD (NX), "); break;
+		case VENDOR_AMD: printf("AMD EVP (NX), "); break;
 		default: printf("NX, "); break;
 		}
 	if (SMX) printf("Intel TXT (SMX), ");
@@ -199,7 +197,7 @@ Identifier: Family %d Model %d Stepping %d
 	if (AVX2) printf("AVX2, ");
 
 	if (Details) {
-		printf("\n\nInstructions \n  ");
+		printf("\nInstructions: ");
 		if (MONITOR)
 			printf("MONITOR/MWAIT, ");
 		if (PCLMULQDQ)
@@ -209,7 +207,7 @@ Identifier: Family %d Model %d Stepping %d
 		if (CMPXCHG16B)
 			printf("CMPXCHG16B, ");
 		if (MOVBE)
-			printf("MOVBE, "); // Intel Atom and quite a few AMD processorss.
+			printf("MOVBE, "); // Intel Atom and quite a few AMD processors.
 		if (RDRAND)
 			printf("RDRAND, ");
 		if (RDSEED)
@@ -251,58 +249,65 @@ Identifier: Family %d Model %d Stepping %d
 		}
 	}
 
-	puts("\n\nProcessor features");
+	immutable(char)* _pt() {
+		final switch (ProcessorType) { // 2 bit value
+		case 0: return "Original OEM Processor";
+		case 1: return "Intel OverDrive Processor";
+		case 2: return "Dual processor";
+		case 3: return "Intel reserved";
+		}
+	}
 
-	switch (VendorID) { // VENDOR SPECIFIC
-	case ID_INTEL:
+	printf(
+`
+
+Highest Leaf: %02Xh | Extended: %08Xh
+Processor type: %s
+  
+Processor technologies
+`,
+		MaximumLeaf, MaximumExtendedLeaf, _pt
+	);
+
+	switch (VendorID) { // VENDOR SPECIFIC FEATURES
+	case VENDOR_INTEL:
 		if (EIST)
 			puts("  Enhanced SpeedStep(R) Technology");
 		if (TurboBoost)
-			puts("  TurboBoost available");
+			puts("  TurboBoost");
+		break;
+	case VENDOR_AMD:
+		if (TurboBoost)
+			puts("  Core Performance Boost");
 		break;
 	default:
 	}
 
 	if (Details) {
-		printf(
-`
-
-DETAILED REPORT
-  Highest Leaf: %02Xh | Extended: %08Xh
-  Processor type: `,
-			MaximumLeaf, MaximumExtendedLeaf
-		);
-		final switch (ProcessorType) { // 2 bit value
-		case 0: puts("Original OEM Processor"); break;
-		case 1: puts("Intel OverDrive Processor"); break;
-		case 2: puts("Dual processor"); break;
-		case 3: puts("Intel reserved"); break;
-		}
-
 		printf( // FPU
 `
 FPU
   Floating Point Unit [FPU]: %s
   16-bit conversion [F16]: %s
 `,
-			_B(FPU),
-			_B(F16C)
+			B(FPU),
+			B(F16C)
 		);
 
 		printf( // APCI
 `
 APCI
   APCI: %s
-  APIC: %s (Initial ID: %d, Max: %d
+  APIC: %s (Initial ID: %d, Max: %d)
   x2APIC: %s
   Thermal Monitor: %s
   Thermal Monitor 2: %s
 `,
-			_B(APCI),
-			_B(APIC),
-			InitialAPICID, MaxIDs, _B(x2APIC),
-			_B(TM),
-			_B(TM2)
+			B(APCI),
+			B(APIC),
+			InitialAPICID, MaxIDs, B(x2APIC),
+			B(TM),
+			B(TM2)
 		);
 
 		printf( // Virtualization
@@ -310,7 +315,7 @@ APCI
 Virtualization
   Virtual 8086 Mode Enhancements [VME]: %s
 `,
-			_B(VME)
+			B(VME)
 		);
 
 		printf( // Memory
@@ -325,14 +330,14 @@ Memory and Paging
   Page Global Bit [PGE]: %s, 
   64-bit DS Area [DTES64]: %s
 `,
-			_B(PAE),
-			_B(PSE_36),
-			_B(Page1GB),
-			_B(DCA),
-			_B(PAT),
-			_B(MTRR),
-			_B(PGE),
-			_B(DTES64)
+			B(PAE),
+			B(PSE_36),
+			B(Page1GB),
+			B(DCA),
+			B(PAT),
+			B(MTRR),
+			B(PGE),
+			B(DTES64)
 		);
 
 		printf( // Debugging
@@ -345,12 +350,12 @@ Debugging
   Perfmon and Debug Capability [PDCM]: %s
   IA32_DEBUG_INTERFACE (MSR) [SDBG]: %s
 `,
-			_B(MCE),
-			_B(DE),
-			_B(DS),
-			_B(DS_CPL),
-			_B(PDCM),
-			_B(SDBG)
+			B(MCE),
+			B(DE),
+			B(DS),
+			B(DS_CPL),
+			B(PDCM),
+			B(SDBG)
 		);
 
 		printf( // Other features
@@ -367,14 +372,14 @@ Other features
   Supervisor Mode Execution Protection [SMEP]: %s
   Bit manipulation groups: `,
 			BrandIndex,
-			_B(CNXT_ID),
-			_B(xTPR),
-			_B(PCID),
-			_B(MCA),
-			_B(PSN),
-			_B(SS),
-			_B(PBE),
-			_B(SMEP)
+			B(CNXT_ID),
+			B(xTPR),
+			B(PCID),
+			B(MCA),
+			B(PSN),
+			B(SS),
+			B(PBE),
+			B(SMEP)
 		);
 		if (BMI1 || BMI2) {
 			if (BMI1) printf("BMI1");
@@ -387,13 +392,14 @@ Other features
 	return 0;
 } // main
 
-extern(C) immutable(char)* _B(uint c) pure {
+extern(C) immutable(char)* B(uint c) pure {
 	return c ? "Yes" : "No";
 }
 
-extern(C) void print_cpuid(uint leaf) {
+/// Print cpuid
+extern(C) void printc(uint leaf) {
 	__gshared uint a, b, c, d;
-	asm @nogc {
+	asm {
 		mov EAX, leaf;
 		mov ECX, 0;
 		cpuid;
@@ -410,14 +416,15 @@ extern(C) void print_cpuid(uint leaf) {
  *****************************/
 
 extern(C) void fetchInfo() {
-	version (X86_64) asm @nogc {
+	// Get Processor Vendor
+	version (X86_64) asm {
 		lea RDI, vendorString;
 		mov EAX, 0;
 		cpuid;
 		mov [RDI], EBX;
 		mov [RDI+4], EDX;
 		mov [RDI+8], ECX;
-	} else asm @nogc {
+	} else asm {
 		lea EDI, vendorString;
 		mov EAX, 0;
 		cpuid;
@@ -426,7 +433,8 @@ extern(C) void fetchInfo() {
 		mov [EDI+8], ECX;
 	}
 
-	version (X86_64) asm @nogc {
+	// Get Processor Brand String
+	version (X86_64) asm {
 		lea RDI, cpuString;
 		mov EAX, 0x8000_0002;
 		cpuid;
@@ -468,25 +476,15 @@ extern(C) void fetchInfo() {
 		mov [EDI+44], EDX;
 	}
 
-	/*
-	 * Check if Intel first, since it's the most used, then AMD, then VIA.
-	 * If one is _at least_ found, stop.
-	 */
-	/*if (_strcmp_l(cast(char*)vendorString, VENDOR_INTEL, 12)) {
-		if (_strcmp_l(cast(char*)vendorString, VENDOR_AMD, 12)) {
-			if (_strcmp_l(cast(char*)vendorString, VENDOR_VIA, 12) == 0)
-				VendorID = ID_VIA;
-		} else VendorID = ID_AMD;
-	} else VendorID = ID_INTEL;*/
-
 	// Why compare strings when you can just compare numbers?
 	VendorID = *cast(uint*)vendorString;
 
 	__gshared uint a, b, c, d; // EAX to EDX
+	ubyte* bp = cast(ubyte*)&b;
 
-	__gshared uint l = 1;
-	for (; l <= MaximumLeaf; ++l) {
-		asm @nogc {
+	__gshared uint l = 1; // CPUID.0 already been processed
+	do {
+		asm {
 			mov EAX, l;
 			mov ECX, 0;
 			cpuid;
@@ -507,7 +505,7 @@ extern(C) void fetchInfo() {
 			ExtendedFamily = cast(ubyte)(a >> 20); // EAX[27:20]
 
 			switch (VendorID) {
-			case ID_INTEL:
+			case VENDOR_INTEL:
 				if (BaseFamily != 0)
 					Family = BaseFamily;
 				else
@@ -524,19 +522,25 @@ extern(C) void fetchInfo() {
 				Virt    = c & 0x20;
 				SMX     = c & 0x40;
 				EIST    = c & 0x80;
+				TM2     = c & 0x100;
 				CNXT_ID = c & 0x400;
 				SDBG    = c & 0x800;
 				xTPR    = c & 0x4000;
 				PDCM    = c & 0x8000;
 				PCID    = c & 0x2_0000;
 				DCA     = c & 0x4_0000;
+				x2APIC  = c & 0x20_0000;
+
+				// EDX
+				PSN     = d & 0x4_0000;
 				DS      = d & 0x20_0000;
 				APCI    = d & 0x40_0000;
+				TscDeadline = c & 0x100_0000;
 				SS      = d & 0x800_0000;
 				TM      = d & 0x2000_0000;
 				PBE     = d & 0x8000_0000;
 				break;
-			case ID_AMD:
+			case VENDOR_AMD:
 				if (BaseFamily < 0xF) {
 					Family = BaseFamily;
 					Model = BaseModel;
@@ -545,28 +549,25 @@ extern(C) void fetchInfo() {
 					Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
 				}
 				break;
-				default:
+			default:
 			}
 
 			// EBX
-			BrandIndex      = cast(ubyte)(b);       // EBX[7:0]
-			CLFLUSHLineSize = cast(ubyte)(b >> 8);  // EBX[15:8]
-			MaxIDs          = cast(ubyte)(b >> 16); // EBX[23:16]
-			InitialAPICID   = cast(ubyte)(b >> 24); // EBX[31:24]
+			BrandIndex      = *bp;       // EBX[ 7: 0]
+			CLFLUSHLineSize = *(bp + 1); // EBX[15: 8]
+			MaxIDs          = *(bp + 2); // EBX[23:16]
+			InitialAPICID   = *(bp + 3); // EBX[31:24]
 			// ECX
 			SSE3        = c & 1;
 			PCLMULQDQ   = c & 2;
 			MONITOR     = c & 8;
-			TM2         = c & 0x100;
 			SSSE3       = c & 0x200;
 			FMA         = c & 0x1000;
 			CMPXCHG16B  = c & 0x2000;
 			SSE41       = c & 0x8_0000;
 			SSE42       = c & 0x10_0000;
-			x2APIC      = c & 0x20_0000;
 			MOVBE       = c & 0x40_0000;
 			POPCNT      = c & 0x80_0000;
-			TscDeadline = c & 0x100_0000;
 			AES         = c & 0x200_0000;
 			XSAVE       = c & 0x400_0000;
 			OSXSAVE     = c & 0x800_0000;
@@ -591,7 +592,6 @@ extern(C) void fetchInfo() {
 			CMOV   = d & 0x8000;
 			PAT    = d & 0x1_0000;
 			PSE_36 = d & 0x2_0000;
-			PSN    = d & 0x4_0000;
 			CLFSH  = d & 0x8_0000;
 			MMX    = d & 0x80_0000;
 			FXSR   = d & 0x100_0000;
@@ -602,7 +602,7 @@ extern(C) void fetchInfo() {
 
 		case 6:
 			switch (VendorID) {
-			case ID_INTEL:
+			case VENDOR_INTEL:
 				TurboBoost = a & 2;
 				break;
 			default:
@@ -619,14 +619,14 @@ extern(C) void fetchInfo() {
 
 			default:
 		}
-	}
+	} while (++l <= MaximumLeaf);
 	
 	/*
 	 * Extended CPUID leafs
 	 */
 
 	l = 0x8000_0000;
-	for (; l < MaximumExtendedLeaf; ++l) {
+	do {
 		asm @nogc {
 			mov EAX, l;
 			mov ECX, 0;
@@ -640,7 +640,7 @@ extern(C) void fetchInfo() {
 		switch (l) {
 		case 0x8000_0001:
 			switch (VendorID) {
-			case ID_AMD:
+			case VENDOR_AMD:
 				Virt  = c & 4; // SVM
 				SSE4a = c & 0x40;
 				FMA4  = c & 0x1_0000;
@@ -662,11 +662,12 @@ extern(C) void fetchInfo() {
 
 		case 0x8000_0007:
 			switch (VendorID) {
-			case ID_INTEL:
+			case VENDOR_INTEL:
 				RDSEED = b & 0x4_0000;
 				break;
-			case ID_AMD:
+			case VENDOR_AMD:
 				TM = d & 0x10;
+				TurboBoost = d & 0x200;
 				break;
 			default:
 			}
@@ -675,7 +676,7 @@ extern(C) void fetchInfo() {
 			break;
 		default:
 		}
-	}
+	} while (++l <= MaximumExtendedLeaf);
 }
 
 /***************************
@@ -862,6 +863,7 @@ __gshared uint PBE; // 31
 
 // ---- 06h ----
 /// Turbo Boost Technology (Intel)
+/// Re-using the name for AMD's Core Performance Boost
 __gshared uint TurboBoost;
 
 
@@ -899,7 +901,7 @@ __gshared uint TscInvariant; // 8
 /// Get the maximum leaf.
 /// Returns: Maximum leaf
 extern (C) uint getHighestLeaf() {
-	asm @nogc { naked;
+	asm { naked;
 		mov EAX, 0;
 		cpuid;
 		ret;
@@ -909,7 +911,7 @@ extern (C) uint getHighestLeaf() {
 /// Get the maximum extended leaf.
 /// Returns: Maximum extended leaf
 extern (C) uint getHighestExtendedLeaf() {
-	asm @nogc { naked;
+	asm { naked;
 		mov EAX, 0x8000_0000;
 		cpuid;
 		ret;
@@ -924,7 +926,7 @@ extern (C) uint getHighestExtendedLeaf() {
  *   -2 = Feature not supported.
  */
 /*extern (C) short getCoresIntel() {
-	asm @nogc { naked;
+	asm { naked;
 		mov EAX, 0;
 		cpuid;
 		cmp EAX, 0xB;

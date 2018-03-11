@@ -1,6 +1,8 @@
 # ddcpuid, A CPUID tool
 
-A simple/dumb CPUID tool.
+A simple CPUID tool.
+
+Most features from Intel and AMD are supported for x86 platforms.
 
 Example output:
 ```
@@ -15,6 +17,8 @@ Processor features
   Enhanced SpeedStep(R) Technology
   TurboBoost available
 ```
+
+To get more details, use the `-d` switch.
 
 ## Compiling
 

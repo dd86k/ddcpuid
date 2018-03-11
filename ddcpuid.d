@@ -154,7 +154,7 @@ String: %s
 Identifier: Family %d Model %d Stepping %d
             %Xh [%Xh:%Xh] %Xh [%Xh:%Xh] %Xh
 `,
-		cast(char*)vendorString, cast(char*)cpuString+8,
+		cast(char*)vendorString, cast(char*)cpuString,
 		Family, Model, Stepping,
 		Family, BaseFamily, ExtendedFamily,
 		Model, BaseModel, ExtendedModel, Stepping

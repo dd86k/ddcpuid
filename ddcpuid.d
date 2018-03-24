@@ -249,7 +249,7 @@ Identifier: Family %d Model %d Stepping %d
 		}
 	}
 
-	immutable(char)* _pt() {
+	extern (C) immutable(char)* _pt() { // Forgive me
 		final switch (ProcessorType) { // 2 bit value
 		case 0: return "Original OEM Processor";
 		case 1: return "Intel OverDrive Processor";

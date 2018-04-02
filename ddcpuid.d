@@ -1,5 +1,6 @@
 import core.stdc.stdio : printf, puts;
 import core.stdc.stdlib : exit;
+import core.stdc.string : strncmp;
 
 enum VERSION = "0.6.2"; /// Program version
 
@@ -46,17 +47,9 @@ enum : uint {
 }
 __gshared uint VendorID; /// Vendor "ID"
 
-__gshared char Raw = 0; /// Raw option (-r)
-__gshared char Details = 0; /// Detailed output option (-d)
-__gshared char Override = 0; /// Override max leaf option (-o)
-
-extern(C) int _strcmp_l(char* s1, char* s2, size_t l) {
-	while (--l) {
-		if (*s1 != *s2) return 1;
-		++s1; ++s2;
-	}
-	return 0;
-}
+__gshared byte Raw = 0; /// Raw option (-r)
+__gshared byte Details = 0; /// Detailed output option (-d)
+__gshared byte Override = 0; /// Override max leaf option (-o)
 
 extern(C) void sa(char* a) {
 	while (*++a != 0) {
@@ -74,9 +67,9 @@ extern(C) void sa(char* a) {
 }
 
 extern(C) void sb(char* a) {
-	if (_strcmp_l(a, cast(char*)"help", 4) == 0)
+	if (strncmp(a, "help", 4) == 0)
 		help;
-	if (_strcmp_l(a, cast(char*)"version", 7) == 0)
+	if (strncmp(a, "version", 7) == 0)
 		_version;
 	printf("Unknown parameter: %s\n", a);
 	exit(0);
@@ -110,13 +103,14 @@ Compiler: ` ~ __VENDOR__
 }
 
 //TODO: Add AMD Fn8000_001F_EAX
+//      SVM version
 
 extern(C) int main(int argc, char** argv) {
 	while (--argc >= 1) {
 		if (argv[argc][1] == '-') {
-			sb(argv[argc] + 2);
+			sb(argv[argc] + 2); continue;
 		} else if (argv[argc][0] == '-') {
-			sa(argv[argc]);
+			sa(argv[argc]); continue;
 		}
 	}
 
@@ -250,11 +244,12 @@ Identifier: Family %d Model %d Stepping %d
 	}
 
 	extern (C) immutable(char)* _pt() { // Forgive me
-		final switch (ProcessorType) { // 2 bit value
+		switch (ProcessorType) { // 2 bit value
 		case 0: return "Original OEM Processor";
 		case 1: return "Intel OverDrive Processor";
 		case 2: return "Dual processor";
 		case 3: return "Intel reserved";
+		default: return "ERROR";
 		}
 	}
 

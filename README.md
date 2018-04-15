@@ -1,24 +1,25 @@
 # ddcpuid, A CPUID tool
 
-A simple CPUID tool.
-
-Most features from Intel and AMD are supported for x86 platforms.
+A simple x86 CPUID tool, mostly compatible with Intel and AMD.
 
 Example output:
 ```
 Vendor: GenuineIntel
-String:         Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
+String: Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
 Identifier: Family 6 Model 58 Stepping 9
-Extensions:
-  MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, Intel64, VT-x, Intel XD (NX), Int
-el TXT (SMX), AES-NI, AVX,
+            6h [6h:0h] 3Ah [Ah:3h] 9h
+Extensions: MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, Intel64, VT-x, Intel XD (NX), Intel TX
+T (SMX), AES-NI, AVX,
 
-Processor features
+Highest Leaf: 0Dh | Extended: 80000008h
+Processor type: Original OEM Processor
+
+Processor technologies
   Enhanced SpeedStep(R) Technology
-  TurboBoost available
+  TurboBoost
 ```
 
-To get more details, use the `-d` switch.
+For more details, use the `-d` switch!
 
 ## Compiling
 

@@ -325,7 +325,7 @@ Memory and Paging
   Direct Cache Access [DCA]: %s
   Page Attribute Table [PAT]: %s
   Memory Type Range Registers [MTRR]: %s
-  Page Global Bit [PGE]: %s, 
+  Page Global Bit [PGE]: %s
   64-bit DS Area [DTES64]: %s
 `,
 			B(PAE),

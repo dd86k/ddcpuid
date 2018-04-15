@@ -9,6 +9,8 @@ ehthumbs.db
 *.o
 *.di
 *.zip
+*.tar
+*.tar.gz
 
 .vscode
 

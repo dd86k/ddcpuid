@@ -1,8 +1,8 @@
 import core.stdc.stdio : printf, puts;
 import core.stdc.stdlib : exit;
-import core.stdc.string : strncmp;
+import core.stdc.string : strcmp;
 
-enum VERSION = "0.6.2"; /// Program version
+enum VERSION = "0.6.3"; /// Program version
 
 enum
 	MAX_LEAF = 0x20, /// Maximum leaf (-o)
@@ -67,9 +67,9 @@ extern(C) void sa(char* a) {
 }
 
 extern(C) void sb(char* a) {
-	if (strncmp(a, "help", 4) == 0)
+	if (strcmp(a, "help") == 0)
 		help;
-	if (strncmp(a, "version", 7) == 0)
+	if (strcmp(a, "version") == 0)
 		_version;
 	printf("Unknown parameter: %s\n", a);
 	exit(0);
@@ -108,9 +108,9 @@ Compiler: ` ~ __VENDOR__
 extern(C) int main(int argc, char** argv) {
 	while (--argc >= 1) {
 		if (argv[argc][1] == '-') {
-			sb(argv[argc] + 2); continue;
+			sb(argv[argc] + 2);
 		} else if (argv[argc][0] == '-') {
-			sa(argv[argc]); continue;
+			sa(argv[argc]);
 		}
 	}
 
@@ -142,13 +142,16 @@ extern(C) int main(int argc, char** argv) {
 
 	fetchInfo;
 
+	char* cstring = cast(char*)cpuString;
+	while (*cstring == ' ') ++cstring; // left trim cpu string, common in Intel
+
 	printf(
 `Vendor: %s
 String: %s
 Identifier: Family %d Model %d Stepping %d
             %Xh [%Xh:%Xh] %Xh [%Xh:%Xh] %Xh
 `,
-		cast(char*)vendorString, cast(char*)cpuString,
+		cast(char*)vendorString, cstring,
 		Family, Model, Stepping,
 		Family, BaseFamily, ExtendedFamily,
 		Model, BaseModel, ExtendedModel, Stepping
@@ -419,6 +422,7 @@ extern(C) void fetchInfo() {
 		mov [RDI], EBX;
 		mov [RDI+4], EDX;
 		mov [RDI+8], ECX;
+		mov byte ptr [RDI+12], 0; // ldc fix
 	} else asm {
 		lea EDI, vendorString;
 		mov EAX, 0;
@@ -426,6 +430,7 @@ extern(C) void fetchInfo() {
 		mov [EDI], EBX;
 		mov [EDI+4], EDX;
 		mov [EDI+8], ECX;
+		mov byte ptr [EDI+12], 0; // see above
 	}
 
 	// Get Processor Brand String
@@ -449,7 +454,8 @@ extern(C) void fetchInfo() {
 		mov [RDI+36], EBX;
 		mov [RDI+40], ECX;
 		mov [RDI+44], EDX;
-	} else asm @nogc {
+		mov byte ptr [RDI+48], 0;
+	} else asm {
 		lea EDI, cpuString;
 		mov EAX, 0x8000_0002;
 		cpuid;
@@ -469,6 +475,7 @@ extern(C) void fetchInfo() {
 		mov [EDI+36], EBX;
 		mov [EDI+40], ECX;
 		mov [EDI+44], EDX;
+		mov byte ptr [EDI+48], 0;
 	}
 
 	// Why compare strings when you can just compare numbers?

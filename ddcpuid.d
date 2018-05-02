@@ -51,7 +51,7 @@ __gshared byte Raw = 0; /// Raw option (-r)
 __gshared byte Details = 0; /// Detailed output option (-d)
 __gshared byte Override = 0; /// Override max leaf option (-o)
 
-extern(C) void sa(char* a) {
+extern (C) void sarg(char* a) {
 	while (*++a != 0) {
 		switch (*a) {
 		case 'o': ++Override; break;
@@ -66,7 +66,7 @@ extern(C) void sa(char* a) {
 	}
 }
 
-extern(C) void sb(char* a) {
+extern (C) void larg(char* a) {
 	if (strcmp(a, "help") == 0)
 		help;
 	if (strcmp(a, "version") == 0)
@@ -75,7 +75,7 @@ extern(C) void sb(char* a) {
 	exit(0);
 }
 
-extern(C) void help() {
+extern (C) void help() {
 	puts(
 `CPUID information tool.
   Usage: ddcpuid OPTIONS
@@ -91,7 +91,7 @@ extern(C) void help() {
 	exit(0);
 }
 
-extern(C) void _version() {
+extern (C) void _version() {
 	puts(
 `ddcpuid v` ~ VERSION ~ ` (` ~ __TIMESTAMP__ ~ `)
 Copyright (c) dd86k 2016-2018
@@ -105,12 +105,12 @@ Compiler: ` ~ __VENDOR__
 //TODO: Add AMD Fn8000_001F_EAX
 //      SVM version
 
-extern(C) int main(int argc, char** argv) {
+extern (C) int main(int argc, char** argv) {
 	while (--argc >= 1) {
 		if (argv[argc][1] == '-') {
-			sb(argv[argc] + 2);
+			larg(argv[argc] + 2);
 		} else if (argv[argc][0] == '-') {
-			sa(argv[argc]);
+			sarg(argv[argc]);
 		}
 	}
 
@@ -118,15 +118,15 @@ extern(C) int main(int argc, char** argv) {
 		MaximumLeaf = MAX_LEAF;
 		MaximumExtendedLeaf = MAX_ELEAF;
 	} else {
-		MaximumLeaf = getHighestLeaf;
-		MaximumExtendedLeaf = getHighestExtendedLeaf;
+		MaximumLeaf = hleaf;
+		MaximumExtendedLeaf = heleaf;
 	}
 
 	if (Raw) { // -r
 		puts(
-`| Leaf     | EAX      | EBX      | ECX      | EDX      |
-|----------|----------|----------|----------|----------|`
-);
+			"| Leaf     | EAX      | EBX      | ECX      | EDX      |\n"~
+			"|----------|----------|----------|----------|----------|"
+		);
 		__gshared uint l;
 		do {
 			printc(l);
@@ -146,11 +146,10 @@ extern(C) int main(int argc, char** argv) {
 	while (*cstring == ' ') ++cstring; // left trim cpu string, common in Intel
 
 	printf(
-`Vendor: %s
-String: %s
-Identifier: Family %d Model %d Stepping %d
-            %Xh [%Xh:%Xh] %Xh [%Xh:%Xh] %Xh
-`,
+		"Vendor: %s\n"~
+		"String: %s\n"~
+		"Identifier: Family %d Model %d Stepping %d\n"~
+		"            %Xh [%Xh:%Xh] %Xh [%Xh:%Xh] %Xh",
 		cast(char*)vendorString, cstring,
 		Family, Model, Stepping,
 		Family, BaseFamily, ExtendedFamily,
@@ -257,13 +256,9 @@ Identifier: Family %d Model %d Stepping %d
 	}
 
 	printf(
-`
-
-Highest Leaf: %02Xh | Extended: %08Xh
-Processor type: %s
-  
-Processor technologies
-`,
+		"\n\nHighest Leaf: %02Xh | Extended: %08Xh\n"~
+		"Processor type: %s\n\n"~
+		"Processor technologies\n",
 		MaximumLeaf, MaximumExtendedLeaf, _pt
 	);
 
@@ -283,24 +278,20 @@ Processor technologies
 
 	if (Details) {
 		printf( // FPU
-`
-FPU
-  Floating Point Unit [FPU]: %s
-  16-bit conversion [F16]: %s
-`,
+			"\n\nFPU\n"~
+			"  Floating Point Unit [FPU]: %s\n"~
+			"  16-bit conversion [F16]: %s\n",
 			B(FPU),
 			B(F16C)
 		);
 
 		printf( // APCI
-`
-APCI
-  APCI: %s
-  APIC: %s (Initial ID: %d, Max: %d)
-  x2APIC: %s
-  Thermal Monitor: %s
-  Thermal Monitor 2: %s
-`,
+			"\nAPCI\n"~
+			"  APCI: %s\n"~
+			"  APIC: %s (Initial ID: %d, Max: %d)\n"~
+			"  x2APIC: %s\n"~
+			"  Thermal Monitor: %s\n"~
+			"  Thermal Monitor 2: %s\n",
 			B(APCI),
 			B(APIC),
 			InitialAPICID, MaxIDs, B(x2APIC),
@@ -309,25 +300,21 @@ APCI
 		);
 
 		printf( // Virtualization
-`
-Virtualization
-  Virtual 8086 Mode Enhancements [VME]: %s
-`,
+			"\nVirtualization\n"~
+			"  Virtual 8086 Mode Enhancements [VME]: %s\n",
 			B(VME)
 		);
 
 		printf( // Memory
-`
-Memory and Paging
-  Page Size Extension [PAE]: %s
-  36-Bit Page Size Extension [PSE-36]: %s
-  1 GB Pages support [Page1GB]: %s
-  Direct Cache Access [DCA]: %s
-  Page Attribute Table [PAT]: %s
-  Memory Type Range Registers [MTRR]: %s
-  Page Global Bit [PGE]: %s
-  64-bit DS Area [DTES64]: %s
-`,
+			"\nMemory and Paging\n"~
+			"  Page Size Extension [PAE]: %s"~
+			"  36-Bit Page Size Extension [PSE-36]: %s"~
+			"  1 GB Pages support [Page1GB]: %s"~
+			"  Direct Cache Access [DCA]: %s"~
+			"  Page Attribute Table [PAT]: %s"~
+			"  Memory Type Range Registers [MTRR]: %s"~
+			"  Page Global Bit [PGE]: %s"~
+			"  64-bit DS Area [DTES64]: %s",
 			B(PAE),
 			B(PSE_36),
 			B(Page1GB),
@@ -339,15 +326,13 @@ Memory and Paging
 		);
 
 		printf( // Debugging
-`
-Debugging
-  Machine Check Exception [MCE]: %s
-  Debugging Extensions [DE]: %s
-  Debug Store [DS]: %s
-  Debug Store CPL [DS-CPL]: %s
-  Perfmon and Debug Capability [PDCM]: %s
-  IA32_DEBUG_INTERFACE (MSR) [SDBG]: %s
-`,
+			"\nDebugging\n"~
+			"  Machine Check Exception [MCE]: %s\n"~
+			"  Debugging Extensions [DE]: %s\n"~
+			"  Debug Store [DS]: %s\n"~
+			"  Debug Store CPL [DS-CPL]: %s\n"~
+			"  Perfmon and Debug Capability [PDCM]: %s\n"~
+			"  IA32_DEBUG_INTERFACE (MSR) [SDBG]: %s\n",
 			B(MCE),
 			B(DE),
 			B(DS),
@@ -357,18 +342,17 @@ Debugging
 		);
 
 		printf( // Other features
-`
-Other features
-  Brand Index: %d
-  L1 Context ID [CNXT-ID]: %s
-  xTPR Update Control [xTPR]: %s
-  Process-context identifiers [PCID]: %s
-  Machine Check Architecture [MCA]: %s
-  Processor Serial Number [PSN]: %s
-  Self Snoop [SS]: %s
-  Pending Break Enable [PBE]: %s
-  Supervisor Mode Execution Protection [SMEP]: %s
-  Bit manipulation groups: `,
+			"\nOther features\n"~
+			"  Brand Index: %d\n"~
+			"  L1 Context ID [CNXT-ID]: %s\n"~
+			"  xTPR Update Control [xTPR]: %s\n"~
+			"  Process-context identifiers [PCID]: %s\n"~
+			"  Machine Check Architecture [MCA]: %s\n"~
+			"  Processor Serial Number [PSN]: %s\n"~
+			"  Self Snoop [SS]: %s\n"~
+			"  Pending Break Enable [PBE]: %s\n"~
+			"  Supervisor Mode Execution Protection [SMEP]: %s\n"~
+			"  Bit manipulation groups: \n",
 			BrandIndex,
 			B(CNXT_ID),
 			B(xTPR),
@@ -413,7 +397,7 @@ extern(C) void printc(uint leaf) {
  * CPU INFO
  *****************************/
 
-extern(C) void fetchInfo() {
+extern (C) void fetchInfo() {
 	// Get Processor Vendor
 	version (X86_64) asm {
 		lea RDI, vendorString;
@@ -629,7 +613,7 @@ extern(C) void fetchInfo() {
 
 	l = 0x8000_0000;
 	do {
-		asm @nogc {
+		asm {
 			mov EAX, l;
 			mov ECX, 0;
 			cpuid;
@@ -686,10 +670,10 @@ extern(C) void fetchInfo() {
  ***************************/
 
 // ---- Basic information ----
-/// Processor vendor.
-__gshared char[13] vendorString; // null-padded
-/// Processor brand string.
-__gshared char[49] cpuString; // ditto
+/// Processor vendor
+__gshared char[13] vendorString;
+/// Processor brand string
+__gshared char[49] cpuString;
 
 /// Maximum leaf supported by this processor.
 __gshared uint MaximumLeaf;
@@ -902,7 +886,7 @@ __gshared uint TscInvariant; // 8
 
 /// Get the maximum leaf.
 /// Returns: Maximum leaf
-extern (C) uint getHighestLeaf() {
+extern (C) uint hleaf() {
 	asm { naked;
 		mov EAX, 0;
 		cpuid;
@@ -912,7 +896,7 @@ extern (C) uint getHighestLeaf() {
 
 /// Get the maximum extended leaf.
 /// Returns: Maximum extended leaf
-extern (C) uint getHighestExtendedLeaf() {
+extern (C) uint heleaf() {
 	asm { naked;
 		mov EAX, 0x8000_0000;
 		cpuid;

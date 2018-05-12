@@ -142,21 +142,27 @@ extern (C) int main(int argc, char** argv) {
 
 	fetchInfo;
 
-	char* cstring = cast(char*)cpuString;
-	while (*cstring == ' ') ++cstring; // left trim cpu string, common in Intel
+	__gshared char* cstring = cast(char*)cpuString;
+
+	switch (VendorID) {
+	case VENDOR_INTEL:
+		while (*cstring == ' ') ++cstring; // left trim cpu string
+		break;
+	default:
+	}
 
 	printf(
 		"Vendor: %s\n"~
 		"String: %s\n"~
 		"Identifier: Family %d Model %d Stepping %d\n"~
-		"            %Xh [%Xh:%Xh] %Xh [%Xh:%Xh] %Xh",
+		"            %Xh [%Xh:%Xh] %Xh [%Xh:%Xh] %Xh\n",
 		cast(char*)vendorString, cstring,
 		Family, Model, Stepping,
 		Family, BaseFamily, ExtendedFamily,
 		Model, BaseModel, ExtendedModel, Stepping
 	);
 
-	printf("Extensions: ");
+	printf("Extensions\n    ");
 	if (MMX) printf("MMX, ");
 	if (MMXExt) printf("Extended MMX, ");
 	if (_3DNow) printf("3DNow!, ");
@@ -251,12 +257,12 @@ extern (C) int main(int argc, char** argv) {
 		case 1: return "Intel OverDrive Processor";
 		case 2: return "Dual processor";
 		case 3: return "Intel reserved";
-		default: return "ERROR";
+		default: return "?";
 		}
 	}
 
 	printf(
-		"\n\nHighest Leaf: %02Xh | Extended: %08Xh\n"~
+		"\n\nHighest Leaf: %XH | Extended: %XH\n"~
 		"Processor type: %s\n\n"~
 		"Processor technologies\n",
 		MaximumLeaf, MaximumExtendedLeaf, _pt
@@ -374,7 +380,7 @@ extern (C) int main(int argc, char** argv) {
 	return 0;
 } // main
 
-extern(C) immutable(char)* B(uint c) pure {
+extern(C) immutable(char)* B(uint c) pure @nogc nothrow {
 	return c ? "Yes" : "No";
 }
 
@@ -406,7 +412,7 @@ extern (C) void fetchInfo() {
 		mov [RDI], EBX;
 		mov [RDI+4], EDX;
 		mov [RDI+8], ECX;
-		mov byte ptr [RDI+12], 0; // ldc fix
+		mov byte ptr [RDI+12], 0;
 	} else asm {
 		lea EDI, vendorString;
 		mov EAX, 0;
@@ -414,7 +420,7 @@ extern (C) void fetchInfo() {
 		mov [EDI], EBX;
 		mov [EDI+4], EDX;
 		mov [EDI+8], ECX;
-		mov byte ptr [EDI+12], 0; // see above
+		mov byte ptr [EDI+12], 0;
 	}
 
 	// Get Processor Brand String

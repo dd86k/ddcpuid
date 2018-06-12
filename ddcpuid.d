@@ -1,18 +1,20 @@
-import core.stdc.stdio : printf, puts;
-import core.stdc.stdlib : exit;
-import core.stdc.string : strcmp;
+extern (C) {
+	int strcmp(scope const char* s1, scope const char* s2);
+	int printf(scope const char* format, ...);
+	int puts(scope const char* s);
+}
 
 enum VERSION = "0.6.3"; /// Program version
 
 enum
-	MAX_LEAF = 0x20, /// Maximum leaf (-o)
-	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
+	MAX_LEAF = 0x30, /// Maximum leaf (-o)
+	MAX_ELEAF = 0x8000_0030; /// Maximum extended leaf (-o)
 
 // UPDATE 2018-02-22: These were used to compare vendors, see enum below
-/*enum { // Vendor strings
-	/*VENDOR_INTEL     = cast(char*)"GenuineIntel", /// Intel
-	VENDOR_AMD       = cast(char*)"AuthenticAMD", /// AMD
-	VENDOR_VIA       = cast(char*)"VIA VIA VIA ", /// VIA
+/*enum : immutable(char)* { // Vendor strings
+	VENDOR_INTEL     = "GenuineIntel", /// Intel
+	VENDOR_AMD       = "AuthenticAMD", /// AMD
+	VENDOR_VIA       = "VIA VIA VIA ", /// VIA
 	// Unseen from my eyes
 	VENDOR_CENTAUR   = "CentaurHauls", /// Centaur (VIA)
 	VENDOR_TRANSMETA = "GenuineTMx86", /// Transmeta
@@ -39,11 +41,11 @@ enum
  * These are the first four bytes of the vendor. If even the four first bytes
  * re-appear in another vendor, get the next four bytes.
  */
-enum : uint {
-	OTHER = 0,
-	VENDOR_INTEL = 0x756e6547, // "Genu" LE
-	VENDOR_AMD = 0x68747541, // "Auth" LE
-	VENDOR_VIA = 0x20414956 // "VIA " LE
+enum : uint { // LSB
+	OTHER = 0, // Or unknown
+	VENDOR_INTEL = 0x756e6547, // "Genu"
+	VENDOR_AMD = 0x68747541, // "Auth"
+	VENDOR_VIA = 0x20414956 // "VIA "
 }
 __gshared uint VendorID; /// Vendor "ID"
 
@@ -51,44 +53,20 @@ __gshared byte Raw = 0; /// Raw option (-r)
 __gshared byte Details = 0; /// Detailed output option (-d)
 __gshared byte Override = 0; /// Override max leaf option (-o)
 
-extern (C) void sarg(char* a) {
-	while (*++a != 0) {
-		switch (*a) {
-		case 'o': ++Override; break;
-		case 'd': ++Details; break;
-		case 'r': ++Raw; break;
-		case 'h', '?': help; return;
-		case 'v': _version; return;
-		default:
-			printf("Unknown parameter: %c\n", *a);
-			exit(0);
-		}
-	}
-}
-
-extern (C) void larg(char* a) {
-	if (strcmp(a, "help") == 0)
-		help;
-	if (strcmp(a, "version") == 0)
-		_version;
-	printf("Unknown parameter: %s\n", a);
-	exit(0);
-}
-
 extern (C) void help() {
 	puts(
-`CPUID information tool.
-  Usage: ddcpuid OPTIONS
+`CPUID information tool
+  Usage: ddcpuid [OPTIONS]
 
+OPTIONS
   -d    Show more, detailed information
   -r    Only show raw CPUID data
-  -o    Override leaves, useful along -r
+  -o    Override leaves, useful with -r
         Respectively to 20h and 8000_0020h
 
   -v, --version   Print version information
   -h, --help      Print this help screen`
 	);
-	exit(0);
 }
 
 extern (C) void _version() {
@@ -99,7 +77,6 @@ License: MIT License <http://opensource.org/licenses/MIT>
 Project page: <https://github.com/dd86k/ddcpuid>
 Compiler: ` ~ __VENDOR__
 	);
-	exit(0);
 }
 
 //TODO: Add AMD Fn8000_001F_EAX
@@ -107,12 +84,32 @@ Compiler: ` ~ __VENDOR__
 
 extern (C) int main(int argc, char** argv) {
 	while (--argc >= 1) {
-		if (argv[argc][1] == '-') {
-			larg(argv[argc] + 2);
-		} else if (argv[argc][0] == '-') {
-			sarg(argv[argc]);
-		}
-	}
+		if (argv[argc][1] == '-') { // Long arguments
+			char* a = argv[argc] + 2;
+			if (strcmp(a, "help") == 0) {
+				help; return 0;
+			}
+			if (strcmp(a, "version") == 0) {
+				_version; return 0;
+			}
+			printf("Unknown parameter: %s\n", a);
+			return 0;
+		} else if (argv[argc][0] == '-') { // Short arguments
+			char* a = argv[argc];
+			while (*++a != 0) {
+				switch (*a) {
+				case 'o': ++Override; break;
+				case 'd': ++Details; break;
+				case 'r': ++Raw; break;
+				case 'h', '?': help; return 0;
+				case 'v': _version; return 0;
+				default:
+					printf("Unknown parameter: %c\n", *a);
+					return 0;
+				} // switch
+			} // while
+		} // else if
+	} // while arg
 
 	if (Override) {
 		MaximumLeaf = MAX_LEAF;
@@ -162,7 +159,7 @@ extern (C) int main(int argc, char** argv) {
 		Model, BaseModel, ExtendedModel, Stepping
 	);
 
-	printf("Extensions\n    ");
+	printf("Extensions\n  ");
 	if (MMX) printf("MMX, ");
 	if (MMXExt) printf("Extended MMX, ");
 	if (_3DNow) printf("3DNow!, ");
@@ -251,21 +248,8 @@ extern (C) int main(int argc, char** argv) {
 		}
 	}
 
-	extern (C) immutable(char)* _pt() { // Forgive me
-		switch (ProcessorType) { // 2 bit value
-		case 0: return "Original OEM Processor";
-		case 1: return "Intel OverDrive Processor";
-		case 2: return "Dual processor";
-		case 3: return "Intel reserved";
-		default: return "?";
-		}
-	}
-
 	printf(
-		"\n\nHighest Leaf: %XH | Extended: %XH\n"~
-		"Processor type: %s\n\n"~
-		"Processor technologies\n",
-		MaximumLeaf, MaximumExtendedLeaf, _pt
+		"\n\nProcessor technologies\n",
 	);
 
 	switch (VendorID) { // VENDOR SPECIFIC FEATURES
@@ -282,100 +266,113 @@ extern (C) int main(int argc, char** argv) {
 	default:
 	}
 
-	if (Details) {
-		printf( // FPU
-			"\n\nFPU\n"~
-			"  Floating Point Unit [FPU]: %s\n"~
-			"  16-bit conversion [F16]: %s\n",
-			B(FPU),
-			B(F16C)
-		);
+	if (Details == 0) return 0;
 
-		printf( // APCI
-			"\nAPCI\n"~
-			"  APCI: %s\n"~
-			"  APIC: %s (Initial ID: %d, Max: %d)\n"~
-			"  x2APIC: %s\n"~
-			"  Thermal Monitor: %s\n"~
-			"  Thermal Monitor 2: %s\n",
-			B(APCI),
-			B(APIC),
-			InitialAPICID, MaxIDs, B(x2APIC),
-			B(TM),
-			B(TM2)
-		);
+	extern (C) immutable(char)* _pt() { // Forgive me
+		switch (ProcessorType) { // 2 bit value
+		case 0: return "Original OEM Processor";
+		case 1: return "Intel OverDrive Processor";
+		case 2: return "Dual processor";
+		case 3: return "Intel reserved";
+		default: return cast(char*)0; // impossible to reach anyway
+		}
+	}
 
-		printf( // Virtualization
-			"\nVirtualization\n"~
-			"  Virtual 8086 Mode Enhancements [VME]: %s\n",
-			B(VME)
-		);
+	printf( // FPU and others
+		"\nHighest Leaf: %XH | Extended: %XH\n" ~
+		"Processor type: %s\n" ~
+		"\nFPU\n" ~
+		"  Floating Point Unit [FPU]: %s\n" ~
+		"  16-bit conversion [F16]: %s\n",
+		MaximumLeaf, MaximumExtendedLeaf, _pt,
+		B(FPU),
+		B(F16C)
+	);
 
-		printf( // Memory
-			"\nMemory and Paging\n"~
-			"  Page Size Extension [PAE]: %s"~
-			"  36-Bit Page Size Extension [PSE-36]: %s"~
-			"  1 GB Pages support [Page1GB]: %s"~
-			"  Direct Cache Access [DCA]: %s"~
-			"  Page Attribute Table [PAT]: %s"~
-			"  Memory Type Range Registers [MTRR]: %s"~
-			"  Page Global Bit [PGE]: %s"~
-			"  64-bit DS Area [DTES64]: %s",
-			B(PAE),
-			B(PSE_36),
-			B(Page1GB),
-			B(DCA),
-			B(PAT),
-			B(MTRR),
-			B(PGE),
-			B(DTES64)
-		);
+	printf( // APCI
+		"\nAPCI\n" ~
+		"  APCI: %s\n" ~
+		"  APIC: %s (Initial ID: %d, Max: %d)\n" ~
+		"  x2APIC: %s\n" ~
+		"  Thermal Monitor: %s\n" ~
+		"  Thermal Monitor 2: %s\n",
+		B(APCI),
+		B(APIC),
+		InitialAPICID, MaxIDs, B(x2APIC),
+		B(TM),
+		B(TM2)
+	);
 
-		printf( // Debugging
-			"\nDebugging\n"~
-			"  Machine Check Exception [MCE]: %s\n"~
-			"  Debugging Extensions [DE]: %s\n"~
-			"  Debug Store [DS]: %s\n"~
-			"  Debug Store CPL [DS-CPL]: %s\n"~
-			"  Perfmon and Debug Capability [PDCM]: %s\n"~
-			"  IA32_DEBUG_INTERFACE (MSR) [SDBG]: %s\n",
-			B(MCE),
-			B(DE),
-			B(DS),
-			B(DS_CPL),
-			B(PDCM),
-			B(SDBG)
-		);
+	printf( // Virtualization
+		"\nVirtualization\n" ~
+		"  Virtual 8086 Mode Enhancements [VME]: %s\n",
+		B(VME)
+	);
 
-		printf( // Other features
-			"\nOther features\n"~
-			"  Brand Index: %d\n"~
-			"  L1 Context ID [CNXT-ID]: %s\n"~
-			"  xTPR Update Control [xTPR]: %s\n"~
-			"  Process-context identifiers [PCID]: %s\n"~
-			"  Machine Check Architecture [MCA]: %s\n"~
-			"  Processor Serial Number [PSN]: %s\n"~
-			"  Self Snoop [SS]: %s\n"~
-			"  Pending Break Enable [PBE]: %s\n"~
-			"  Supervisor Mode Execution Protection [SMEP]: %s\n"~
-			"  Bit manipulation groups: \n",
-			BrandIndex,
-			B(CNXT_ID),
-			B(xTPR),
-			B(PCID),
-			B(MCA),
-			B(PSN),
-			B(SS),
-			B(PBE),
-			B(SMEP)
-		);
-		if (BMI1 || BMI2) {
-			if (BMI1) printf("BMI1");
-			if (BMI2) printf(", BMI2");
-			puts("");
-		} else
-			puts("None");
-	} // if (det)
+	printf( // Memory
+		"\nMemory and Paging\n" ~
+		"  Page Size Extension [PAE]: %s\n" ~
+		"  36-Bit Page Size Extension [PSE-36]: %s\n" ~
+		"  1 GB Pages support [Page1GB]: %s\n" ~
+		"  Direct Cache Access [DCA]: %s\n" ~
+		"  Page Attribute Table [PAT]: %s\n" ~
+		"  Memory Type Range Registers [MTRR]: %s\n" ~
+		"  Page Global Bit [PGE]: %s\n" ~
+		"  64-bit DS Area [DTES64]: %s\n",
+		B(PAE),
+		B(PSE_36),
+		B(Page1GB),
+		B(DCA),
+		B(PAT),
+		B(MTRR),
+		B(PGE),
+		B(DTES64)
+	);
+
+	printf( // Debugging
+		"\nDebugging\n" ~
+		"  Machine Check Exception [MCE]: %s\n" ~
+		"  Debugging Extensions [DE]: %s\n" ~
+		"  Debug Store [DS]: %s\n" ~
+		"  Debug Store CPL [DS-CPL]: %s\n" ~
+		"  Perfmon and Debug Capability [PDCM]: %s\n" ~
+		"  IA32_DEBUG_INTERFACE (MSR) [SDBG]: %s\n",
+		B(MCE),
+		B(DE),
+		B(DS),
+		B(DS_CPL),
+		B(PDCM),
+		B(SDBG)
+	);
+
+	printf( // Other features
+		"\nOther features\n" ~
+		"  Brand Index: %d\n" ~
+		"  L1 Context ID [CNXT-ID]: %s\n" ~
+		"  xTPR Update Control [xTPR]: %s\n" ~
+		"  Process-context identifiers [PCID]: %s\n" ~
+		"  Machine Check Architecture [MCA]: %s\n" ~
+		"  Processor Serial Number [PSN]: %s\n" ~
+		"  Self Snoop [SS]: %s\n" ~
+		"  Pending Break Enable [PBE]: %s\n" ~
+		"  Supervisor Mode Execution Protection [SMEP]: %s\n" ~
+		"  Bit manipulation groups: ",
+		BrandIndex,
+		B(CNXT_ID),
+		B(xTPR),
+		B(PCID),
+		B(MCA),
+		B(PSN),
+		B(SS),
+		B(PBE),
+		B(SMEP)
+	);
+	if (BMI1 || BMI2) {
+		if (BMI1) printf("BMI1");
+		if (BMI2) printf(", BMI2");
+		puts("");
+	} else
+		puts("None");
 
 	return 0;
 } // main
@@ -403,8 +400,44 @@ extern(C) void printc(uint leaf) {
  * CPU INFO
  *****************************/
 
+// The "I wish I knew how to do templates in D" starter pack
+enum {
+	BIT_0 = 1,
+	BIT_1 = 1 << 1,
+	BIT_2 = 1 << 2,
+	BIT_3 = 1 << 3,
+	BIT_4 = 1 << 4,
+	BIT_5 = 1 << 5,
+	BIT_6 = 1 << 6,
+	BIT_7 = 1 << 7,
+	BIT_8 = 1 << 8,
+	BIT_9 = 1 << 9,
+	BIT_10 = 1 << 10,
+	BIT_11 = 1 << 11,
+	BIT_12 = 1 << 12,
+	BIT_13 = 1 << 13,
+	BIT_14 = 1 << 14,
+	BIT_15 = 1 << 15,
+	BIT_16 = 1 << 16,
+	BIT_17 = 1 << 17,
+	BIT_18 = 1 << 18,
+	BIT_19 = 1 << 19,
+	BIT_20 = 1 << 20,
+	BIT_21 = 1 << 21,
+	BIT_22 = 1 << 22,
+	BIT_23 = 1 << 23,
+	BIT_24 = 1 << 24,
+	BIT_25 = 1 << 25,
+	BIT_26 = 1 << 26,
+	BIT_27 = 1 << 27,
+	BIT_28 = 1 << 28,
+	BIT_29 = 1 << 29,
+	BIT_30 = 1 << 30,
+	BIT_31 = 1 << 31
+}
+
 extern (C) void fetchInfo() {
-	// Get Processor Vendor
+	// Get processor vendor and processor brand string
 	version (X86_64) asm {
 		lea RDI, vendorString;
 		mov EAX, 0;
@@ -413,18 +446,7 @@ extern (C) void fetchInfo() {
 		mov [RDI+4], EDX;
 		mov [RDI+8], ECX;
 		mov byte ptr [RDI+12], 0;
-	} else asm {
-		lea EDI, vendorString;
-		mov EAX, 0;
-		cpuid;
-		mov [EDI], EBX;
-		mov [EDI+4], EDX;
-		mov [EDI+8], ECX;
-		mov byte ptr [EDI+12], 0;
-	}
 
-	// Get Processor Brand String
-	version (X86_64) asm {
 		lea RDI, cpuString;
 		mov EAX, 0x8000_0002;
 		cpuid;
@@ -446,6 +468,14 @@ extern (C) void fetchInfo() {
 		mov [RDI+44], EDX;
 		mov byte ptr [RDI+48], 0;
 	} else asm {
+		lea EDI, vendorString;
+		mov EAX, 0;
+		cpuid;
+		mov [EDI], EBX;
+		mov [EDI+4], EDX;
+		mov [EDI+8], ECX;
+		mov byte ptr [EDI+12], 0;
+
 		lea EDI, cpuString;
 		mov EAX, 0x8000_0002;
 		cpuid;
@@ -509,28 +539,28 @@ extern (C) void fetchInfo() {
 					Model = BaseModel;
 
 				// ECX
-				DTES64  = c & 4;
-				DS_CPL  = c & 0x10;
-				Virt    = c & 0x20;
-				SMX     = c & 0x40;
-				EIST    = c & 0x80;
-				TM2     = c & 0x100;
-				CNXT_ID = c & 0x400;
-				SDBG    = c & 0x800;
-				xTPR    = c & 0x4000;
-				PDCM    = c & 0x8000;
-				PCID    = c & 0x2_0000;
-				DCA     = c & 0x4_0000;
-				x2APIC  = c & 0x20_0000;
+				DTES64      = c & BIT_2;
+				DS_CPL      = c & BIT_4;
+				Virt        = c & BIT_5;
+				SMX         = c & BIT_6;
+				EIST        = c & BIT_7;
+				TM2         = c & BIT_8;
+				CNXT_ID     = c & BIT_10;
+				SDBG        = c & BIT_11;
+				xTPR        = c & BIT_14;
+				PDCM        = c & BIT_15;
+				PCID        = c & BIT_17;
+				DCA         = c & BIT_18;
+				x2APIC      = c & BIT_21;
+				TscDeadline = c & BIT_24;
 
 				// EDX
-				PSN     = d & 0x4_0000;
-				DS      = d & 0x20_0000;
-				APCI    = d & 0x40_0000;
-				TscDeadline = c & 0x100_0000;
-				SS      = d & 0x800_0000;
-				TM      = d & 0x2000_0000;
-				PBE     = d & 0x8000_0000;
+				PSN  = d & BIT_18;
+				DS   = d & BIT_21;
+				APCI = d & BIT_22;
+				SS   = d & BIT_27;
+				TM   = d & BIT_29;
+				PBE  = d & BIT_31;
 				break;
 			case VENDOR_AMD:
 				if (BaseFamily < 0xF) {
@@ -549,64 +579,66 @@ extern (C) void fetchInfo() {
 			CLFLUSHLineSize = *(bp + 1); // EBX[15: 8]
 			MaxIDs          = *(bp + 2); // EBX[23:16]
 			InitialAPICID   = *(bp + 3); // EBX[31:24]
+
 			// ECX
-			SSE3        = c & 1;
-			PCLMULQDQ   = c & 2;
-			MONITOR     = c & 8;
-			SSSE3       = c & 0x200;
-			FMA         = c & 0x1000;
-			CMPXCHG16B  = c & 0x2000;
-			SSE41       = c & 0x8_0000;
-			SSE42       = c & 0x10_0000;
-			MOVBE       = c & 0x40_0000;
-			POPCNT      = c & 0x80_0000;
-			AES         = c & 0x200_0000;
-			XSAVE       = c & 0x400_0000;
-			OSXSAVE     = c & 0x800_0000;
-			AVX         = c & 0x1000_0000;
-			F16C        = c & 0x2000_0000;
-			RDRAND      = c & 0x4000_0000;
+			SSE3        = c & BIT_0;
+			PCLMULQDQ   = c & BIT_1;
+			MONITOR     = c & BIT_3;
+			SSSE3       = c & BIT_9;
+			FMA         = c & BIT_12;
+			CMPXCHG16B  = c & BIT_13;
+			SSE41       = c & BIT_15;
+			SSE42       = c & BIT_20;
+			MOVBE       = c & BIT_22;
+			POPCNT      = c & BIT_23;
+			AES         = c & BIT_25;
+			XSAVE       = c & BIT_26;
+			OSXSAVE     = c & BIT_27;
+			AVX         = c & BIT_28;
+			F16C        = c & BIT_29;
+			RDRAND      = c & BIT_30;
+
 			// EDX
-			FPU    = d & 1;
-			VME    = d & 2;
-			DE     = d & 4;
-			PSE    = d & 8;
-			TSC    = d & 0x10;
-			MSR    = d & 0x20;
-			PAE    = d & 0x40;
-			MCE    = d & 0x80;
-			CX8    = d & 0x100;
-			APIC   = d & 0x200;
-			SEP    = d & 0x800;
-			MTRR   = d & 0x1000;
-			PGE    = d & 0x2000;
-			MCA    = d & 0x4000;
-			CMOV   = d & 0x8000;
-			PAT    = d & 0x1_0000;
-			PSE_36 = d & 0x2_0000;
-			CLFSH  = d & 0x8_0000;
-			MMX    = d & 0x80_0000;
-			FXSR   = d & 0x100_0000;
-			SSE    = d & 0x200_0000;
-			SSE2   = d & 0x400_0000;
-			HTT    = d & 0x1000_0000;
+			FPU    = d & BIT_0;
+			VME    = d & BIT_1;
+			DE     = d & BIT_2;
+			PSE    = d & BIT_3;
+			TSC    = d & BIT_4;
+			MSR    = d & BIT_5;
+			PAE    = d & BIT_6;
+			MCE    = d & BIT_7;
+			CX8    = d & BIT_8;
+			APIC   = d & BIT_9;
+			SEP    = d & BIT_11;
+			MTRR   = d & BIT_12;
+			PGE    = d & BIT_13;
+			MCA    = d & BIT_14;
+			CMOV   = d & BIT_15;
+			PAT    = d & BIT_16;
+			PSE_36 = d & BIT_17;
+			CLFSH  = d & BIT_19;
+			MMX    = d & BIT_23;
+			FXSR   = d & BIT_24;
+			SSE    = d & BIT_25;
+			SSE2   = d & BIT_26;
+			HTT    = d & BIT_28;
 			break;
 
 		case 6:
 			switch (VendorID) {
 			case VENDOR_INTEL:
-				TurboBoost = a & 2;
+				TurboBoost = a & BIT_1;
 				break;
 			default:
 			}
 			break;
 
 		case 7:
-			BMI1 = b & 8;
-			AVX2 = b & 0x20;
-			SMEP = b & 0x80;
-			BMI2 = b & 0x100;
-			RDSEED = b & 0x4_0000;
+			BMI1 = b & BIT_4;
+			AVX2 = b & BIT_5;
+			SMEP = b & BIT_7;
+			BMI2 = b & BIT_8;
+			RDSEED = b & BIT_18;
 			break;
 
 			default:
@@ -633,262 +665,43 @@ extern (C) void fetchInfo() {
 		case 0x8000_0001:
 			switch (VendorID) {
 			case VENDOR_AMD:
-				Virt  = c & 4; // SVM
-				SSE4a = c & 0x40;
-				FMA4  = c & 0x1_0000;
+				Virt  = c & BIT_2; // SVM
+				SSE4a = c & BIT_6;
+				FMA4  = c & BIT_16;
 
-				MMXExt    = d & 0x40_0000;
-				_3DNowExt = d & 0x4000_0000;
-				_3DNow    = d & 0x8000_0000;
+				MMXExt    = d & BIT_22;
+				_3DNowExt = d & BIT_30;
+				_3DNow    = d & BIT_31;
 				break;
 			default:
 			}
 
-			LZCNT     = c & 0x20;
-			PREFETCHW = c & 0x100;
+			LZCNT     = c & BIT_5;
+			PREFETCHW = c & BIT_8;
 
-			NX       = d & 0x10_0000;
-			Page1GB  = d & 0x400_0000;
-			LongMode = d & 0x2000_0000;
+			NX       = d & BIT_20;
+			Page1GB  = d & BIT_26;
+			LongMode = d & BIT_29;
 			break;
 
 		case 0x8000_0007:
 			switch (VendorID) {
 			case VENDOR_INTEL:
-				RDSEED = b & 0x4_0000;
+				RDSEED = b & BIT_28;
 				break;
 			case VENDOR_AMD:
-				TM = d & 0x10;
-				TurboBoost = d & 0x200;
+				TM = d & BIT_4;
+				TurboBoost = d & BIT_9;
 				break;
 			default:
 			}
 
-			TscInvariant = d & 0x100;
+			TscInvariant = d & BIT_8;
 			break;
 		default:
 		}
 	} while (++l <= MaximumExtendedLeaf);
 }
-
-/***************************
- * Properties
- ***************************/
-
-// ---- Basic information ----
-/// Processor vendor
-__gshared char[13] vendorString;
-/// Processor brand string
-__gshared char[49] cpuString;
-
-/// Maximum leaf supported by this processor.
-__gshared uint MaximumLeaf;
-/// Maximum extended leaf supported by this processor.
-__gshared uint MaximumExtendedLeaf;
-
-/// Number of physical cores.
-//__gshared ushort NumberOfCores;
-/// Number of logical cores.
-//__gshared ushort NumberOfThreads;
-
-/// Processor family. ID and extended ID included.
-__gshared ubyte Family;
-/// Base Family ID
-__gshared ubyte BaseFamily;
-/// Extended Family ID
-__gshared ubyte ExtendedFamily;
-/// Processor model. ID and extended ID included.
-__gshared ubyte Model;
-/// Base Model ID
-__gshared ubyte BaseModel;
-/// Extended Model ID
-__gshared ubyte ExtendedModel;
-/// Processor stepping.
-__gshared ubyte Stepping;
-/// Processor type.
-__gshared ubyte ProcessorType;
-
-/// MMX Technology.
-__gshared uint MMX;
-/// AMD MMX Extented set.
-__gshared uint MMXExt;
-/// Streaming SIMD Extensions.
-__gshared uint SSE;
-/// Streaming SIMD Extensions 2.
-__gshared uint SSE2;
-/// Streaming SIMD Extensions 3.
-__gshared uint SSE3;
-/// Supplemental Streaming SIMD Extensions 3 (SSSE3).
-__gshared uint SSSE3;
-/// Streaming SIMD Extensions 4.1.
-__gshared uint SSE41;
-/// Streaming SIMD Extensions 4.2.
-__gshared uint SSE42;
-/// Streaming SIMD Extensions 4a. AMD only.
-__gshared uint SSE4a;
-/// AES instruction extensions.
-__gshared uint AES;
-/// AVX instruction extensions.
-__gshared uint AVX;
-/// AVX2 instruction extensions.
-__gshared uint AVX2;
-
-/// 3DNow! extension. AMD only. Deprecated in 2010.
-__gshared uint _3DNow;
-/// 3DNow! Extension supplements. See 3DNow!
-__gshared uint _3DNowExt;
-
-// ---- 01h ----
-// -- EBX --
-/// Brand index. See Table 3-24. If 0, use normal BrandString.
-__gshared ubyte BrandIndex;
-/// The CLFLUSH line size. Multiply by 8 to get its size in bytes.
-__gshared ubyte CLFLUSHLineSize;
-/// Maximum number of addressable IDs for logical processors in this physical package.
-__gshared ubyte MaxIDs;
-/// Initial APIC ID that the process started on.
-__gshared ubyte InitialAPICID;
-// -- ECX --
-/// PCLMULQDQ instruction.
-__gshared uint PCLMULQDQ; // 1
-/// 64-bit DS Area (64-bit layout).
-__gshared uint DTES64;
-/// MONITOR/MWAIT.
-__gshared uint MONITOR;
-/// CPL Qualified Debug Store.
-__gshared uint DS_CPL;
-/// Virtualization | Virtual Machine eXtensions (Intel) | Secure Virtual Machine (AMD) 
-__gshared uint Virt;
-/// Safer Mode Extensions. Intel TXT/TPM
-__gshared uint SMX;
-/// Enhanced Intel SpeedStep® Technology.
-__gshared uint EIST;
-/// Thermal Monitor 2.
-__gshared uint TM2;
-/// L1 Context ID.
-__gshared uint CNXT_ID;
-/// Indicates the processor supports IA32_DEBUG_INTERFACE MSR for silicon debug.
-__gshared uint SDBG;
-/// FMA extensions using YMM state.
-__gshared uint FMA;
-/// Four-operand FMA instruction support.
-__gshared uint FMA4;
-/// CMPXCHG16B instruction.
-__gshared uint CMPXCHG16B;
-/// xTPR Update Control.
-__gshared uint xTPR;
-/// Perfmon and Debug Capability.
-__gshared uint PDCM;
-/// Process-context identifiers.
-__gshared uint PCID;
-/// Direct Cache Access.
-__gshared uint DCA;
-/// x2APIC feature (Intel programmable interrupt controller).
-__gshared uint x2APIC;
-/// MOVBE instruction.
-__gshared uint MOVBE;
-/// POPCNT instruction.
-__gshared uint POPCNT;
-/// Indicates if the APIC timer supports one-shot operation using a TSC deadline value.
-__gshared uint TscDeadline;
-/// Indicates the support of the XSAVE/XRSTOR extended states feature, XSETBV/XGETBV instructions, and XCR0.
-__gshared uint XSAVE;
-/// Indicates if the OS has set CR4.OSXSAVE[18] to enable XSETBV/XGETBV instructions for XCR0 and XSAVE.
-__gshared uint OSXSAVE;
-/// 16-bit floating-point conversion instructions.
-__gshared uint F16C;
-/// RDRAND instruction.
-__gshared uint RDRAND; // 30
-// -- EDX --
-/// Floating Point Unit On-Chip. The processor contains an x87 FPU.
-__gshared uint FPU; // 0
-/// Virtual 8086 Mode Enhancements.
-__gshared uint VME;
-/// Debugging Extensions.
-__gshared uint DE;
-/// Page Size Extension.
-__gshared uint PSE;
-/// Time Stamp Counter.
-__gshared uint TSC;
-/// Model Specific Registers RDMSR and WRMSR Instructions. 
-__gshared uint MSR;
-/// Physical Address Extension.
-__gshared uint PAE;
-/// Machine Check Exception.
-__gshared uint MCE;
-/// CMPXCHG8B Instruction.
-__gshared uint CX8;
-/// Indicates if the processor contains an Advanced Programmable Interrupt Controller.
-__gshared uint APIC;
-/// SYSENTER and SYSEXIT Instructions.
-__gshared uint SEP;
-/// Memory Type Range Registers.
-__gshared uint MTRR;
-/// Page Global Bit.
-__gshared uint PGE;
-/// Machine Check Architecture.
-__gshared uint MCA;
-/// Conditional Move Instructions.
-__gshared uint CMOV;
-/// Page Attribute Table.
-__gshared uint PAT;
-/// 36-Bit Page Size Extension.
-__gshared uint PSE_36;
-/// Processor Serial Number. Only Pentium 3 used this.
-__gshared uint PSN;
-/// CLFLUSH Instruction.
-__gshared uint CLFSH;
-/// Debug Store.
-__gshared uint DS;
-/// Thermal Monitor and Software Controlled Clock Facilities.
-__gshared uint APCI;
-/// FXSAVE and FXRSTOR Instructions.
-__gshared uint FXSR;
-/// Self Snoop.
-__gshared uint SS;
-/// Max APIC IDs reserved field is Valid. 0 if only unicore.
-__gshared uint HTT;
-/// Thermal Monitor.
-__gshared uint TM;
-/// Pending Break Enable.
-__gshared uint PBE; // 31
-
-// ---- 06h ----
-/// Turbo Boost Technology (Intel)
-/// Re-using the name for AMD's Core Performance Boost
-__gshared uint TurboBoost;
-
-
-// ---- 07h ----
-// -- EBX --
-// Note: BMI1, BMI2, and SMEP were introduced in 4th Generation Core processors.
-/// Bit manipulation group 1 instruction support.
-__gshared uint BMI1; // 3
-/// Supervisor Mode Execution Protection.
-__gshared uint SMEP; // 7
-/// Bit manipulation group 2 instruction support.
-__gshared uint BMI2; // 8
-
-// ---- 8000_0001 ----
-// ECX
-/// Advanced Bit Manipulation under AMD. LZCUNT under Intel.
-__gshared uint LZCNT;
-/// PREFETCHW under Intel. 3DNowPrefetch under AMD.
-__gshared uint PREFETCHW; // 8
-
-/// RDSEED instruction
-__gshared uint RDSEED;
-// EDX
-/// Intel: Execute Disable Bit. AMD: No-execute page protection.
-__gshared uint NX; // 20
-/// 1GB Pages
-__gshared uint Page1GB; // 26
-/// Also known as Intel64 or AMD64.
-__gshared uint LongMode; // 29
-
-// ---- 8000_0007 ----
-/// TSC Invariation support
-__gshared uint TscInvariant; // 8
 
 /// Get the maximum leaf.
 /// Returns: Maximum leaf
@@ -933,3 +746,224 @@ INTEL_S:
 		ret;
 	}
 }*/
+
+/***************************
+ * Features and properties
+ ***************************/
+
+__gshared:
+
+// ---- Basic information ----
+/// Processor vendor
+char[13] vendorString;
+/// Processor brand string
+char[49] cpuString;
+
+/// Maximum leaf supported by this processor.
+uint MaximumLeaf;
+/// Maximum extended leaf supported by this processor.
+uint MaximumExtendedLeaf;
+
+/// Number of physical cores.
+//ushort NumberOfCores;
+/// Number of logical cores.
+//ushort NumberOfThreads;
+
+/// Processor family. ID and extended ID included.
+ubyte Family;
+/// Base Family ID
+ubyte BaseFamily;
+/// Extended Family ID
+ubyte ExtendedFamily;
+/// Processor model. ID and extended ID included.
+ubyte Model;
+/// Base Model ID
+ubyte BaseModel;
+/// Extended Model ID
+ubyte ExtendedModel;
+/// Processor stepping.
+ubyte Stepping;
+/// Processor type.
+ubyte ProcessorType;
+
+/// MMX Technology.
+uint MMX;
+/// AMD MMX Extented set.
+uint MMXExt;
+/// Streaming SIMD Extensions.
+uint SSE;
+/// Streaming SIMD Extensions 2.
+uint SSE2;
+/// Streaming SIMD Extensions 3.
+uint SSE3;
+/// Supplemental Streaming SIMD Extensions 3 (SSSE3).
+uint SSSE3;
+/// Streaming SIMD Extensions 4.1.
+uint SSE41;
+/// Streaming SIMD Extensions 4.2.
+uint SSE42;
+/// Streaming SIMD Extensions 4a. AMD only.
+uint SSE4a;
+/// AES instruction extensions.
+uint AES;
+/// AVX instruction extensions.
+uint AVX;
+/// AVX2 instruction extensions.
+uint AVX2;
+
+/// 3DNow! extension. AMD only. Deprecated in 2010.
+uint _3DNow;
+/// 3DNow! Extension supplements. See 3DNow!
+uint _3DNowExt;
+
+// ---- 01h ----
+// -- EBX --
+/// Brand index. See Table 3-24. If 0, use normal BrandString.
+ubyte BrandIndex;
+/// The CLFLUSH line size. Multiply by 8 to get its size in bytes.
+ubyte CLFLUSHLineSize;
+/// Maximum number of addressable IDs for logical processors in this physical package.
+ubyte MaxIDs;
+/// Initial APIC ID that the process started on.
+ubyte InitialAPICID;
+// -- ECX --
+/// PCLMULQDQ instruction.
+uint PCLMULQDQ; // 1
+/// 64-bit DS Area (64-bit layout).
+uint DTES64;
+/// MONITOR/MWAIT.
+uint MONITOR;
+/// CPL Qualified Debug Store.
+uint DS_CPL;
+/// Virtualization | Virtual Machine eXtensions (Intel) | Secure Virtual Machine (AMD) 
+uint Virt;
+/// Safer Mode Extensions. Intel TXT/TPM
+uint SMX;
+/// Enhanced Intel SpeedStep® Technology.
+uint EIST;
+/// Thermal Monitor 2.
+uint TM2;
+/// L1 Context ID.
+uint CNXT_ID;
+/// Indicates the processor supports IA32_DEBUG_INTERFACE MSR for silicon debug.
+uint SDBG;
+/// FMA extensions using YMM state.
+uint FMA;
+/// Four-operand FMA instruction support.
+uint FMA4;
+/// CMPXCHG16B instruction.
+uint CMPXCHG16B;
+/// xTPR Update Control.
+uint xTPR;
+/// Perfmon and Debug Capability.
+uint PDCM;
+/// Process-context identifiers.
+uint PCID;
+/// Direct Cache Access.
+uint DCA;
+/// x2APIC feature (Intel programmable interrupt controller).
+uint x2APIC;
+/// MOVBE instruction.
+uint MOVBE;
+/// POPCNT instruction.
+uint POPCNT;
+/// Indicates if the APIC timer supports one-shot operation using a TSC deadline value.
+uint TscDeadline;
+/// Indicates the support of the XSAVE/XRSTOR extended states feature, XSETBV/XGETBV instructions, and XCR0.
+uint XSAVE;
+/// Indicates if the OS has set CR4.OSXSAVE[18] to enable XSETBV/XGETBV instructions for XCR0 and XSAVE.
+uint OSXSAVE;
+/// 16-bit floating-point conversion instructions.
+uint F16C;
+/// RDRAND instruction.
+uint RDRAND; // 30
+// -- EDX --
+/// Floating Point Unit On-Chip. The processor contains an x87 FPU.
+uint FPU; // 0
+/// Virtual 8086 Mode Enhancements.
+uint VME;
+/// Debugging Extensions.
+uint DE;
+/// Page Size Extension.
+uint PSE;
+/// Time Stamp Counter.
+uint TSC;
+/// Model Specific Registers RDMSR and WRMSR Instructions. 
+uint MSR;
+/// Physical Address Extension.
+uint PAE;
+/// Machine Check Exception.
+uint MCE;
+/// CMPXCHG8B Instruction.
+uint CX8;
+/// Indicates if the processor contains an Advanced Programmable Interrupt Controller.
+uint APIC;
+/// SYSENTER and SYSEXIT Instructions.
+uint SEP;
+/// Memory Type Range Registers.
+uint MTRR;
+/// Page Global Bit.
+uint PGE;
+/// Machine Check Architecture.
+uint MCA;
+/// Conditional Move Instructions.
+uint CMOV;
+/// Page Attribute Table.
+uint PAT;
+/// 36-Bit Page Size Extension.
+uint PSE_36;
+/// Processor Serial Number. Only Pentium 3 used this.
+uint PSN;
+/// CLFLUSH Instruction.
+uint CLFSH;
+/// Debug Store.
+uint DS;
+/// Thermal Monitor and Software Controlled Clock Facilities.
+uint APCI;
+/// FXSAVE and FXRSTOR Instructions.
+uint FXSR;
+/// Self Snoop.
+uint SS;
+/// Max APIC IDs reserved field is Valid. 0 if only unicore.
+uint HTT;
+/// Thermal Monitor.
+uint TM;
+/// Pending Break Enable.
+uint PBE; // 31
+
+// ---- 06h ----
+/// Turbo Boost Technology (Intel)
+/// Re-using the name for AMD's Core Performance Boost
+uint TurboBoost;
+
+
+// ---- 07h ----
+// -- EBX --
+// Note: BMI1, BMI2, and SMEP were introduced in 4th Generation Core processors.
+/// Bit manipulation group 1 instruction support.
+uint BMI1; // 3
+/// Supervisor Mode Execution Protection.
+uint SMEP; // 7
+/// Bit manipulation group 2 instruction support.
+uint BMI2; // 8
+
+// ---- 8000_0001 ----
+// ECX
+/// Advanced Bit Manipulation under AMD. LZCUNT under Intel.
+uint LZCNT;
+/// PREFETCHW under Intel. 3DNowPrefetch under AMD.
+uint PREFETCHW; // 8
+
+/// RDSEED instruction
+uint RDSEED;
+// EDX
+/// Intel: Execute Disable Bit. AMD: No-execute page protection.
+uint NX; // 20
+/// 1GB Pages
+uint Page1GB; // 26
+/// Also known as Intel64 or AMD64.
+uint LongMode; // 29
+
+// ---- 8000_0007 ----
+/// TSC Invariation support
+uint TscInvariant; // 8

@@ -1,25 +1,26 @@
 # ddcpuid, CPUID tool
 
-A simple x86/x86-64 CPUID tool, mostly compatible with Intel and AMD.
+A simple x86/x86-64 CPUID tool, works best with Intel and AMD processors.
+
+If I had documentation for VIA and Zhaoxin, I will gladly implement those features.
 
 Example output:
 ```
+D:\DOCUMENTS\D projects\ddcpuid>ddcpuid
 Vendor: GenuineIntel
 String: Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
 Identifier: Family 6 Model 58 Stepping 9
             6h [6h:0h] 3Ah [Ah:3h] 9h
-Extensions: MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, Intel64, VT-x, Intel XD (NX), Intel TXT (SMX), AES-NI, AVX,
-
-Highest Leaf: 0Dh | Extended: 80000008h
-Processor type: Original OEM Processor
+Extensions
+  MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, Intel64, VT-x, Intel XD (NX), Intel TXT (SMX), AES-NI, AVX,
 
 Processor technologies
   Enhanced SpeedStep(R) Technology
   TurboBoost
 ```
 
-For more details, use the `-d` switch!
+For more details, such as APCI features, use the `-d` switch.
 
 ## Compiling
 
-You **MUST** use the `-betterC` switch.
+You _MUST_ use the `-betterC` switch when compiling.

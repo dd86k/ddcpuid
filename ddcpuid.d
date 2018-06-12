@@ -142,16 +142,16 @@ extern (C) int main(int argc, char** argv) {
 	__gshared char* cstring = cast(char*)cpuString;
 
 	switch (VendorID) {
-	case VENDOR_INTEL:
+	case VENDOR_INTEL: // Common in Intel brand strings
 		while (*cstring == ' ') ++cstring; // left trim cpu string
 		break;
 	default:
 	}
 
 	printf(
-		"Vendor: %s\n"~
-		"String: %s\n"~
-		"Identifier: Family %d Model %d Stepping %d\n"~
+		"Vendor: %s\n" ~
+		"String: %s\n" ~
+		"Identifier: Family %d Model %d Stepping %d\n" ~
 		"            %Xh [%Xh:%Xh] %Xh [%Xh:%Xh] %Xh\n",
 		cast(char*)vendorString, cstring,
 		Family, Model, Stepping,

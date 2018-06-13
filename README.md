@@ -2,7 +2,7 @@
 
 A simple x86/x86-64 CPUID tool, works best with Intel and AMD processors.
 
-If I had documentation for VIA and Zhaoxin, I will gladly implement those features.
+I will gladly implement features from VIA and Zhaoxin once I get documention.
 
 Example output:
 ```
@@ -24,3 +24,7 @@ For more details, such as APCI features, use the `-d` switch.
 ## Compiling
 
 You _MUST_ use the `-betterC` switch when compiling.
+
+Supported compilers
+- DMD
+- LDC

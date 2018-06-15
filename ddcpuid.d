@@ -4,11 +4,11 @@ extern (C) {
 	int puts(scope const char* s);
 }
 
-enum VERSION = "0.6.3"; /// Program version
+enum VERSION = "0.7.0"; /// Program version
 
 enum
-	MAX_LEAF = 0x30, /// Maximum leaf (-o)
-	MAX_ELEAF = 0x8000_0030; /// Maximum extended leaf (-o)
+	MAX_LEAF = 0x20, /// Maximum leaf (-o)
+	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
 
 // UPDATE 2018-02-22: These were used to compare vendors, see enum below
 /*enum : immutable(char)* { // Vendor strings
@@ -42,16 +42,16 @@ enum
  * re-appear in another vendor, get the next four bytes.
  */
 enum : uint { // LSB
-	OTHER = 0, // Or unknown
+	VENDOR_OTHER = 0, // Or unknown
 	VENDOR_INTEL = 0x756e6547, // "Genu"
 	VENDOR_AMD = 0x68747541, // "Auth"
 	VENDOR_VIA = 0x20414956 // "VIA "
 }
-__gshared uint VendorID; /// Vendor "ID"
+__gshared uint VendorID; /// Vendor "ID", inits to VENDOR_OTHER
 
-__gshared byte Raw = 0; /// Raw option (-r)
-__gshared byte Details = 0; /// Detailed output option (-d)
-__gshared byte Override = 0; /// Override max leaf option (-o)
+__gshared byte Raw; /// Raw option (-r)
+__gshared byte Details; /// Detailed output option (-d)
+__gshared byte Override; /// Override max leaf option (-o)
 
 extern (C) void help() {
 	puts(
@@ -135,14 +135,14 @@ extern (C) int main(int argc, char** argv) {
 		return 0;
 	}
 
-	debug printf("[L%04d] Fetching info...", __LINE__);
+	debug printf("[L%04d] Fetching info...\n", __LINE__);
 
 	fetchInfo;
 
 	__gshared char* cstring = cast(char*)cpuString;
 
 	switch (VendorID) {
-	case VENDOR_INTEL: // Common in Intel brand strings
+	case VENDOR_INTEL: // Common in Intel processor brand strings
 		while (*cstring == ' ') ++cstring; // left trim cpu string
 		break;
 	default:
@@ -150,16 +150,23 @@ extern (C) int main(int argc, char** argv) {
 
 	printf(
 		"Vendor: %s\n" ~
-		"String: %s\n" ~
-		"Identifier: Family %d Model %d Stepping %d\n" ~
-		"            %Xh [%Xh:%Xh] %Xh [%Xh:%Xh] %Xh\n",
-		cast(char*)vendorString, cstring,
-		Family, Model, Stepping,
-		Family, BaseFamily, ExtendedFamily,
-		Model, BaseModel, ExtendedModel, Stepping
+		"String: %s\n",
+		cast(char*)vendorString, cstring
 	);
 
-	printf("Extensions\n  ");
+	if (Details)
+		printf(
+			"Identifier: Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh\n",
+			Family, BaseFamily, ExtendedFamily,
+			Model, BaseModel, ExtendedModel, Stepping
+		);
+	else
+		printf(
+			"Identifier: Family %d Model %d Stepping %d\n",
+			Family, Model, Stepping
+		);
+
+	printf("Extensions: ");
 	if (MMX) printf("MMX, ");
 	if (MMXExt) printf("Extended MMX, ");
 	if (_3DNow) printf("3DNow!, ");
@@ -196,7 +203,7 @@ extern (C) int main(int argc, char** argv) {
 	if (AVX2) printf("AVX2, ");
 
 	if (Details) {
-		printf("\nInstructions: ");
+		printf("\nOther instructions: ");
 		if (MONITOR)
 			printf("MONITOR/MWAIT, ");
 		if (PCLMULQDQ)
@@ -248,20 +255,60 @@ extern (C) int main(int argc, char** argv) {
 		}
 	}
 
-	printf(
-		"\n\nProcessor technologies\n",
+	puts("\n\nCache"); // ----- Cache
+
+	extern (C) immutable(char)* _ct(ubyte t) {
+		switch (t) {
+		case 1: return " Data";
+		case 2: return " Instructions";
+		default: return "";
+		}
+	}
+
+	__gshared Cache* ca = cast(Cache*)cache;
+	
+	if (Details) {
+		while (ca.type) {
+			printf(
+				"\tL%d%s, %d ways, %d partitions, %d B, %d sets\n",
+				ca.level, _ct(ca.type), ca.ways, ca.partitions, ca.linesize, ca.sets
+			);
+			if (ca.features & BIT!(0)) puts("\t\tSelf Initializing");
+			if (ca.features & BIT!(1)) puts("\t\tFully Associative");
+			if (ca.features & BIT!(2)) puts("\t\tNo Write-Back Validation");
+			if (ca.features & BIT!(3)) puts("\t\tCache Inclusive");
+			if (ca.features & BIT!(4)) puts("\t\tComplex Cache Indexing");
+			++ca;
+		}
+	} else {
+		while (ca.type) {
+			char s = 'K';
+			uint cs = ca.size / 1024; // cache size
+			if (cs >= 1024) {
+				cs /= 1024; s = 'M';
+			}
+			printf(
+				"\tL%d%s, %d %cB\n",
+				ca.level, _ct(ca.type), cs, s
+			);
+			++ca;
+		}
+	}
+
+	puts(
+		"\nProcessor technologies",
 	);
 
 	switch (VendorID) { // VENDOR SPECIFIC FEATURES
 	case VENDOR_INTEL:
 		if (EIST)
-			puts("  Enhanced SpeedStep(R) Technology");
+			puts("\tEnhanced SpeedStep(R) Technology");
 		if (TurboBoost)
-			puts("  TurboBoost");
+			puts("\tTurboBoost");
 		break;
 	case VENDOR_AMD:
 		if (TurboBoost)
-			puts("  Core Performance Boost");
+			puts("\tCore Performance Boost");
 		break;
 	default:
 	}
@@ -282,8 +329,8 @@ extern (C) int main(int argc, char** argv) {
 		"\nHighest Leaf: %XH | Extended: %XH\n" ~
 		"Processor type: %s\n" ~
 		"\nFPU\n" ~
-		"  Floating Point Unit [FPU]: %s\n" ~
-		"  16-bit conversion [F16]: %s\n",
+		"\tFloating Point Unit [FPU]: %s\n" ~
+		"\t16-bit conversion [F16]: %s\n",
 		MaximumLeaf, MaximumExtendedLeaf, _pt,
 		B(FPU),
 		B(F16C)
@@ -291,11 +338,11 @@ extern (C) int main(int argc, char** argv) {
 
 	printf( // APCI
 		"\nAPCI\n" ~
-		"  APCI: %s\n" ~
-		"  APIC: %s (Initial ID: %d, Max: %d)\n" ~
-		"  x2APIC: %s\n" ~
-		"  Thermal Monitor: %s\n" ~
-		"  Thermal Monitor 2: %s\n",
+		"\tAPCI: %s\n" ~
+		"\tAPIC: %s (Initial ID: %d, Max: %d)\n" ~
+		"\tx2APIC: %s\n" ~
+		"\tThermal Monitor: %s\n" ~
+		"\tThermal Monitor 2: %s\n",
 		B(APCI),
 		B(APIC),
 		InitialAPICID, MaxIDs, B(x2APIC),
@@ -305,20 +352,20 @@ extern (C) int main(int argc, char** argv) {
 
 	printf( // Virtualization
 		"\nVirtualization\n" ~
-		"  Virtual 8086 Mode Enhancements [VME]: %s\n",
+		"\tVirtual 8086 Mode Enhancements [VME]: %s\n",
 		B(VME)
 	);
 
 	printf( // Memory
 		"\nMemory and Paging\n" ~
-		"  Page Size Extension [PAE]: %s\n" ~
-		"  36-Bit Page Size Extension [PSE-36]: %s\n" ~
-		"  1 GB Pages support [Page1GB]: %s\n" ~
-		"  Direct Cache Access [DCA]: %s\n" ~
-		"  Page Attribute Table [PAT]: %s\n" ~
-		"  Memory Type Range Registers [MTRR]: %s\n" ~
-		"  Page Global Bit [PGE]: %s\n" ~
-		"  64-bit DS Area [DTES64]: %s\n",
+		"\tPage Size Extension [PAE]: %s\n" ~
+		"\t36-Bit Page Size Extension [PSE-36]: %s\n" ~
+		"\t1 GB Pages support [Page1GB]: %s\n" ~
+		"\tDirect Cache Access [DCA]: %s\n" ~
+		"\tPage Attribute Table [PAT]: %s\n" ~
+		"\tMemory Type Range Registers [MTRR]: %s\n" ~
+		"\tPage Global Bit [PGE]: %s\n" ~
+		"\t64-bit DS Area [DTES64]: %s\n",
 		B(PAE),
 		B(PSE_36),
 		B(Page1GB),
@@ -331,12 +378,12 @@ extern (C) int main(int argc, char** argv) {
 
 	printf( // Debugging
 		"\nDebugging\n" ~
-		"  Machine Check Exception [MCE]: %s\n" ~
-		"  Debugging Extensions [DE]: %s\n" ~
-		"  Debug Store [DS]: %s\n" ~
-		"  Debug Store CPL [DS-CPL]: %s\n" ~
-		"  Perfmon and Debug Capability [PDCM]: %s\n" ~
-		"  IA32_DEBUG_INTERFACE (MSR) [SDBG]: %s\n",
+		"\tMachine Check Exception [MCE]: %s\n" ~
+		"\tDebugging Extensions [DE]: %s\n" ~
+		"\tDebug Store [DS]: %s\n" ~
+		"\tDebug Store CPL [DS-CPL]: %s\n" ~
+		"\tPerfmon and Debug Capability [PDCM]: %s\n" ~
+		"\tIA32_DEBUG_INTERFACE (MSR) [SDBG]: %s\n",
 		B(MCE),
 		B(DE),
 		B(DS),
@@ -347,16 +394,16 @@ extern (C) int main(int argc, char** argv) {
 
 	printf( // Other features
 		"\nOther features\n" ~
-		"  Brand Index: %d\n" ~
-		"  L1 Context ID [CNXT-ID]: %s\n" ~
-		"  xTPR Update Control [xTPR]: %s\n" ~
-		"  Process-context identifiers [PCID]: %s\n" ~
-		"  Machine Check Architecture [MCA]: %s\n" ~
-		"  Processor Serial Number [PSN]: %s\n" ~
-		"  Self Snoop [SS]: %s\n" ~
-		"  Pending Break Enable [PBE]: %s\n" ~
-		"  Supervisor Mode Execution Protection [SMEP]: %s\n" ~
-		"  Bit manipulation groups: ",
+		"\tBrand Index: %d\n" ~
+		"\tL1 Context ID [CNXT-ID]: %s\n" ~
+		"\txTPR Update Control [xTPR]: %s\n" ~
+		"\tProcess-context identifiers [PCID]: %s\n" ~
+		"\tMachine Check Architecture [MCA]: %s\n" ~
+		"\tProcessor Serial Number [PSN]: %s\n" ~
+		"\tSelf Snoop [SS]: %s\n" ~
+		"\tPending Break Enable [PBE]: %s\n" ~
+		"\tSupervisor Mode Execution Protection [SMEP]: %s\n" ~
+		"\tBit manipulation groups [BMI]: ",
 		BrandIndex,
 		B(CNXT_ID),
 		B(xTPR),
@@ -421,7 +468,37 @@ void CPUID(uint l) {
 
 __gshared uint a, b, c, d; // EAX to EDX
 
-extern (C) void fetchInfo() {
+
+struct Cache {
+	/*
+	 * Cache Size in Bytes
+	 * (Ways + 1) * (Partitions + 1) * (Line_Size + 1) * (Sets + 1)
+	 * (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
+	 */
+	ubyte type; // data=1, instructions=2, unified=3
+	ubyte level; // L1, L2, etc.
+	ubyte ways; // n-way
+	ubyte partitions; // or "lines per tag" (AMD)
+	ubyte linesize;
+	ushort sets;
+	uint size; // (AMD) size in KB
+	// Intel
+	// -- ebx
+	// bit 0, Self Initializing cache level
+	// bit 1, Fully Associative cache
+	// -- edx
+	// bit 2, Write-Back Invalidate/Invalidate (toggle)
+	// bit 3, Cache Inclusiveness (toggle)
+	// bit 4, Complex Cache Indexing (toggle)
+	// AMD
+	// See Intel, except no Complex Cache Indexing
+	ubyte features;
+}
+
+__gshared Cache[6] cache; // 6 levels should be enough (L1 x2, L2, L3, +2 futureproof)
+
+extern (C)
+void fetchInfo() {
 	// Get processor vendor and processor brand string
 	version (X86_64) asm {
 		lea RDI, vendorString;
@@ -487,6 +564,147 @@ extern (C) void fetchInfo() {
 	VendorID = *cast(uint*)vendorString; // Should be MOVXZ
 
 	ubyte* bp = cast(ubyte*)&b;
+	ubyte* cp = cast(ubyte*)&c;
+	ubyte* dp = cast(ubyte*)&d;
+
+	__gshared uint l = 0; /// Cache level
+	Cache* ca = cast(Cache*)cache;
+
+	switch (VendorID) { // CACHE INFORMATION
+	case VENDOR_INTEL:
+CACHE_INTEL:
+		asm {
+			mov EAX, 4;
+			mov ECX, l;
+			cpuid;
+			cmp EAX, 0; // Check ZF
+			jz CACHE_AFTER; // if EAX=0, get out
+			mov a, EAX;
+			mov b, EBX;
+			mov c, ECX;
+			mov d, EDX;
+		}
+
+		ca.type = (a & 0b1111);
+		ca.level = cast(ubyte)((a >> 5) & 0b111);
+		ca.linesize = cast(ubyte)((b & 0x7FF) + 1);
+		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
+		ca.ways = cast(ubyte)((b >> 22) + 1);
+		ca.sets = cast(ushort)(c + 1);
+		ca.size = ca.sets * ca.linesize * ca.partitions * ca.ways;
+		if (Details) {
+			if (a & BIT!(8)) ca.features = 1;
+			if (a & BIT!(9)) ca.features |= BIT!(1);
+			if (d & BIT!(0)) ca.features |= BIT!(2);
+			if (d & BIT!(1)) ca.features |= BIT!(3);
+			if (d & BIT!(2)) ca.features |= BIT!(4);
+		}
+
+		debug printf("| %8X | %8X | %8X | %8X | %8X |\n", l, a, b, c, d);
+		++l; ++ca;
+		goto CACHE_INTEL;
+	case VENDOR_AMD:
+		ubyte _amd_ways_l2 = void; // please the compiler
+
+		if (MaximumExtendedLeaf >= 0x8000_001D) goto CACHE_AMD_NEWER;
+
+		asm { // olde way
+			mov EAX, 0x8000_0005;
+			cpuid;
+			mov c, ECX;
+			mov d, EDX;
+		}
+		cache[0].level = cache[1].level = 1; // L1
+		cache[0].type = 1; // data
+		cache[0].linesize = *cp;
+		cache[0].partitions = *(cp + 1);
+		cache[0].ways = *(cp + 2);
+		cache[0].size = *(cp + 3);
+		cache[1].type = 2; // instructions
+		cache[1].linesize = *dp;
+		cache[1].partitions = *(dp + 1);
+		cache[1].ways = *(dp + 2);
+		cache[1].size = *(dp + 3);
+
+		if (MaximumExtendedLeaf < 0x8000_0006) break; // No L2/L3
+
+		// Old reference table
+		// See Table E-4. L2/L3 Cache and TLB Associativity Field Encoding
+		// Returns: n-ways
+		extern (C) ubyte _amd_ways(ubyte w) {
+			switch (w) {
+			case 1, 2, 4: return w;
+			case 6: return 8;
+			case 8: return 16;
+			case 0xA: return 32;
+			case 0xB: return 48;
+			case 0xC: return 64;
+			case 0xD: return 96;
+			case 0xE: return 128;
+			case 0xF: return 129; // custom for "fully associative"
+			default: return 0; // reserved
+			}
+		}
+
+		asm { // olde way
+			mov EAX, 0x8000_0006;
+			cpuid;
+			mov c, ECX;
+			mov d, EDX;
+		}
+		_amd_ways_l2 = (c >> 12) & 7;
+		if (_amd_ways_l2) {
+			cache[2].level = 2; // L2
+			cache[2].type = 3; // unified
+			cache[2].ways = _amd_ways(_amd_ways_l2);
+			cache[2].size = c >> 16;
+			cache[2].sets = (c >> 8) & 7;
+			cache[2].linesize = *cp;
+
+			ubyte _amd_ways_l3 = (d >> 12) & 0b111;
+			if (_amd_ways_l3) {
+				cache[3].level = 3; // L2
+				cache[3].type = 3; // unified
+				cache[3].ways = _amd_ways(_amd_ways_l3);
+				cache[3].size = ((d >> 18) + 1) * 512;
+				cache[3].sets = (d >> 8) & 7;
+				cache[3].linesize = *dp & 0x7F;
+			}
+		}
+
+CACHE_AMD_NEWER:
+		asm {
+			mov EAX, 0x8000_001D;
+			mov ECX, l;
+			cpuid;
+			cmp AL, 0; // Check ZF
+			jz CACHE_AFTER; // if AL=0, get out
+			mov a, EAX;
+			mov b, EBX;
+			mov c, ECX;
+			mov d, EDX;
+		}
+
+		ca.type = (a & 0b1111); // Same as Intel
+		ca.level = cast(ubyte)((a >> 5) & 0b111);
+		ca.linesize = cast(ubyte)((b & 0x7FF) + 1);
+		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
+		ca.ways = cast(ubyte)((b >> 22) + 1);
+		ca.sets = cast(ushort)(c + 1);
+		ca.size = ca.sets * ca.linesize * ca.partitions * ca.ways;
+		if (Details) {
+			if (a & BIT!(8)) ca.features = 1;
+			if (a & BIT!(9)) ca.features |= BIT!(1);
+			if (d & BIT!(0)) ca.features |= BIT!(2);
+			if (d & BIT!(1)) ca.features |= BIT!(3);
+		}
+
+		debug printf("| %8X | %8X | %8X | %8X | %8X |\n", l, a, b, c, d);
+		++l; ++ca;
+		goto CACHE_AMD_NEWER;
+	default:
+	}
+CACHE_AFTER:
 
 	CPUID(1); // ----- 1H
 
@@ -553,22 +771,22 @@ extern (C) void fetchInfo() {
 	InitialAPICID   = *(bp + 3); // EBX[31:24]
 
 	// ECX
-	SSE3        = c & BIT!(0);
-	PCLMULQDQ   = c & BIT!(1);
-	MONITOR     = c & BIT!(3);
-	SSSE3       = c & BIT!(9);
-	FMA         = c & BIT!(12);
-	CMPXCHG16B  = c & BIT!(13);
-	SSE41       = c & BIT!(15);
-	SSE42       = c & BIT!(20);
-	MOVBE       = c & BIT!(22);
-	POPCNT      = c & BIT!(23);
-	AES         = c & BIT!(25);
-	XSAVE       = c & BIT!(26);
-	OSXSAVE     = c & BIT!(27);
-	AVX         = c & BIT!(28);
-	F16C        = c & BIT!(29);
-	RDRAND      = c & BIT!(30);
+	SSE3       = c & BIT!(0);
+	PCLMULQDQ  = c & BIT!(1);
+	MONITOR    = c & BIT!(3);
+	SSSE3      = c & BIT!(9);
+	FMA        = c & BIT!(12);
+	CMPXCHG16B = c & BIT!(13);
+	SSE41      = c & BIT!(15);
+	SSE42      = c & BIT!(20);
+	MOVBE      = c & BIT!(22);
+	POPCNT     = c & BIT!(23);
+	AES        = c & BIT!(25);
+	XSAVE      = c & BIT!(26);
+	OSXSAVE    = c & BIT!(27);
+	AVX        = c & BIT!(28);
+	F16C       = c & BIT!(29);
+	RDRAND     = c & BIT!(30);
 
 	// EDX
 	FPU    = d & BIT!(0);
@@ -887,7 +1105,6 @@ uint PBE; // 31
 /// Turbo Boost Technology (Intel)
 /// eq. to AMD's Core Performance Boost
 ushort TurboBoost;
-
 
 // ---- 07h ----
 // -- EBX --

@@ -430,7 +430,7 @@ extern(C) immutable(char)* B(uint c) pure @nogc nothrow {
 
 /// Print cpuid
 extern(C) void printc(uint leaf) {
-	__gshared uint a, b, c, d;
+	uint a, b, c, d;
 	asm {
 		mov EAX, leaf;
 		mov ECX, 0;
@@ -443,31 +443,9 @@ extern(C) void printc(uint leaf) {
 	printf("| %8X | %8X | %8X | %8X | %8X |\n", leaf, a, b, c, d);
 }
 
-/*****************************
- * CPU INFO
- *****************************/
-
 template BIT(int n) {
 	enum { BIT = 1 << n }
 }
-
-pragma(inline, true)
-extern (C)
-void CPUID(uint l) {
-	asm {
-		mov EAX, l;
-		mov ECX, 0;
-		cpuid;
-		mov a, EAX;
-		mov b, EBX;
-		mov c, ECX;
-		mov d, EDX;
-	} // no ret in case calling convention differs
-	return;
-}
-
-__gshared uint a, b, c, d; // EAX to EDX
-
 
 struct Cache {
 	/*
@@ -497,19 +475,63 @@ struct Cache {
 
 __gshared Cache[6] cache; // 6 levels should be enough (L1 x2, L2, L3, +2 futureproof)
 
+/*****************************
+ * FETCH INFO
+ *****************************/
+
 extern (C)
 void fetchInfo() {
+	version (I13) { // See Issue 13
+		uint a, b, c, d; // EAX to EDX
+
+		size_t __A = cast(size_t)&vendorString;
+		size_t __B = cast(size_t)&cpuString;
+
+		pragma(inline, true) extern (C) void CPUID(uint l) {
+			asm {
+				mov EAX, l;
+				mov ECX, 0;
+				cpuid;
+				mov a, EAX;
+				mov b, EBX;
+				mov c, ECX;
+				mov d, EDX;
+			} // no ret in case calling convention differs
+			return;
+		}
+	} else {
+		__gshared uint a, b, c, d; // EAX to EDX
+
+		pragma(inline, true) extern (C) void CPUID(uint l) {
+			asm {
+				mov EAX, l;
+				mov ECX, 0;
+				cpuid;
+				mov a, EAX;
+				mov b, EBX;
+				mov c, ECX;
+				mov d, EDX;
+			} // no ret in case calling convention differs
+			return;
+		}
+	}
+
 	// Get processor vendor and processor brand string
-	version (X86_64) asm {
-		lea RDI, vendorString;
+	version (X86_64) {
+		version (I13) asm { mov RDI, __A; }
+		else asm { lea RDI, vendorString; }
+		asm {
 		mov EAX, 0;
 		cpuid;
 		mov [RDI], EBX;
 		mov [RDI+4], EDX;
 		mov [RDI+8], ECX;
 		mov byte ptr [RDI+12], 0;
+		}
 
-		lea RDI, cpuString;
+		version (I13) asm { mov RDI, __B; }
+		else asm { lea RDI, cpuString; }
+		asm {
 		mov EAX, 0x8000_0002;
 		cpuid;
 		mov [RDI], EAX;
@@ -529,7 +551,11 @@ void fetchInfo() {
 		mov [RDI+40], ECX;
 		mov [RDI+44], EDX;
 		mov byte ptr [RDI+48], 0;
-	} else asm {
+		}
+	} else {
+		version (I13) asm { mov EDI, __A; }
+		else asm { lea EDI, vendorString; }
+		asm {
 		lea EDI, vendorString;
 		mov EAX, 0;
 		cpuid;
@@ -537,7 +563,11 @@ void fetchInfo() {
 		mov [EDI+4], EDX;
 		mov [EDI+8], ECX;
 		mov byte ptr [EDI+12], 0;
+		}
 
+		version (I13) asm { mov EDI, __B; }
+		else asm { lea EDI, cpuString; }
+		asm {
 		lea EDI, cpuString;
 		mov EAX, 0x8000_0002;
 		cpuid;
@@ -558,6 +588,7 @@ void fetchInfo() {
 		mov [EDI+40], ECX;
 		mov [EDI+44], EDX;
 		mov byte ptr [EDI+48], 0;
+		}
 	}
 
 	// Why compare strings when you can just compare numbers?

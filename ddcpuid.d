@@ -377,6 +377,7 @@ extern (C) int main(int argc, char** argv) {
 
 	printf( // Debugging
 		"\nDebugging\n" ~
+		"\tMachine Check Architecture [MCA]: %s\n" ~
 		"\tMachine Check Exception [MCE]: %s\n" ~
 		"\tDebugging Extensions [DE]: %s\n" ~
 		"\tDebug Store [DS]: %s\n" ~
@@ -384,6 +385,7 @@ extern (C) int main(int argc, char** argv) {
 		"\t64-bit DS Area [DTES64]: %s\n" ~
 		"\tPerfmon and Debug Capability [PDCM]: %s\n" ~
 		"\tIA32_DEBUG_INTERFACE (MSR) [SDBG]: %s\n",
+		B(MCA),
 		B(MCE),
 		B(DE),
 		B(DS),
@@ -399,7 +401,6 @@ extern (C) int main(int argc, char** argv) {
 		"\tL1 Context ID [CNXT-ID]: %s\n" ~
 		"\txTPR Update Control [xTPR]: %s\n" ~
 		"\tProcess-context identifiers [PCID]: %s\n" ~
-		"\tMachine Check Architecture [MCA]: %s\n" ~
 		"\tProcessor Serial Number [PSN]: %s\n" ~
 		"\tSelf Snoop [SS]: %s\n" ~
 		"\tPending Break Enable [PBE]: %s\n" ~
@@ -409,7 +410,6 @@ extern (C) int main(int argc, char** argv) {
 		B(CNXT_ID),
 		B(xTPR),
 		B(PCID),
-		B(MCA),
 		B(PSN),
 		B(SS),
 		B(PBE),

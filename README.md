@@ -4,18 +4,7 @@ ddcpuid is a simple x86/x86-64 CPUID tool, works best with Intel and AMD process
 
 I will gladly implement features from VIA, Zhaoxin, and others once I get documentation.
 
-## Advanced mode
-
-More information is available with the `-d` parameter.
-
-Advanced mode is intended for developers, engineers, and the curious mind.
-
-These include:
-- Other instructions, such as RDSEED
-- Advanced cache information
-- High leaves
-- Processor type
-- Processor features, such as APCI, BMIs, Brand Index, etc.
+A ddcpuid User Manual is available [here](https://dd86k.github.io/docs/ddcpuid-manual.pdf).
 
 ## Erratas and inaccuracy  
 

@@ -4,7 +4,7 @@ extern (C) {
 	int puts(scope const char* s);
 }
 
-enum VERSION = "0.7.0"; /// Program version
+enum VERSION = "0.7.1"; /// Program version
 
 enum
 	MAX_LEAF = 0x20, /// Maximum leaf (-o)
@@ -158,7 +158,8 @@ extern (C) int main(int argc, char** argv) {
 		printf(
 			"Identifier: Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh\n",
 			Family, BaseFamily, ExtendedFamily,
-			Model, BaseModel, ExtendedModel, Stepping
+			Model, BaseModel, ExtendedModel,
+			Stepping
 		);
 	else
 		printf(
@@ -337,15 +338,15 @@ extern (C) int main(int argc, char** argv) {
 	);
 
 	printf( // APCI
-		"\nAPCI\n" ~
-		"\tAPCI: %s\n" ~
+		"\nACPI\n" ~
+		"\tACPI: %s\n" ~
 		"\tAPIC: %s (Initial ID: %d, Max: %d)\n" ~
 		"\tx2APIC: %s\n" ~
 		"\tThermal Monitor: %s\n" ~
 		"\tThermal Monitor 2: %s\n",
 		B(APCI),
-		B(APIC),
-		InitialAPICID, MaxIDs, B(x2APIC),
+		B(APIC), InitialAPICID, MaxIDs,
+		B(x2APIC),
 		B(TM),
 		B(TM2)
 	);

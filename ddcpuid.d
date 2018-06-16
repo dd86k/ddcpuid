@@ -365,16 +365,14 @@ extern (C) int main(int argc, char** argv) {
 		"\tDirect Cache Access [DCA]: %s\n" ~
 		"\tPage Attribute Table [PAT]: %s\n" ~
 		"\tMemory Type Range Registers [MTRR]: %s\n" ~
-		"\tPage Global Bit [PGE]: %s\n" ~
-		"\t64-bit DS Area [DTES64]: %s\n",
+		"\tPage Global Bit [PGE]: %s\n",
 		B(PAE),
 		B(PSE_36),
 		B(Page1GB),
 		B(DCA),
 		B(PAT),
 		B(MTRR),
-		B(PGE),
-		B(DTES64)
+		B(PGE)
 	);
 
 	printf( // Debugging
@@ -383,12 +381,14 @@ extern (C) int main(int argc, char** argv) {
 		"\tDebugging Extensions [DE]: %s\n" ~
 		"\tDebug Store [DS]: %s\n" ~
 		"\tDebug Store CPL [DS-CPL]: %s\n" ~
+		"\t64-bit DS Area [DTES64]: %s\n" ~
 		"\tPerfmon and Debug Capability [PDCM]: %s\n" ~
 		"\tIA32_DEBUG_INTERFACE (MSR) [SDBG]: %s\n",
 		B(MCE),
 		B(DE),
 		B(DS),
 		B(DS_CPL),
+		B(DTES64),
 		B(PDCM),
 		B(SDBG)
 	);

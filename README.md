@@ -6,7 +6,7 @@ I will gladly implement features from VIA, Zhaoxin, and others once I get docume
 
 A ddcpuid User Manual is available [here](https://dd86k.github.io/docs/ddcpuid-manual.pdf).
 
-## Erratas and inaccuracy  
+## Bugs
 
 ddcpuid isn't perfect. For any misleading or incorrect pieces of information, please report to this repository or via my email (on my profile). 
 

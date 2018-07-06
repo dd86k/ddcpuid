@@ -482,45 +482,19 @@ __gshared Cache[6] cache; // 6 levels should be enough (L1 x2, L2, L3, +2 future
 
 extern (C)
 void fetchInfo() {
-	version (I13) { // See Issue 13
+	version (Windows) {
+		__gshared uint a, b, c, d; // EAX to EDX
+	} else {
 		uint a, b, c, d; // EAX to EDX
 
 		size_t __A = cast(size_t)&vendorString;
 		size_t __B = cast(size_t)&cpuString;
-
-		pragma(inline, true) extern (C) void CPUID(uint l) {
-			asm {
-				mov EAX, l;
-				mov ECX, 0;
-				cpuid;
-				mov a, EAX;
-				mov b, EBX;
-				mov c, ECX;
-				mov d, EDX;
-			} // no ret in case calling convention differs
-			return;
-		}
-	} else {
-		__gshared uint a, b, c, d; // EAX to EDX
-
-		pragma(inline, true) extern (C) void CPUID(uint l) {
-			asm {
-				mov EAX, l;
-				mov ECX, 0;
-				cpuid;
-				mov a, EAX;
-				mov b, EBX;
-				mov c, ECX;
-				mov d, EDX;
-			} // no ret in case calling convention differs
-			return;
-		}
 	}
 
 	// Get processor vendor and processor brand string
 	version (X86_64) {
-		version (I13) asm { mov RDI, __A; }
-		else asm { lea RDI, vendorString; }
+		version (Windows) asm { lea RDI, vendorString; }
+		else asm { mov RDI, __A; }
 		asm {
 		mov EAX, 0;
 		cpuid;
@@ -530,8 +504,8 @@ void fetchInfo() {
 		mov byte ptr [RDI+12], 0;
 		}
 
-		version (I13) asm { mov RDI, __B; }
-		else asm { lea RDI, cpuString; }
+		version (Windows) asm { lea RDI, cpuString; }
+		else asm { mov RDI, __B; }
 		asm {
 		mov EAX, 0x8000_0002;
 		cpuid;
@@ -554,8 +528,8 @@ void fetchInfo() {
 		mov byte ptr [RDI+48], 0;
 		}
 	} else {
-		version (I13) asm { mov EDI, __A; }
-		else asm { lea EDI, vendorString; }
+		version (Windows) asm { lea EDI, vendorString; }
+		else asm { mov EDI, __A; }
 		asm {
 		lea EDI, vendorString;
 		mov EAX, 0;
@@ -566,8 +540,8 @@ void fetchInfo() {
 		mov byte ptr [EDI+12], 0;
 		}
 
-		version (I13) asm { mov EDI, __B; }
-		else asm { lea EDI, cpuString; }
+		version (Windows) asm { lea EDI, cpuString; }
+		else asm { mov EDI, __B; }
 		asm {
 		lea EDI, cpuString;
 		mov EAX, 0x8000_0002;
@@ -599,7 +573,7 @@ void fetchInfo() {
 	ubyte* cp = cast(ubyte*)&c;
 	ubyte* dp = cast(ubyte*)&d;
 
-	__gshared uint l = 0; /// Cache level
+	uint l; /// Cache level
 	Cache* ca = cast(Cache*)cache;
 
 	switch (VendorID) { // CACHE INFORMATION
@@ -736,9 +710,17 @@ CACHE_AMD_NEWER:
 		goto CACHE_AMD_NEWER;
 	default:
 	}
-CACHE_AFTER:
 
-	CPUID(1); // ----- 1H
+	asm {
+CACHE_AFTER: // please ldc??????
+		mov EAX, 1;
+		mov ECX, 0;
+		cpuid;
+		mov a, EAX;
+		mov b, EBX;
+		mov c, ECX;
+		mov d, EDX;
+	} // ----- 1H
 
 	// EAX
 	Stepping       = a & 0xF;        // EAX[3:0]
@@ -847,13 +829,29 @@ CACHE_AFTER:
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
-		CPUID(6); // ----- 6H, avoids calling it if not Intel, for now
+		asm {
+			mov EAX, 7;
+			mov ECX, 0;
+			cpuid;
+			mov a, EAX;
+			mov b, EBX;
+			mov c, ECX;
+			mov d, EDX;
+		} // ----- 6H, avoids calling it if not Intel, for now
 		TurboBoost = a & BIT!(1);
 		break;
 	default:
 	}
 
-	CPUID(7); // ----- 7H
+	asm {
+		mov EAX, 7;
+		mov ECX, 0;
+		cpuid;
+		mov a, EAX;
+		mov b, EBX;
+		mov c, ECX;
+		mov d, EDX;
+	} // ----- 7H
 
 	BMI1   = b & BIT!(4);
 	AVX2   = b & BIT!(5);
@@ -865,7 +863,15 @@ CACHE_AFTER:
 	 * Extended CPUID leafs
 	 */
 
-	CPUID(0x8000_0001); // EXTENDED 1H
+	asm {
+		mov EAX, 0x8000_0001;
+		mov ECX, 0;
+		cpuid;
+		mov a, EAX;
+		mov b, EBX;
+		mov c, ECX;
+		mov d, EDX;
+	} // EXTENDED 1H
 
 	switch (VendorID) {
 	case VENDOR_AMD:
@@ -887,7 +893,15 @@ CACHE_AFTER:
 	Page1GB  = d & BIT!(26);
 	LongMode = d & BIT!(29);
 
-	CPUID(0x8000_0007); // EXTENDED 7H
+	asm {
+		mov EAX, 0x8000_0007;
+		mov ECX, 0;
+		cpuid;
+		mov a, EAX;
+		mov b, EBX;
+		mov c, ECX;
+		mov d, EDX;
+	} // EXTENDED 7H
 
 	switch (VendorID) {
 	case VENDOR_INTEL:

@@ -298,16 +298,19 @@ extern (C) int main(int argc, char** argv) {
 		}
 	}
 
-	puts(
-		"\nProcessor technologies",
-	);
+	puts("\nProcessor technologies");
 
 	switch (VendorID) { // VENDOR SPECIFIC FEATURES
 	case VENDOR_INTEL:
 		if (EIST)
 			puts("\tEnhanced SpeedStep(R) Technology");
-		if (TurboBoost)
-			puts("\tTurboBoost");
+		if (TurboBoost) {
+			printf("\tTurboBoost");
+			if (TurboBoost3)
+				puts(" 3.0");
+			else
+				printf("\n");
+		}
 		break;
 	case VENDOR_AMD:
 		if (TurboBoost)
@@ -328,13 +331,14 @@ extern (C) int main(int argc, char** argv) {
 		}
 	}
 
-	printf( // FPU and others
+	printf( // Misc. and FPU
 		"\nHighest Leaf: %XH | Extended: %XH\n" ~
 		"Processor type: %s\n" ~
 		"\nFPU\n" ~
 		"\tFloating Point Unit [FPU]: %s\n" ~
 		"\t16-bit conversion [F16]: %s\n",
-		MaximumLeaf, MaximumExtendedLeaf, _pt,
+		MaximumLeaf, MaximumExtendedLeaf,
+		_pt,
 		B(FPU),
 		B(F16C)
 	);
@@ -420,7 +424,7 @@ extern (C) int main(int argc, char** argv) {
 	if (BMI1 || BMI2) {
 		if (BMI1) printf("BMI1");
 		if (BMI2) printf(", BMI2");
-		puts("");
+		printf("\n");
 	} else
 		puts("None");
 
@@ -839,6 +843,7 @@ CACHE_AFTER:
 			//mov d, EDX;
 		} // ----- 6H, avoids calling it if not Intel, for now
 		TurboBoost = a & BIT!(1);
+		TurboBoost3 = a & BIT!(14);
 		break;
 	default:
 	}
@@ -869,11 +874,11 @@ CACHE_AFTER:
 		mov EAX, 0x8000_0001;
 		mov ECX, 0;
 		cpuid;
-		mov a, EAX;
+		//mov a, EAX;
 		mov b, EBX;
 		mov c, ECX;
 		mov d, EDX;
-	} // EXTENDED 1H
+	} // EXTENDED 8000_0001H
 
 	switch (VendorID) {
 	case VENDOR_AMD:
@@ -899,11 +904,11 @@ CACHE_AFTER:
 		mov EAX, 0x8000_0007;
 		mov ECX, 0;
 		cpuid;
-		mov a, EAX;
+		//mov a, EAX;
 		mov b, EBX;
-		mov c, ECX;
+		//mov c, ECX;
 		mov d, EDX;
-	} // EXTENDED 7H
+	} // EXTENDED 8000_0007H
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
@@ -970,219 +975,130 @@ INTEL_A:
 __gshared:
 
 // ---- Basic information ----
-/// Processor vendor
 char[13] vendorString;
-/// Processor brand string
 char[49] cpuString;
 
-/// Maximum leaf supported by this processor.
 uint MaximumLeaf;
-/// Maximum extended leaf supported by this processor.
 uint MaximumExtendedLeaf;
 
-/// Number of physical cores.
 //ushort NumberOfCores;
-/// Number of logical cores.
 //ushort NumberOfThreads;
 
-/// Processor family. ID and extended ID included.
 ubyte Family;
-/// Base Family ID
 ubyte BaseFamily;
-/// Extended Family ID
 ubyte ExtendedFamily;
-/// Processor model. ID and extended ID included.
 ubyte Model;
-/// Base Model ID
 ubyte BaseModel;
-/// Extended Model ID
 ubyte ExtendedModel;
-/// Processor stepping.
 ubyte Stepping;
-/// Processor type.
 ubyte ProcessorType;
 
-/// MMX Technology.
 uint MMX;
-/// AMD MMX Extented set.
 uint MMXExt;
-/// Streaming SIMD Extensions.
 uint SSE;
-/// Streaming SIMD Extensions 2.
 uint SSE2;
-/// Streaming SIMD Extensions 3.
 uint SSE3;
-/// Supplemental Streaming SIMD Extensions 3 (SSSE3).
 uint SSSE3;
-/// Streaming SIMD Extensions 4.1.
 uint SSE41;
-/// Streaming SIMD Extensions 4.2.
 uint SSE42;
-/// Streaming SIMD Extensions 4a. AMD only.
 uint SSE4a;
-/// AES instruction extensions.
 uint AES;
-/// AVX instruction extensions.
 uint AVX;
-/// AVX2 instruction extensions.
 uint AVX2;
 
-/// 3DNow! extension. AMD only. Deprecated in 2010.
 uint _3DNow;
-/// 3DNow! Extension supplements. See 3DNow!
 uint _3DNowExt;
 
 // ---- 01h ----
 // -- EBX --
-/// Brand index. See Table 3-24. If 0, use normal BrandString.
 ubyte BrandIndex;
-/// The CLFLUSH line size. Multiply by 8 to get its size in bytes.
 ubyte CLFLUSHLineSize;
-/// Maximum number of addressable IDs for logical processors in this physical package.
 ubyte MaxIDs;
-/// Initial APIC ID that the process started on.
 ubyte InitialAPICID;
 
 // -- ECX --
-/// PCLMULQDQ instruction.
-ubyte PCLMULQDQ; // 1
-/// 64-bit DS Area (64-bit layout).
+ubyte PCLMULQDQ;	// 1
 ubyte DTES64;
-/// MONITOR/MWAIT.
 ubyte MONITOR;
-/// CPL Qualified Debug Store.
 ubyte DS_CPL;
-/// Virtualization | Virtual Machine eXtensions (Intel) | Secure Virtual Machine (AMD) 
-ubyte Virt;
-/// Safer Mode Extensions. Intel TXT/TPM
-ubyte SMX;
-/// Enhanced Intel SpeedStep® Technology.
-ubyte EIST;
-/// Thermal Monitor 2.
+ubyte Virt; // VMX (intel) / SVM (AMD)
+ubyte SMX; // intel txt/tpm
+ubyte EIST; // intel speedstep
 ushort TM2;
-/// L1 Context ID.
-ushort CNXT_ID;
-/// Indicates the processor supports IA32_DEBUG_INTERFACE MSR for silicon debug.
-ushort SDBG;
-/// FMA extensions using YMM state.
+ushort CNXT_ID; // l1 context id
+ushort SDBG; // IA32_DEBUG_INTERFACE silicon debug
 ushort FMA;
-/// Four-operand FMA instruction support.
 uint FMA4;
-/// CMPXCHG16B instruction.
 uint CMPXCHG16B;
-/// xTPR Update Control.
 uint xTPR;
-/// Perfmon and Debug Capability.
 uint PDCM;
-/// Process-context identifiers.
-uint PCID;
-/// Direct Cache Access.
+uint PCID; // Process-context identifiers
 uint DCA;
-/// x2APIC feature (Intel programmable interrupt controller).
 uint x2APIC;
-/// MOVBE instruction.
 uint MOVBE;
-/// POPCNT instruction.
 uint POPCNT;
-/// Indicates if the APIC timer supports one-shot operation using a TSC deadline value.
 uint TscDeadline;
-/// Indicates the support of the XSAVE/XRSTOR extended states feature, XSETBV/XGETBV instructions, and XCR0.
 uint XSAVE;
-/// Indicates if the OS has set CR4.OSXSAVE[18] to enable XSETBV/XGETBV instructions for XCR0 and XSAVE.
 uint OSXSAVE;
-/// 16-bit floating-point conversion instructions.
 uint F16C;
-/// RDRAND instruction.
-uint RDRAND; // 30
+uint RDRAND;	// 30
 
 // -- EDX --
-/// Floating Point Unit On-Chip. The processor contains an x87 FPU.
 ubyte FPU; // 0
-/// Virtual 8086 Mode Enhancements.
 ubyte VME;
-/// Debugging Extensions.
 ubyte DE;
-/// Page Size Extension.
 ubyte PSE;
-/// Time Stamp Counter.
 ubyte TSC;
-/// Model Specific Registers RDMSR and WRMSR Instructions. 
 ubyte MSR;
-/// Physical Address Extension.
 ubyte PAE;
-/// Machine Check Exception.
 ubyte MCE;
-/// CMPXCHG8B Instruction.
 ushort CX8;
-/// Indicates if the processor contains an Advanced Programmable Interrupt Controller.
 ushort APIC;
-/// SYSENTER and SYSEXIT Instructions.
-ushort SEP;
-/// Memory Type Range Registers.
+ushort SEP; // sysenter/sysexit
 ushort MTRR;
-/// Page Global Bit.
 ushort PGE;
-/// Machine Check Architecture.
 ushort MCA;
-/// Conditional Move Instructions.
 ushort CMOV;
-/// Page Attribute Table.
 uint PAT;
-/// 36-Bit Page Size Extension.
 uint PSE_36;
-/// Processor Serial Number. Only Pentium 3 used this.
 uint PSN;
-/// CLFLUSH Instruction.
 uint CLFSH;
-/// Debug Store.
 uint DS;
-/// Thermal Monitor and Software Controlled Clock Facilities.
 uint APCI;
-/// FXSAVE and FXRSTOR Instructions.
 uint FXSR;
-/// Self Snoop.
-uint SS;
-/// Max APIC IDs reserved field is Valid. 0 if only unicore.
+uint SS; // self-snoop
 uint HTT;
-/// Thermal Monitor.
 uint TM;
-/// Pending Break Enable.
 uint PBE; // 31
 
 // ---- 06h ----
-/// Turbo Boost Technology (Intel)
 /// eq. to AMD's Core Performance Boost
-ushort TurboBoost;
+ushort TurboBoost;	// 1
+ushort TurboBoost3;	// 14
 
 // ---- 07h ----
 // -- EBX --
-// Note: BMI1, BMI2, and SMEP were introduced in 4th Generation Core processors.
-/// Bit manipulation group 1 instruction support.
-ubyte BMI1; // 3
-/// Supervisor Mode Execution Protection.
-ubyte SMEP; // 7
-/// Bit manipulation group 2 instruction support.
-ushort BMI2; // 8
+ubyte BMI1;	// 3
+ubyte SMEP;	// 7
+ushort BMI2;	// 8
 // -- ECX --
-uint RDPID; // 22
+uint RDPID;	// 22
 
 // ---- 8000_0001 ----
 // ECX
 /// Advanced Bit Manipulation under AMD. LZCUNT under Intel.
 ubyte LZCNT;
 /// PREFETCHW under Intel. 3DNowPrefetch under AMD.
-ushort PREFETCHW; // 8
+ushort PREFETCHW;	// 8
 
 /// RDSEED instruction
 uint RDSEED;
 // EDX
-/// Intel: Execute Disable Bit. AMD: No-execute page protection.
-uint NX; // 20
+uint NX;	// 20
 /// 1GB Pages
-uint Page1GB; // 26
+uint Page1GB;	// 26
 /// Also known as Intel64 or AMD64.
-uint LongMode; // 29
+uint LongMode;	// 29
 
 // ---- 8000_0007 ----
-/// TSC Invariation support
-ushort TscInvariant; // 8
+ushort TscInvariant;	// 8

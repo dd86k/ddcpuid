@@ -42,10 +42,10 @@ enum
  * re-appear in another vendor, get the next four bytes.
  */
 enum : uint { // LSB
-	VENDOR_OTHER = 0, // Or unknown
-	VENDOR_INTEL = 0x756e6547, // "Genu"
-	VENDOR_AMD = 0x68747541, // "Auth"
-	VENDOR_VIA = 0x20414956 // "VIA "
+	VENDOR_OTHER	= 0, // Or unknown
+	VENDOR_INTEL	= 0x756e6547, // "Genu"
+	VENDOR_AMD	= 0x68747541, // "Auth"
+	VENDOR_VIA	= 0x20414956 // "VIA "
 }
 __gshared uint VendorID; /// Vendor "ID", inits to VENDOR_OTHER
 
@@ -124,7 +124,7 @@ extern (C) int main(int argc, char** argv) {
 			"| Leaf     | EAX      | EBX      | ECX      | EDX      |\n"~
 			"|----------|----------|----------|----------|----------|"
 		);
-		__gshared uint l;
+		uint l;
 		do {
 			printc(l);
 		} while (++l <= MaximumLeaf);
@@ -139,7 +139,7 @@ extern (C) int main(int argc, char** argv) {
 
 	fetchInfo;
 
-	__gshared char* cstring = cast(char*)cpuString;
+	char* cstring = cast(char*)cpuString;
 
 	switch (VendorID) {
 	case VENDOR_INTEL: // Common in Intel processor brand strings
@@ -254,6 +254,8 @@ extern (C) int main(int argc, char** argv) {
 			if (FMA4) printf("4");
 			printf("), ");
 		}
+		if (RDPID)
+			printf("RDPID, ");
 	}
 
 	puts("\n\nCache"); // ----- Cache
@@ -266,7 +268,7 @@ extern (C) int main(int argc, char** argv) {
 		}
 	}
 
-	__gshared Cache* ca = cast(Cache*)cache;
+	Cache* ca = cast(Cache*)cache;
 	
 	if (Details) {
 		while (ca.type) {
@@ -482,11 +484,9 @@ __gshared Cache[6] cache; // 6 levels should be enough (L1 x2, L2, L3, +2 future
 
 extern (C)
 void fetchInfo() {
-	version (Windows) {
-		__gshared uint a, b, c, d; // EAX to EDX
-	} else {
-		uint a, b, c, d; // EAX to EDX
+	uint a = void, b = void, c = void, d = void; // EAX to EDX
 
+	version (Posix) {
 		size_t __A = cast(size_t)&vendorString;
 		size_t __B = cast(size_t)&cpuString;
 	}
@@ -567,7 +567,7 @@ void fetchInfo() {
 	}
 
 	// Why compare strings when you can just compare numbers?
-	VendorID = *cast(uint*)vendorString; // Should be MOVXZ
+	VendorID = *cast(uint*)vendorString;
 
 	ubyte* bp = cast(ubyte*)&b;
 	ubyte* cp = cast(ubyte*)&c;
@@ -711,8 +711,8 @@ CACHE_AMD_NEWER:
 	default:
 	}
 
+CACHE_AFTER:
 	asm {
-CACHE_AFTER: // please ldc??????
 		mov EAX, 1;
 		mov ECX, 0;
 		cpuid;
@@ -830,13 +830,13 @@ CACHE_AFTER: // please ldc??????
 	switch (VendorID) {
 	case VENDOR_INTEL:
 		asm {
-			mov EAX, 7;
+			mov EAX, 6;
 			mov ECX, 0;
 			cpuid;
 			mov a, EAX;
-			mov b, EBX;
-			mov c, ECX;
-			mov d, EDX;
+			//mov b, EBX;
+			//mov c, ECX;
+			//mov d, EDX;
 		} // ----- 6H, avoids calling it if not Intel, for now
 		TurboBoost = a & BIT!(1);
 		break;
@@ -847,10 +847,10 @@ CACHE_AFTER: // please ldc??????
 		mov EAX, 7;
 		mov ECX, 0;
 		cpuid;
-		mov a, EAX;
+		//mov a, EAX;
 		mov b, EBX;
 		mov c, ECX;
-		mov d, EDX;
+		//mov d, EDX;
 	} // ----- 7H
 
 	BMI1   = b & BIT!(4);
@@ -858,6 +858,8 @@ CACHE_AFTER: // please ldc??????
 	SMEP   = b & BIT!(7);
 	BMI2   = b & BIT!(8);
 	RDSEED = b & BIT!(18);
+
+	RDPID = c & BIT!(22);
 	
 	/*
 	 * Extended CPUID leafs
@@ -1161,6 +1163,8 @@ ubyte BMI1; // 3
 ubyte SMEP; // 7
 /// Bit manipulation group 2 instruction support.
 ushort BMI2; // 8
+// -- ECX --
+uint RDPID; // 22
 
 // ---- 8000_0001 ----
 // ECX

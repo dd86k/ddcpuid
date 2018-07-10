@@ -93,7 +93,7 @@ extern (C) int main(int argc, char** argv) {
 				_version; return 0;
 			}
 			printf("Unknown parameter: %s\n", a);
-			return 0;
+			return 1;
 		} else if (argv[argc][0] == '-') { // Short arguments
 			char* a = argv[argc];
 			while (*++a != 0) {
@@ -105,7 +105,7 @@ extern (C) int main(int argc, char** argv) {
 				case 'v': _version; return 0;
 				default:
 					printf("Unknown parameter: %c\n", *a);
-					return 0;
+					return 1;
 				} // switch
 			} // while
 		} // else if

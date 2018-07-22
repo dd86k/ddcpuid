@@ -70,12 +70,13 @@ OPTIONS
 }
 
 extern (C) void _version() {
-	puts(
+	printf(
 `ddcpuid v` ~ VERSION ~ ` (` ~ __TIMESTAMP__ ~ `)
 Copyright (c) dd86k 2016-2018
 License: MIT License <http://opensource.org/licenses/MIT>
 Project page: <https://github.com/dd86k/ddcpuid>
-Compiler: ` ~ __VENDOR__
+Compiler: ` ~ __VENDOR__ ~ " v%d\n",
+		__VERSION__
 	);
 }
 
@@ -148,6 +149,8 @@ extern (C) int main(int argc, char** argv) {
 	default:
 	}
 
+	// -- Processor basic information --
+
 	printf(
 		"Vendor: %s\n" ~
 		"String: %s\n",
@@ -166,6 +169,8 @@ extern (C) int main(int argc, char** argv) {
 			"Identifier: Family %d Model %d Stepping %d\n",
 			Family, Model, Stepping
 		);
+	
+	// -- Processor extensions --
 
 	printf("Extensions: ");
 	if (MMX) printf("MMX, ");
@@ -202,6 +207,8 @@ extern (C) int main(int argc, char** argv) {
 	if (AES) printf("AES-NI, ");
 	if (AVX) printf("AVX, ");
 	if (AVX2) printf("AVX2, ");
+
+	// -- Other instructions --
 
 	if (Details) {
 		printf("\nOther instructions: ");
@@ -258,7 +265,9 @@ extern (C) int main(int argc, char** argv) {
 			printf("RDPID, ");
 	}
 
-	puts("\n\nCache"); // ----- Cache
+	// -- Cache information --
+
+	puts("\n\nCache information");
 
 	extern (C) immutable(char)* _ct(ubyte t) {
 		switch (t) {
@@ -268,7 +277,7 @@ extern (C) int main(int argc, char** argv) {
 		}
 	}
 
-	Cache* ca = cast(Cache*)cache;
+	Cache* ca = cast(Cache*)cache; /// Cache levels
 	
 	if (Details) {
 		while (ca.type) {
@@ -298,9 +307,11 @@ extern (C) int main(int argc, char** argv) {
 		}
 	}
 
+	// -- Vendor specific features ---
+
 	puts("\nProcessor technologies");
 
-	switch (VendorID) { // VENDOR SPECIFIC FEATURES
+	switch (VendorID) {
 	case VENDOR_INTEL:
 		if (EIST)
 			puts("\tEnhanced SpeedStep(R) Technology");
@@ -320,6 +331,8 @@ extern (C) int main(int argc, char** argv) {
 	}
 
 	if (Details == 0) return 0;
+
+	// -- Processor detailed features --
 
 	extern (C) immutable(char)* _pt() { // Forgive me
 		switch (ProcessorType) { // 2 bit value
@@ -437,7 +450,7 @@ extern(C) immutable(char)* B(uint c) pure @nogc nothrow {
 
 /// Print cpuid
 extern(C) void printc(uint leaf) {
-	uint a, b, c, d;
+	uint a = void, b = void, c = void, d = void;
 	asm {
 		mov EAX, leaf;
 		mov ECX, 0;
@@ -460,13 +473,13 @@ struct Cache {
 	 * (Ways + 1) * (Partitions + 1) * (Line_Size + 1) * (Sets + 1)
 	 * (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
 	 */
-	ubyte type; // data=1, instructions=2, unified=3
-	ubyte level; // L1, L2, etc.
-	ubyte ways; // n-way
-	ubyte partitions; // or "lines per tag" (AMD)
-	ubyte linesize;
-	ushort sets;
-	uint size; // (AMD) size in KB
+	ubyte type = void; // data=1, instructions=2, unified=3
+	ubyte level = void; // L1, L2, etc.
+	ubyte ways = void; // n-way
+	ubyte partitions = void; // or "lines per tag" (AMD)
+	ubyte linesize = void;
+	ushort sets = void;
+	uint size = void; // (AMD) size in KB
 	// Intel
 	// -- ebx
 	// bit 0, Self Initializing cache level
@@ -477,10 +490,11 @@ struct Cache {
 	// bit 4, Complex Cache Indexing (toggle)
 	// AMD
 	// See Intel, except no Complex Cache Indexing
-	ubyte features;
+	ubyte features = void;
 }
 
-__gshared Cache[6] cache; // 6 levels should be enough (L1 x2, L2, L3, +2 futureproof)
+// 6 levels should be enough (L1 x2, L2, L3, +2 futureproof/0)
+__gshared Cache[6] cache;
 
 /*****************************
  * FETCH INFO
@@ -497,8 +511,10 @@ void fetchInfo() {
 
 	// Get processor vendor and processor brand string
 	version (X86_64) {
-		version (Windows) asm { lea RDI, vendorString; }
-		else asm { mov RDI, __A; }
+		version (Windows)
+			asm { lea RDI, vendorString; }
+		else
+			asm { mov RDI, __A; }
 		asm {
 		mov EAX, 0;
 		cpuid;
@@ -508,8 +524,10 @@ void fetchInfo() {
 		mov byte ptr [RDI+12], 0;
 		}
 
-		version (Windows) asm { lea RDI, cpuString; }
-		else asm { mov RDI, __B; }
+		version (Windows)
+			asm { lea RDI, cpuString; }
+		else
+			asm { mov RDI, __B; }
 		asm {
 		mov EAX, 0x8000_0002;
 		cpuid;
@@ -532,8 +550,10 @@ void fetchInfo() {
 		mov byte ptr [RDI+48], 0;
 		}
 	} else {
-		version (Windows) asm { lea EDI, vendorString; }
-		else asm { mov EDI, __A; }
+		version (Windows)
+			asm { lea EDI, vendorString; }
+		else
+			asm { mov EDI, __A; }
 		asm {
 		lea EDI, vendorString;
 		mov EAX, 0;
@@ -544,8 +564,10 @@ void fetchInfo() {
 		mov byte ptr [EDI+12], 0;
 		}
 
-		version (Windows) asm { lea EDI, cpuString; }
-		else asm { mov EDI, __B; }
+		version (Windows)
+			asm { lea EDI, cpuString; }
+		else
+			asm { mov EDI, __B; }
 		asm {
 		lea EDI, cpuString;
 		mov EAX, 0x8000_0002;
@@ -588,7 +610,7 @@ CACHE_INTEL:
 			mov ECX, l;
 			cpuid;
 			cmp EAX, 0; // Check ZF
-			jz CACHE_AFTER; // if EAX=0, get out
+			jz CACHE_DONE; // if EAX=0, get out
 			mov a, EAX;
 			mov b, EBX;
 			mov c, ECX;
@@ -688,7 +710,7 @@ CACHE_AMD_NEWER:
 			mov ECX, l;
 			cpuid;
 			cmp AL, 0; // Check ZF
-			jz CACHE_AFTER; // if AL=0, get out
+			jz CACHE_DONE; // if AL=0, get out
 			mov a, EAX;
 			mov b, EBX;
 			mov c, ECX;
@@ -715,7 +737,7 @@ CACHE_AMD_NEWER:
 	default:
 	}
 
-CACHE_AFTER:
+CACHE_DONE:
 	asm {
 		mov EAX, 1;
 		mov ECX, 0;
@@ -972,133 +994,134 @@ INTEL_A:
  * Features and properties
  ***************************/
 
+extern (C):
 __gshared:
 
 // ---- Basic information ----
-char[13] vendorString;
-char[49] cpuString;
+char[13] vendorString = void;
+char[49] cpuString = void;
 
-uint MaximumLeaf;
-uint MaximumExtendedLeaf;
+uint MaximumLeaf = void;
+uint MaximumExtendedLeaf = void;
 
 //ushort NumberOfCores;
 //ushort NumberOfThreads;
 
-ubyte Family;
-ubyte BaseFamily;
-ubyte ExtendedFamily;
-ubyte Model;
-ubyte BaseModel;
-ubyte ExtendedModel;
-ubyte Stepping;
-ubyte ProcessorType;
+ubyte Family = void;
+ubyte BaseFamily = void;
+ubyte ExtendedFamily = void;
+ubyte Model = void;
+ubyte BaseModel = void;
+ubyte ExtendedModel = void;
+ubyte Stepping = void;
+ubyte ProcessorType = void;
 
-uint MMX;
-uint MMXExt;
-uint SSE;
-uint SSE2;
-uint SSE3;
-uint SSSE3;
-uint SSE41;
-uint SSE42;
-uint SSE4a;
-uint AES;
-uint AVX;
-uint AVX2;
+uint MMX = void;
+uint MMXExt = void;
+uint SSE = void;
+uint SSE2 = void;
+uint SSE3 = void;
+uint SSSE3 = void;
+uint SSE41 = void;
+uint SSE42 = void;
+uint SSE4a = void;
+uint AES = void;
+uint AVX = void;
+uint AVX2 = void;
 
-uint _3DNow;
-uint _3DNowExt;
+uint _3DNow = void;
+uint _3DNowExt = void;
 
 // ---- 01h ----
 // -- EBX --
-ubyte BrandIndex;
-ubyte CLFLUSHLineSize;
-ubyte MaxIDs;
-ubyte InitialAPICID;
+ubyte BrandIndex = void;
+ubyte CLFLUSHLineSize = void;
+ubyte MaxIDs = void;
+ubyte InitialAPICID = void;
 
 // -- ECX --
-ubyte PCLMULQDQ;	// 1
-ubyte DTES64;
-ubyte MONITOR;
-ubyte DS_CPL;
-ubyte Virt; // VMX (intel) / SVM (AMD)
-ubyte SMX; // intel txt/tpm
-ubyte EIST; // intel speedstep
-ushort TM2;
-ushort CNXT_ID; // l1 context id
-ushort SDBG; // IA32_DEBUG_INTERFACE silicon debug
-ushort FMA;
-uint FMA4;
-uint CMPXCHG16B;
-uint xTPR;
-uint PDCM;
-uint PCID; // Process-context identifiers
-uint DCA;
-uint x2APIC;
-uint MOVBE;
-uint POPCNT;
-uint TscDeadline;
-uint XSAVE;
-uint OSXSAVE;
-uint F16C;
-uint RDRAND;	// 30
+ubyte PCLMULQDQ = void;	// 1
+ubyte DTES64 = void;
+ubyte MONITOR = void;
+ubyte DS_CPL = void;
+ubyte Virt = void; // VMX (intel) / SVM (AMD)
+ubyte SMX = void; // intel txt/tpm
+ubyte EIST = void; // intel speedstep
+ushort TM2 = void;
+ushort CNXT_ID = void; // l1 context id
+ushort SDBG = void; // IA32_DEBUG_INTERFACE silicon debug
+ushort FMA = void;
+uint FMA4 = void;
+uint CMPXCHG16B = void;
+uint xTPR = void;
+uint PDCM = void;
+uint PCID = void; // Process-context identifiers
+uint DCA = void;
+uint x2APIC = void;
+uint MOVBE = void;
+uint POPCNT = void;
+uint TscDeadline = void;
+uint XSAVE = void;
+uint OSXSAVE = void;
+uint F16C = void;
+uint RDRAND = void;	// 30
 
 // -- EDX --
-ubyte FPU; // 0
-ubyte VME;
-ubyte DE;
-ubyte PSE;
-ubyte TSC;
-ubyte MSR;
-ubyte PAE;
-ubyte MCE;
-ushort CX8;
-ushort APIC;
-ushort SEP; // sysenter/sysexit
-ushort MTRR;
-ushort PGE;
-ushort MCA;
-ushort CMOV;
-uint PAT;
-uint PSE_36;
-uint PSN;
-uint CLFSH;
-uint DS;
-uint APCI;
-uint FXSR;
-uint SS; // self-snoop
-uint HTT;
-uint TM;
-uint PBE; // 31
+ubyte FPU = void; // 0
+ubyte VME = void;
+ubyte DE = void;
+ubyte PSE = void;
+ubyte TSC = void;
+ubyte MSR = void;
+ubyte PAE = void;
+ubyte MCE = void;
+ushort CX8 = void;
+ushort APIC = void;
+ushort SEP = void; // sysenter/sysexit
+ushort MTRR = void;
+ushort PGE = void;
+ushort MCA = void;
+ushort CMOV = void;
+uint PAT = void;
+uint PSE_36 = void;
+uint PSN = void;
+uint CLFSH = void;
+uint DS = void;
+uint APCI = void;
+uint FXSR = void;
+uint SS = void; // self-snoop
+uint HTT = void;
+uint TM = void;
+uint PBE = void; // 31
 
 // ---- 06h ----
 /// eq. to AMD's Core Performance Boost
-ushort TurboBoost;	// 1
-ushort TurboBoost3;	// 14
+ushort TurboBoost = void;	// 1
+ushort TurboBoost3 = void;	// 14
 
 // ---- 07h ----
 // -- EBX --
-ubyte BMI1;	// 3
-ubyte SMEP;	// 7
-ushort BMI2;	// 8
+ubyte BMI1 = void;	// 3
+ubyte SMEP = void;	// 7
+ushort BMI2 = void;	// 8
 // -- ECX --
-uint RDPID;	// 22
+uint RDPID = void;	// 22
 
 // ---- 8000_0001 ----
 // ECX
 /// Advanced Bit Manipulation under AMD. LZCUNT under Intel.
-ubyte LZCNT;
+ubyte LZCNT = void;
 /// PREFETCHW under Intel. 3DNowPrefetch under AMD.
-ushort PREFETCHW;	// 8
+ushort PREFETCHW = void;	// 8
 
 /// RDSEED instruction
-uint RDSEED;
+uint RDSEED = void;
 // EDX
-uint NX;	// 20
+uint NX = void;	// 20
 /// 1GB Pages
-uint Page1GB;	// 26
+uint Page1GB = void;	// 26
 /// Also known as Intel64 or AMD64.
-uint LongMode;	// 29
+uint LongMode = void;	// 29
 
 // ---- 8000_0007 ----
-ushort TscInvariant;	// 8
+ushort TscInvariant = void;	// 8

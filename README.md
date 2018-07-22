@@ -12,8 +12,4 @@ ddcpuid isn't perfect. For any misleading or incorrect pieces of information, pl
 
 ## Compiling
 
-You _MUST_ use the `-betterC` switch when compiling.
-
-Supported compilers
-- DMD
-- LDC
+It is recommended to use the `-betterC` switch when compiling.

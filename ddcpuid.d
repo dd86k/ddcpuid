@@ -10,49 +10,24 @@ enum
 	MAX_LEAF = 0x20, /// Maximum leaf (-o)
 	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
 
-// UPDATE 2018-02-22: These were used to compare vendors, see enum below
-/*enum : immutable(char)* { // Vendor strings
-	VENDOR_INTEL     = "GenuineIntel", /// Intel
-	VENDOR_AMD       = "AuthenticAMD", /// AMD
-	VENDOR_VIA       = "VIA VIA VIA ", /// VIA
-	// Unseen from my eyes
-	VENDOR_CENTAUR   = "CentaurHauls", /// Centaur (VIA)
-	VENDOR_TRANSMETA = "GenuineTMx86", /// Transmeta
-	VENDOR_CYRIX     = "CyrixInstead", /// Cyrix
-	VENDOR_NEXGEN    = "NexGenDriven", /// Nexgen
-	VENDOR_UMC       = "UMC UMC UMC ", /// UMC
-	VENDOR_SIS       = "SiS SiS SiS ", /// SiS
-	VENDOR_NSC       = "Geode by NSC", /// Geode
-	VENDOR_RISE      = "RiseRiseRise", /// Rise
-	VENDOR_VORTEX    = "Vortex86 SoC", /// Vortex
-	VENDOR_NS        = "Geode by NSC", /// National Semiconductor
-	// Older vendor strings
-	VENDOR_OLDAMD       = "AMDisbetter!", /// Early K5 AMD string
-	VENDOR_OLDTRANSMETA = "TransmetaCPU", /// Old Transmeta string
-	// Virtual Machines (rare)
-	VENDOR_VMWARE       = "VMwareVMware", /// VMware
-	VENDOR_XENHVM       = "XenVMMXenVMM", /// Xen VMM
-	VENDOR_MICROSOFT_HV = "Microsoft Hv", /// Microsoft Hyper-V
-	VENDOR_PARALLELS    = " lrpepyh  vr"  /// Parallels
-}*/
-
 /*
  * Self-made vendor "IDs" for faster look-ups, LSB-based.
  * These are the first four bytes of the vendor. If even the four first bytes
  * re-appear in another vendor, get the next four bytes.
  */
-enum : uint { // LSB
-	VENDOR_OTHER	= 0, // Or unknown
-	VENDOR_INTEL	= 0x756e6547, // "Genu"
-	VENDOR_AMD	= 0x68747541, // "Auth"
-	VENDOR_VIA	= 0x20414956 // "VIA "
-}
+enum // LSB
+	VENDOR_OTHER	= 0,	// Or unknown
+	VENDOR_INTEL	= 0x756e6547,	// "Genu"
+	VENDOR_AMD	= 0x68747541,	// "Auth"
+	VENDOR_VIA	= 0x20414956;	// "VIA "
+
 __gshared uint VendorID; /// Vendor "ID", inits to VENDOR_OTHER
 
-__gshared byte Raw; /// Raw option (-r)
-__gshared byte Details; /// Detailed output option (-d)
-__gshared byte Override; /// Override max leaf option (-o)
+__gshared byte Raw;	/// Raw option (-r)
+__gshared byte Details;	/// Detailed output option (-d)
+__gshared byte Override;	/// Override max leaf option (-o)
 
+pragma(inline, true)
 extern (C) void help() {
 	puts(
 `CPUID information tool
@@ -69,6 +44,7 @@ OPTIONS
 	);
 }
 
+pragma(inline, true)
 extern (C) void _version() {
 	printf(
 `ddcpuid v` ~ VERSION ~ ` (` ~ __TIMESTAMP__ ~ `)
@@ -121,6 +97,21 @@ extern (C) int main(int argc, char** argv) {
 	}
 
 	if (Raw) { // -r
+		/// Print cpuid info
+		extern(C) void printc(uint leaf) {
+			uint a = void, b = void, c = void, d = void;
+			asm {
+				mov EAX, leaf;
+				mov ECX, 0;
+				cpuid;
+				mov a, EAX;
+				mov b, EBX;
+				mov c, ECX;
+				mov d, EDX;
+			}
+			printf("| %8X | %8X | %8X | %8X | %8X |\n", leaf, a, b, c, d);
+		}
+
 		puts(
 			"| Leaf     | EAX      | EBX      | ECX      | EDX      |\n"~
 			"|----------|----------|----------|----------|----------|"
@@ -129,7 +120,7 @@ extern (C) int main(int argc, char** argv) {
 		do {
 			printc(l);
 		} while (++l <= MaximumLeaf);
-		l = 0x8000_0000; // Extended minimum
+		l = 0x8000_0000; // Extended
 		do {
 			printc(l);
 		} while (++l <= MaximumExtendedLeaf);
@@ -172,103 +163,103 @@ extern (C) int main(int argc, char** argv) {
 	
 	// -- Processor extensions --
 
-	printf("Extensions: ");
-	if (MMX) printf("MMX, ");
-	if (MMXExt) printf("Extended MMX, ");
-	if (_3DNow) printf("3DNow!, ");
-	if (_3DNowExt) printf("Extended 3DNow!, ");
-	if (SSE) printf("SSE, ");
-	if (SSE2) printf("SSE2, ");
-	if (SSE3) printf("SSE3, ");
-	if (SSSE3) printf("SSSE3, ");
-	if (SSE41) printf("SSE4.1, ");
-	if (SSE42) printf("SSE4.2, ");
-	if (SSE4a) printf("SSE4a, ");
+	printf("Extensions:");
+	if (MMX) printf(" MMX");
+	if (MMXExt) printf(" Extended MMX");
+	if (_3DNow) printf(" 3DNow!");
+	if (_3DNowExt) printf(" Extended 3DNow!");
+	if (SSE) printf(" SSE");
+	if (SSE2) printf(" SSE2");
+	if (SSE3) printf(" SSE3");
+	if (SSSE3) printf(" SSSE3");
+	if (SSE41) printf(" SSE4.1");
+	if (SSE42) printf(" SSE4.2");
+	if (SSE4a) printf(" SSE4a");
 	if (LongMode)
 		switch (VendorID) {
-		case VENDOR_INTEL: printf("Intel64, "); break;
-		case VENDOR_AMD: printf("AMD64, "); break;
-		default: printf("x86-64, "); break;
+		case VENDOR_INTEL: printf(" Intel64"); break;
+		case VENDOR_AMD: printf(" AMD64"); break;
+		default: printf(" x86-64"); break;
 		}
 	if (Virt)
 		switch (VendorID) {
-		case VENDOR_INTEL: printf("VT-x, "); break; // VMX
-		case VENDOR_AMD: printf("AMD-V, "); break; // SVM
-		case VENDOR_VIA: printf("VIA VT, "); break;
-		default: printf("VMX, "); break;
+		case VENDOR_INTEL: printf(" VT-x"); break; // VMX
+		case VENDOR_AMD: printf(" AMD-V"); break; // SVM
+		case VENDOR_VIA: printf(" VIA VT"); break;
+		default: printf(" VMX"); break;
 		}
 	if (NX)
 		switch (VendorID) {
-		case VENDOR_INTEL: printf("Intel XD (NX), "); break;
-		case VENDOR_AMD: printf("AMD EVP (NX), "); break;
-		default: printf("NX, "); break;
+		case VENDOR_INTEL: printf(" Intel XD (NX)"); break;
+		case VENDOR_AMD: printf(" AMD EVP (NX)"); break;
+		default: printf(" NX"); break;
 		}
-	if (SMX) printf("Intel TXT (SMX), ");
-	if (AES) printf("AES-NI, ");
-	if (AVX) printf("AVX, ");
-	if (AVX2) printf("AVX2, ");
+	if (SMX) printf(" Intel TXT (SMX)");
+	if (AES) printf(" AES-NI");
+	if (AVX) printf(" AVX");
+	if (AVX2) printf(" AVX2");
 
 	// -- Other instructions --
 
 	if (Details) {
-		printf("\nOther instructions: ");
+		printf("\nOther instructions:");
 		if (MONITOR)
-			printf("MONITOR/MWAIT, ");
+			printf(" MONITOR/MWAIT");
 		if (PCLMULQDQ)
-			printf("PCLMULQDQ, ");
+			printf(" PCLMULQDQ");
 		if (CX8)
-			printf("CMPXCHG8B, ");
+			printf(" CMPXCHG8B");
 		if (CMPXCHG16B)
-			printf("CMPXCHG16B, ");
+			printf(" CMPXCHG16B");
 		if (MOVBE)
-			printf("MOVBE, "); // Intel Atom and quite a few AMD processors.
+			printf(" MOVBE"); // Intel Atom and quite a few AMD processors.
 		if (RDRAND)
-			printf("RDRAND, ");
+			printf(" RDRAND");
 		if (RDSEED)
-			printf("RDSEED, ");
+			printf(" RDSEED");
 		if (MSR)
-			printf("RDMSR/WRMSR, ");
+			printf(" RDMSR/WRMSR");
 		if (SEP)
-			printf("SYSENTER/SYSEXIT, ");
+			printf(" SYSENTER/SYSEXIT");
 		if (TSC) {
-			printf("RDTSC");
+			printf(" RDTSC");
 			if (TscDeadline)
 				printf(" +TSC-Deadline");
 			if (TscInvariant)
 				printf(" +TSC-Invariant");
-			printf(", ");
 		}
 		if (CMOV)
-			printf("CMOV, ");
+			printf(" CMOV");
 		if (FPU && CMOV)
-			printf("FCOMI/FCMOV, ");
+			printf(" FCOMI/FCMOV");
 		if (CLFSH)
-			printf("CLFLUSH (%d bytes), ", CLFLUSHLineSize * 8);
+			printf(" CLFLUSH (%d bytes)", CLFLUSHLineSize * 8);
 		if (PREFETCHW)
-			printf("PREFETCHW, ");
+			printf(" PREFETCHW");
 		if (LZCNT)
-			printf("LZCNT, ");
+			printf(" LZCNT");
 		if (POPCNT)
-			printf("POPCNT, ");
+			printf(" POPCNT");
 		if (XSAVE)
-			printf("XSAVE/XRSTOR, ");
+			printf(" XSAVE/XRSTOR");
 		if (OSXSAVE)
-			printf("XSETBV/XGETBV, ");
+			printf(" XSETBV/XGETBV");
 		if (FXSR)
-			printf("FXSAVE/FXRSTOR, ");
+			printf(" FXSAVE/FXRSTOR");
 		if (FMA || FMA4) {
-			printf("VFMADDx (FMA");
+			printf(" VFMADDx (FMA");
 			if (FMA4) printf("4");
-			printf("), ");
+			printf(")");
 		}
 		if (RDPID)
-			printf("RDPID, ");
+			printf(" RDPID");
 	}
 
 	// -- Cache information --
 
 	puts("\n\nCache information");
 
+	// return cache type as string
 	extern (C) immutable(char)* _ct(ubyte t) {
 		switch (t) {
 		case 1: return " Data";
@@ -297,7 +288,8 @@ extern (C) int main(int argc, char** argv) {
 			char s = 'K';
 			uint cs = ca.size / 1024; // cache size
 			if (cs >= 1024) {
-				cs /= 1024; s = 'M';
+				cs /= 1024;
+				s = 'M';
 			}
 			printf(
 				"\tL%d%s, %d %cB\n",
@@ -320,7 +312,7 @@ extern (C) int main(int argc, char** argv) {
 			if (TurboBoost3)
 				puts(" 3.0");
 			else
-				printf("\n");
+				puts("");
 		}
 		break;
 	case VENDOR_AMD:
@@ -424,7 +416,7 @@ extern (C) int main(int argc, char** argv) {
 		"\tSelf Snoop [SS]: %s\n" ~
 		"\tPending Break Enable [PBE]: %s\n" ~
 		"\tSupervisor Mode Execution Protection [SMEP]: %s\n" ~
-		"\tBit manipulation groups [BMI]: ",
+		"\tBit Manipulation Groups [BMI]:",
 		BrandIndex,
 		B(CNXT_ID),
 		B(xTPR),
@@ -435,9 +427,9 @@ extern (C) int main(int argc, char** argv) {
 		B(SMEP)
 	);
 	if (BMI1 || BMI2) {
-		if (BMI1) printf("BMI1");
-		if (BMI2) printf(", BMI2");
-		printf("\n");
+		if (BMI1) printf(" BMI1");
+		if (BMI2) printf(" BMI2");
+		puts("");
 	} else
 		puts("None");
 
@@ -446,21 +438,6 @@ extern (C) int main(int argc, char** argv) {
 
 extern(C) immutable(char)* B(uint c) pure @nogc nothrow {
 	return c ? "Yes" : "No";
-}
-
-/// Print cpuid
-extern(C) void printc(uint leaf) {
-	uint a = void, b = void, c = void, d = void;
-	asm {
-		mov EAX, leaf;
-		mov ECX, 0;
-		cpuid;
-		mov a, EAX;
-		mov b, EBX;
-		mov c, ECX;
-		mov d, EDX;
-	}
-	printf("| %8X | %8X | %8X | %8X | %8X |\n", leaf, a, b, c, d);
 }
 
 template BIT(int n) {
@@ -489,12 +466,12 @@ struct Cache {
 	// bit 3, Cache Inclusiveness (toggle)
 	// bit 4, Complex Cache Indexing (toggle)
 	// AMD
-	// See Intel, except no Complex Cache Indexing
+	// See Intel, except Complex Cache Indexing is absent
 	ubyte features = void;
 }
 
 // 6 levels should be enough (L1 x2, L2, L3, +2 futureproof/0)
-__gshared Cache[6] cache;
+__gshared Cache[6] cache; // all inits to 0
 
 /*****************************
  * FETCH INFO
@@ -504,7 +481,7 @@ extern (C)
 void fetchInfo() {
 	uint a = void, b = void, c = void, d = void; // EAX to EDX
 
-	version (Posix) {
+	version (Posix) { // For -fPIC code
 		size_t __A = cast(size_t)&vendorString;
 		size_t __B = cast(size_t)&cpuString;
 	}
@@ -555,7 +532,6 @@ void fetchInfo() {
 		else
 			asm { mov EDI, __A; }
 		asm {
-		lea EDI, vendorString;
 		mov EAX, 0;
 		cpuid;
 		mov [EDI], EBX;
@@ -569,7 +545,6 @@ void fetchInfo() {
 		else
 			asm { mov EDI, __B; }
 		asm {
-		lea EDI, cpuString;
 		mov EAX, 0x8000_0002;
 		cpuid;
 		mov [EDI], EAX;
@@ -623,13 +598,14 @@ CACHE_INTEL:
 		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
 		ca.ways = cast(ubyte)((b >> 22) + 1);
 		ca.sets = cast(ushort)(c + 1);
-		ca.size = ca.sets * ca.linesize * ca.partitions * ca.ways;
 		if (Details) {
 			if (a & BIT!(8)) ca.features = 1;
 			if (a & BIT!(9)) ca.features |= BIT!(1);
 			if (d & BIT!(0)) ca.features |= BIT!(2);
 			if (d & BIT!(1)) ca.features |= BIT!(3);
 			if (d & BIT!(2)) ca.features |= BIT!(4);
+		} else {
+			ca.size = ca.sets * ca.linesize * ca.partitions * ca.ways;
 		}
 
 		debug printf("| %8X | %8X | %8X | %8X | %8X |\n", l, a, b, c, d);
@@ -723,12 +699,13 @@ CACHE_AMD_NEWER:
 		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
 		ca.ways = cast(ubyte)((b >> 22) + 1);
 		ca.sets = cast(ushort)(c + 1);
-		ca.size = ca.sets * ca.linesize * ca.partitions * ca.ways;
 		if (Details) {
 			if (a & BIT!(8)) ca.features = 1;
 			if (a & BIT!(9)) ca.features |= BIT!(1);
 			if (d & BIT!(0)) ca.features |= BIT!(2);
 			if (d & BIT!(1)) ca.features |= BIT!(3);
+		} else {
+			ca.size = ca.sets * ca.linesize * ca.partitions * ca.ways;
 		}
 
 		debug printf("| %8X | %8X | %8X | %8X | %8X |\n", l, a, b, c, d);
@@ -1109,9 +1086,9 @@ uint RDPID = void;	// 22
 
 // ---- 8000_0001 ----
 // ECX
-/// Advanced Bit Manipulation under AMD. LZCUNT under Intel.
+/// Count the Number of Leading Zero Bits, SSE4 SIMD
 ubyte LZCNT = void;
-/// PREFETCHW under Intel. 3DNowPrefetch under AMD.
+/// Prefetch
 ushort PREFETCHW = void;	// 8
 
 /// RDSEED instruction

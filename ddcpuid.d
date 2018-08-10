@@ -4,7 +4,7 @@ extern (C) {
 	int puts(scope const char* s);
 }
 
-enum VERSION = "0.7.1"; /// Program version
+enum VERSION = "0.8.0"; /// Program version
 
 enum
 	MAX_LEAF = 0x20, /// Maximum leaf (-o)
@@ -341,7 +341,7 @@ extern (C) int main(int argc, char** argv) {
 		"Processor type: %s\n" ~
 		"\nFPU\n" ~
 		"\tFloating Point Unit [FPU]: %s\n" ~
-		"\t16-bit conversion [F16]: %s\n",
+		"\t16-bit conversion [F16C]: %s\n",
 		MaximumLeaf, MaximumExtendedLeaf,
 		_pt,
 		B(FPU),

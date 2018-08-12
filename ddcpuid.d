@@ -198,6 +198,10 @@ extern (C) int main(int argc, char** argv) {
 	if (AES) printf(" AES-NI");
 	if (AVX) printf(" AVX");
 	if (AVX2) printf(" AVX2");
+	if (AVX512F) printf(" AVX512F");
+	if (AVX512CD) printf(" AVX512CD");
+	if (AVX512DQ) printf(" AVX512DQ");
+	if (AVX512BW) printf(" AVX512BW");
 
 	// -- Other instructions --
 
@@ -348,14 +352,14 @@ extern (C) int main(int argc, char** argv) {
 		B(F16C)
 	);
 
-	printf( // APCI
+	printf( // ACPI
 		"\nACPI\n" ~
 		"\tACPI: %s\n" ~
 		"\tAPIC: %s (Initial ID: %d, Max: %d)\n" ~
 		"\tx2APIC: %s\n" ~
 		"\tThermal Monitor: %s\n" ~
 		"\tThermal Monitor 2: %s\n",
-		B(APCI),
+		B(ACPI),
 		B(APIC), InitialAPICID, MaxIDs,
 		B(x2APIC),
 		B(TM),
@@ -764,7 +768,7 @@ CACHE_DONE:
 		// EDX
 		PSN  = d & BIT!(18);
 		DS   = d & BIT!(21);
-		APCI = d & BIT!(22);
+		ACPI = d & BIT!(22);
 		SS   = d & BIT!(27);
 		TM   = d & BIT!(29);
 		PBE  = d & BIT!(31);
@@ -857,10 +861,20 @@ CACHE_DONE:
 		//mov d, EDX;
 	} // ----- 7H
 
+	switch (VendorID) {
+	case VENDOR_INTEL:
+		AVX512CD = b & BIT!(28);
+		AVX512DQ = b & BIT!(17);
+		AVX512BW = b & BIT!(30);
+		break;
+	default:
+	}
+
 	BMI1   = b & BIT!(4);
 	AVX2   = b & BIT!(5);
 	SMEP   = b & BIT!(7);
 	BMI2   = b & BIT!(8);
+	AVX512F = b & BIT!(16);
 	RDSEED = b & BIT!(18);
 
 	RDPID = c & BIT!(22);
@@ -1005,6 +1019,10 @@ uint SSE4a = void;
 uint AES = void;
 uint AVX = void;
 uint AVX2 = void;
+uint AVX512F = void;
+uint AVX512CD = void;
+uint AVX512DQ = void;
+uint AVX512BW = void;
 
 uint _3DNow = void;
 uint _3DNowExt = void;
@@ -1064,7 +1082,7 @@ uint PSE_36 = void;
 uint PSN = void;
 uint CLFSH = void;
 uint DS = void;
-uint APCI = void;
+uint ACPI = void;
 uint FXSR = void;
 uint SS = void; // self-snoop
 uint HTT = void;

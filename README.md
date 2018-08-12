@@ -8,7 +8,7 @@ A ddcpuid User Manual is available [here](https://dd86k.github.io/docs/ddcpuid-m
 
 ## Bugs
 
-ddcpuid isn't perfect. For any misleading or incorrect pieces of information, please report to this repository or via my email (on my profile). 
+ddcpuid isn't perfect. For any misleading or incorrect pieces of information, please make an Issue or email me (email's on my profile). 
 
 ## Compiling
 

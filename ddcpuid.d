@@ -185,7 +185,7 @@ extern (C) int main(int argc, char** argv) {
 		switch (VendorID) {
 		case VENDOR_INTEL: printf(" VT-x"); break; // VMX
 		case VENDOR_AMD: printf(" AMD-V"); break; // SVM
-		case VENDOR_VIA: printf(" VIA VT"); break;
+		//case VENDOR_VIA: printf(" VIA VT"); break; <- Uncomment when ready
 		default: printf(" VMX"); break;
 		}
 	if (NX)

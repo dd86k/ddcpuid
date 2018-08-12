@@ -1,6 +1,6 @@
 # ddcpuid, CPUID tool
 
-ddcpuid is a simple x86/x86-64 CPUID tool, works best with Intel and AMD processors.
+ddcpuid is a simple x86/x86-64 CPUID information tool, works best with Intel and AMD processors where features are documentated.
 
 I will gladly implement features from VIA, Zhaoxin, and others once I get documentation.
 

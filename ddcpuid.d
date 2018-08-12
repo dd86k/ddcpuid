@@ -2,6 +2,7 @@ extern (C) {
 	int strcmp(scope const char* s1, scope const char* s2);
 	int printf(scope const char* format, ...);
 	int puts(scope const char* s);
+	int putchar(int c);
 }
 
 enum VERSION = "0.8.0"; /// Program version
@@ -205,11 +206,12 @@ extern (C) int main(int argc, char** argv) {
 		if (AVX512CD) printf(" AVX512CD");
 		if (AVX512DQ) printf(" AVX512DQ");
 		if (AVX512BW) printf(" AVX512BW");
+		if (AVX512VL) printf(" AVX512VL");
+		if (AVX512_IFMA) printf(" AVX512_IFMA");
+		if (AVX512_VBMI) printf(" AVX512_VBMI");
 	}
-	if (FMA || FMA4) {
-		printf(" FMA");
-		if (FMA4) printf("4");
-	}
+	if (FMA) printf(" FMA3");
+	if (FMA4) printf(" FMA4");
 
 	// -- Other instructions --
 
@@ -317,7 +319,7 @@ extern (C) int main(int argc, char** argv) {
 			if (TurboBoost3)
 				puts(" 3.0");
 			else
-				puts("");
+				putchar('\n');
 		}
 		break;
 	case VENDOR_AMD:
@@ -434,7 +436,7 @@ extern (C) int main(int argc, char** argv) {
 	if (BMI1 || BMI2) {
 		if (BMI1) printf(" BMI1");
 		if (BMI2) printf(" BMI2");
-		puts("");
+		putchar('\n');
 	} else
 		puts("None");
 
@@ -870,6 +872,9 @@ CACHE_DONE:
 		AVX512CD = b & BIT!(28);
 		AVX512DQ = b & BIT!(17);
 		AVX512BW = b & BIT!(30);
+		AVX512_IFMA = b & BIT!(21);
+		AVX512_VBMI = b & BIT!(31);
+		AVX512VL = c & BIT!(1);
 		break;
 	default:
 	}
@@ -1028,6 +1033,9 @@ uint AVX512PF = void;
 uint AVX512CD = void;
 uint AVX512DQ = void;
 uint AVX512BW = void;
+uint AVX512_IFMA = void;
+uint AVX512_VBMI = void;
+uint AVX512VL = void;
 
 uint _3DNow = void;
 uint _3DNowExt = void;

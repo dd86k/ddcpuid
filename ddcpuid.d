@@ -148,17 +148,17 @@ extern (C) int main(int argc, char** argv) {
 		cast(char*)vendorString, cstring
 	);
 
-	if (Details)
+	if (Details == 0)
+		printf(
+			"Identifier: Family %d Model %d Stepping %d\n",
+			Family, Model, Stepping
+		);
+	else
 		printf(
 			"Identifier: Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh\n",
 			Family, BaseFamily, ExtendedFamily,
 			Model, BaseModel, ExtendedModel,
 			Stepping
-		);
-	else
-		printf(
-			"Identifier: Family %d Model %d Stepping %d\n",
-			Family, Model, Stepping
 		);
 	
 	// -- Processor extensions --
@@ -198,66 +198,67 @@ extern (C) int main(int argc, char** argv) {
 	if (AES) printf(" AES-NI");
 	if (AVX) printf(" AVX");
 	if (AVX2) printf(" AVX2");
-	if (AVX512F) printf(" AVX512F");
-	if (AVX512CD) printf(" AVX512CD");
-	if (AVX512DQ) printf(" AVX512DQ");
-	if (AVX512BW) printf(" AVX512BW");
+	if (AVX512F) {
+		printf(" AVX512F");
+		if (AVX512ER) printf(" AVX512ER");
+		if (AVX512PF) printf(" AVX512PF");
+		if (AVX512CD) printf(" AVX512CD");
+		if (AVX512DQ) printf(" AVX512DQ");
+		if (AVX512BW) printf(" AVX512BW");
+	}
+	if (FMA || FMA4) {
+		printf(" FMA");
+		if (FMA4) printf("4");
+	}
 
 	// -- Other instructions --
 
-	if (Details) {
-		printf("\nOther instructions:");
-		if (MONITOR)
-			printf(" MONITOR/MWAIT");
-		if (PCLMULQDQ)
-			printf(" PCLMULQDQ");
-		if (CX8)
-			printf(" CMPXCHG8B");
-		if (CMPXCHG16B)
-			printf(" CMPXCHG16B");
-		if (MOVBE)
-			printf(" MOVBE"); // Intel Atom and quite a few AMD processors.
-		if (RDRAND)
-			printf(" RDRAND");
-		if (RDSEED)
-			printf(" RDSEED");
-		if (MSR)
-			printf(" RDMSR/WRMSR");
-		if (SEP)
-			printf(" SYSENTER/SYSEXIT");
-		if (TSC) {
-			printf(" RDTSC");
-			if (TscDeadline)
-				printf(" +TSC-Deadline");
-			if (TscInvariant)
-				printf(" +TSC-Invariant");
-		}
-		if (CMOV)
-			printf(" CMOV");
-		if (FPU && CMOV)
-			printf(" FCOMI/FCMOV");
-		if (CLFSH)
-			printf(" CLFLUSH (%d bytes)", CLFLUSHLineSize * 8);
-		if (PREFETCHW)
-			printf(" PREFETCHW");
-		if (LZCNT)
-			printf(" LZCNT");
-		if (POPCNT)
-			printf(" POPCNT");
-		if (XSAVE)
-			printf(" XSAVE/XRSTOR");
-		if (OSXSAVE)
-			printf(" XSETBV/XGETBV");
-		if (FXSR)
-			printf(" FXSAVE/FXRSTOR");
-		if (FMA || FMA4) {
-			printf(" VFMADDx (FMA");
-			if (FMA4) printf("4");
-			printf(")");
-		}
-		if (RDPID)
-			printf(" RDPID");
+	printf("\nOther instructions:");
+	if (MONITOR)
+		printf(" MONITOR/MWAIT");
+	if (PCLMULQDQ)
+		printf(" PCLMULQDQ");
+	if (CX8)
+		printf(" CMPXCHG8B");
+	if (CMPXCHG16B)
+		printf(" CMPXCHG16B");
+	if (MOVBE)
+		printf(" MOVBE"); // Intel Atom and quite a few AMD processors.
+	if (RDRAND)
+		printf(" RDRAND");
+	if (RDSEED)
+		printf(" RDSEED");
+	if (MSR)
+		printf(" RDMSR/WRMSR");
+	if (SEP)
+		printf(" SYSENTER/SYSEXIT");
+	if (TSC) {
+		printf(" RDTSC");
+		if (TscDeadline)
+			printf(" +TSC-Deadline");
+		if (TscInvariant)
+			printf(" +TSC-Invariant");
 	}
+	if (CMOV)
+		printf(" CMOV");
+	if (FPU && CMOV)
+		printf(" FCOMI/FCMOV");
+	if (CLFSH)
+		printf(" CLFLUSH (%d bytes)", CLFLUSHLineSize * 8);
+	if (PREFETCHW)
+		printf(" PREFETCHW");
+	if (LZCNT)
+		printf(" LZCNT");
+	if (POPCNT)
+		printf(" POPCNT");
+	if (XSAVE)
+		printf(" XSAVE/XRSTOR");
+	if (OSXSAVE)
+		printf(" XSETBV/XGETBV");
+	if (FXSR)
+		printf(" FXSAVE/FXRSTOR");
+	if (RDPID)
+		printf(" RDPID");
 
 	// -- Cache information --
 
@@ -863,6 +864,9 @@ CACHE_DONE:
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
+		AVX512F = b & BIT!(16);
+		AVX512ER = b & BIT!(27);
+		AVX512PF = b & BIT!(26);
 		AVX512CD = b & BIT!(28);
 		AVX512DQ = b & BIT!(17);
 		AVX512BW = b & BIT!(30);
@@ -874,7 +878,6 @@ CACHE_DONE:
 	AVX2   = b & BIT!(5);
 	SMEP   = b & BIT!(7);
 	BMI2   = b & BIT!(8);
-	AVX512F = b & BIT!(16);
 	RDSEED = b & BIT!(18);
 
 	RDPID = c & BIT!(22);
@@ -1020,6 +1023,8 @@ uint AES = void;
 uint AVX = void;
 uint AVX2 = void;
 uint AVX512F = void;
+uint AVX512ER = void;
+uint AVX512PF = void;
 uint AVX512CD = void;
 uint AVX512DQ = void;
 uint AVX512BW = void;

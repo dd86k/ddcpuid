@@ -438,7 +438,7 @@ extern (C) int main(int argc, char** argv) {
 		if (BMI2) printf(" BMI2");
 		putchar('\n');
 	} else
-		puts("None");
+		puts(" None");
 
 	return 0;
 } // main

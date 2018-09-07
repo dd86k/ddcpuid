@@ -89,12 +89,14 @@ extern (C) int main(int argc, char** argv) {
 		} // else if
 	} // while arg
 
+	__CPUINFO s = void;
+
 	if (Override) {
-		MaximumLeaf = MAX_LEAF;
-		MaximumExtendedLeaf = MAX_ELEAF;
+		s.MaximumLeaf = MAX_LEAF;
+		s.MaximumExtendedLeaf = MAX_ELEAF;
 	} else {
-		MaximumLeaf = hleaf;
-		MaximumExtendedLeaf = heleaf;
+		s.MaximumLeaf = hleaf;
+		s.MaximumExtendedLeaf = heleaf;
 	}
 
 	if (Raw) { // -r
@@ -120,19 +122,19 @@ extern (C) int main(int argc, char** argv) {
 		uint l;
 		do {
 			printc(l);
-		} while (++l <= MaximumLeaf);
+		} while (++l <= s.MaximumLeaf);
 		l = 0x8000_0000; // Extended
 		do {
 			printc(l);
-		} while (++l <= MaximumExtendedLeaf);
+		} while (++l <= s.MaximumExtendedLeaf);
 		return 0;
 	}
 
 	debug printf("[L%04d] Fetching info...\n", __LINE__);
 
-	fetchInfo;
+	fetchInfo(&s);
 
-	char* cstring = cast(char*)cpuString;
+	char* cstring = cast(char*)s.cpuString;
 
 	switch (VendorID) {
 	case VENDOR_INTEL: // Common in Intel processor brand strings
@@ -144,134 +146,118 @@ extern (C) int main(int argc, char** argv) {
 	// -- Processor basic information --
 
 	printf(
-		"Vendor: %s\n" ~
-		"String: %s\n",
-		cast(char*)vendorString, cstring
+		"Vendor: %.12s\n" ~
+		"String: %.48s\n",
+		cast(char*)s.vendorString, cstring
 	);
 
 	if (Details == 0)
 		printf(
 			"Identifier: Family %d Model %d Stepping %d\n",
-			Family, Model, Stepping
+			s.Family, s.Model, s.Stepping
 		);
 	else
 		printf(
 			"Identifier: Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh\n",
-			Family, BaseFamily, ExtendedFamily,
-			Model, BaseModel, ExtendedModel,
-			Stepping
+			s.Family, s.BaseFamily, s.ExtendedFamily,
+			s.Model, s.BaseModel, s.ExtendedModel,
+			s.Stepping
 		);
-	
+
 	// -- Processor extensions --
 
-	printf("Extensions:");
-	if (MMX) printf(" MMX");
-	if (MMXExt) printf(" Extended MMX");
-	if (_3DNow) printf(" 3DNow!");
-	if (_3DNowExt) printf(" Extended 3DNow!");
-	if (SSE) printf(" SSE");
-	if (SSE2) printf(" SSE2");
-	if (SSE3) printf(" SSE3");
-	if (SSSE3) printf(" SSSE3");
-	if (SSE41) printf(" SSE4.1");
-	if (SSE42) printf(" SSE4.2");
-	if (SSE4a) printf(" SSE4a");
-	if (LongMode)
+	puts("Extensions:");
+	if (s.MMX) printf("\tMMX");
+	if (s.MMXExt) printf("\tExtended MMX");
+	if (s._3DNow) printf("\t3DNow!");
+	if (s._3DNowExt) printf("\tExtended 3DNow!");
+	if (s.SSE) printf("\tSSE");
+	if (s.SSE2) printf("\tSSE2");
+	if (s.SSE3) printf("\tSSE3");
+	if (s.SSSE3) printf("\tSSSE3");
+	if (s.SSE41) printf("\tSSE4.1");
+	if (s.SSE42) printf("\tSSE4.2");
+	if (s.SSE4a) printf("\tSSE4a");
+	if (s.LongMode)
 		switch (VendorID) {
-		case VENDOR_INTEL: printf(" Intel64"); break;
-		case VENDOR_AMD: printf(" AMD64"); break;
-		default: printf(" x86-64"); break;
+		case VENDOR_INTEL: printf("\tIntel64"); break;
+		case VENDOR_AMD: printf("\tAMD64"); break;
+		default: printf("\tx86-64"); break;
 		}
-	if (Virt)
+	if (s.Virt)
 		switch (VendorID) {
-		case VENDOR_INTEL: printf(" VT-x"); break; // VMX
-		case VENDOR_AMD: printf(" AMD-V"); break; // SVM
-		//case VENDOR_VIA: printf(" VIA VT"); break; <- Uncomment when ready
-		default: printf(" VMX"); break;
+		case VENDOR_INTEL: printf("\tVT-x"); break; // VMX
+		case VENDOR_AMD: printf("\tAMD-V"); break; // SVM
+		//case VENDOR_VIA: printf("\tVIA VT"); break; <- Uncomment when ready
+		default: printf("\tVMX"); break;
 		}
-	if (NX)
+	if (s.NX)
 		switch (VendorID) {
-		case VENDOR_INTEL: printf(" Intel XD (NX)"); break;
-		case VENDOR_AMD: printf(" AMD EVP (NX)"); break;
-		default: printf(" NX"); break;
+		case VENDOR_INTEL: printf("\tIntel XD (NX)"); break;
+		case VENDOR_AMD: printf("\tAMD EVP (NX)"); break;
+		default: printf("\tNX"); break;
 		}
-	if (SMX) printf(" Intel TXT (SMX)");
-	if (AES) printf(" AES-NI");
-	if (AVX) printf(" AVX");
-	if (AVX2) printf(" AVX2");
-	if (AVX512F) {
-		printf(" AVX512F");
-		if (AVX512ER) printf(" AVX512ER");
-		if (AVX512PF) printf(" AVX512PF");
-		if (AVX512CD) printf(" AVX512CD");
-		if (AVX512DQ) printf(" AVX512DQ");
-		if (AVX512BW) printf(" AVX512BW");
-		if (AVX512VL) printf(" AVX512VL");
-		if (AVX512_IFMA) printf(" AVX512_IFMA");
-		if (AVX512_VBMI) printf(" AVX512_VBMI");
+	if (s.SMX) printf("\tIntel TXT (SMX)");
+	if (s.AES) printf("\tAES-NI");
+	if (s.AVX) printf("\tAVX");
+	if (s.AVX2) printf("\tAVX2");
+	if (s.AVX512F) {
+		printf("\tAVX512F");
+		if (s.AVX512ER) printf("\tAVX512ER");
+		if (s.AVX512PF) printf("\tAVX512PF");
+		if (s.AVX512CD) printf("\tAVX512CD");
+		if (s.AVX512DQ) printf("\tAVX512DQ");
+		if (s.AVX512BW) printf("\tAVX512BW");
+		if (s.AVX512VL) printf("\tAVX512VL");
+		if (s.AVX512_IFMA) printf("\tAVX512_IFMA");
+		if (s.AVX512_VBMI) printf("\tAVX512_VBMI");
 	}
-	if (FMA) printf(" FMA3");
-	if (FMA4) printf(" FMA4");
+	if (s.FMA) printf("\tFMA3");
+	if (s.FMA4) printf("\tFMA4");
 
 	// -- Other instructions --
 
-	printf("\nOther instructions:");
-	if (MONITOR)
-		printf(" MONITOR/MWAIT");
-	if (PCLMULQDQ)
-		printf(" PCLMULQDQ");
-	if (CX8)
-		printf(" CMPXCHG8B");
-	if (CMPXCHG16B)
-		printf(" CMPXCHG16B");
-	if (MOVBE)
-		printf(" MOVBE"); // Intel Atom and quite a few AMD processors.
-	if (RDRAND)
-		printf(" RDRAND");
-	if (RDSEED)
-		printf(" RDSEED");
-	if (MSR)
-		printf(" RDMSR/WRMSR");
-	if (SEP)
-		printf(" SYSENTER/SYSEXIT");
-	if (TSC) {
-		printf(" RDTSC");
-		if (TscDeadline)
-			printf(" +TSC-Deadline");
-		if (TscInvariant)
-			printf(" +TSC-Invariant");
+	puts("\nOther instructions:");
+	if (s.MONITOR) printf("\tMONITOR/MWAIT");
+	if (s.PCLMULQDQ) printf("\tPCLMULQDQ");
+	if (s.CX8) printf("\tCMPXCHG8B");
+	if (s.CMPXCHG16B) printf("\tCMPXCHG16B");
+	if (s.MOVBE) printf("\tMOVBE"); // Intel Atom and quite a few AMD processors.
+	if (s.RDRAND) printf("\tRDRAND");
+	if (s.RDSEED) printf("\tRDSEED");
+	if (s.MSR) printf("\tRDMSR/WRMSR");
+	if (s.SEP) printf("\tSYSENTER/SYSEXIT");
+	if (s.TSC) {
+		printf("\tRDTSC");
+		if (s.TscDeadline)
+			printf("\t+TSC-Deadline");
+		if (s.TscInvariant)
+			printf("\t+TSC-Invariant");
 	}
-	if (CMOV)
-		printf(" CMOV");
-	if (FPU && CMOV)
-		printf(" FCOMI/FCMOV");
-	if (CLFSH)
-		printf(" CLFLUSH (%d bytes)", CLFLUSHLineSize * 8);
-	if (PREFETCHW)
-		printf(" PREFETCHW");
-	if (LZCNT)
-		printf(" LZCNT");
-	if (POPCNT)
-		printf(" POPCNT");
-	if (XSAVE)
-		printf(" XSAVE/XRSTOR");
-	if (OSXSAVE)
-		printf(" XSETBV/XGETBV");
-	if (FXSR)
-		printf(" FXSAVE/FXRSTOR");
-	if (RDPID)
-		printf(" RDPID");
+	if (s.CMOV) {
+		printf("\tCMOV");
+		if (s.FPU) printf("\tFCOMI/FCMOV");
+	}
+	if (s.CLFSH) printf("\tCLFLUSH (%d bytes)", s.CLFLUSHLineSize * 8);
+	if (s.PREFETCHW) printf("\tPREFETCHW");
+	if (s.LZCNT) printf("\tLZCNT");
+	if (s.POPCNT) printf("\tPOPCNT");
+	if (s.XSAVE) printf("\tXSAVE/XRSTOR");
+	if (s.OSXSAVE) printf("\tXSETBV/XGETBV");
+	if (s.FXSR) printf("\tFXSAVE/FXRSTOR");
+	if (s.RDPID) printf("\tRDPID");
 
 	// -- Cache information --
 
 	puts("\n\nCache information");
 
-	// return cache type as string
-	extern (C) immutable(char)* _ct(ubyte t) {
+	/// Return cache type as string
+	extern (C) 
+	immutable(char)* _ct(ubyte t) {
 		switch (t) {
 		case 1: return " Data";
 		case 2: return " Instructions";
-		default: return "";
+		default: return ""; // MUST be "" since it's valid data
 		}
 	}
 
@@ -292,15 +278,14 @@ extern (C) int main(int argc, char** argv) {
 		}
 	} else {
 		while (ca.type) {
-			char s = 'K';
-			uint cs = ca.size / 1024; // cache size
-			if (cs >= 1024) {
-				cs /= 1024;
-				s = 'M';
+			char c = 'K';
+			if (ca.size >= 1024) {
+				ca.size /= 1024;
+				c = 'M';
 			}
 			printf(
 				"\tL%d%s, %d %cB\n",
-				ca.level, _ct(ca.type), cs, s
+				ca.level, _ct(ca.type), ca.size, c
 			);
 			++ca;
 		}
@@ -312,18 +297,18 @@ extern (C) int main(int argc, char** argv) {
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
-		if (EIST)
+		if (s.EIST)
 			puts("\tEnhanced SpeedStep(R) Technology");
-		if (TurboBoost) {
+		if (s.TurboBoost) {
 			printf("\tTurboBoost");
-			if (TurboBoost3)
+			if (s.TurboBoost3)
 				puts(" 3.0");
 			else
 				putchar('\n');
 		}
 		break;
 	case VENDOR_AMD:
-		if (TurboBoost)
+		if (s.TurboBoost)
 			puts("\tCore Performance Boost");
 		break;
 	default:
@@ -333,8 +318,8 @@ extern (C) int main(int argc, char** argv) {
 
 	// -- Processor detailed features --
 
-	extern (C) immutable(char)* _pt() { // Forgive me
-		switch (ProcessorType) { // 2 bit value
+	immutable(char)* _pt() { // D call for parent stack frame
+		switch (s.ProcessorType) { // 2 bit value
 		case 0: return "Original OEM Processor";
 		case 1: return "Intel OverDrive Processor";
 		case 2: return "Dual processor";
@@ -349,10 +334,10 @@ extern (C) int main(int argc, char** argv) {
 		"\nFPU\n" ~
 		"\tFloating Point Unit [FPU]: %s\n" ~
 		"\t16-bit conversion [F16C]: %s\n",
-		MaximumLeaf, MaximumExtendedLeaf,
+		s.MaximumLeaf, s.MaximumExtendedLeaf,
 		_pt,
-		B(FPU),
-		B(F16C)
+		B(s.FPU),
+		B(s.F16C)
 	);
 
 	printf( // ACPI
@@ -362,17 +347,17 @@ extern (C) int main(int argc, char** argv) {
 		"\tx2APIC: %s\n" ~
 		"\tThermal Monitor: %s\n" ~
 		"\tThermal Monitor 2: %s\n",
-		B(ACPI),
-		B(APIC), InitialAPICID, MaxIDs,
-		B(x2APIC),
-		B(TM),
-		B(TM2)
+		B(s.ACPI),
+		B(s.APIC), s.InitialAPICID, s.MaxIDs,
+		B(s.x2APIC),
+		B(s.TM),
+		B(s.TM2)
 	);
 
 	printf( // Virtualization
 		"\nVirtualization\n" ~
 		"\tVirtual 8086 Mode Enhancements [VME]: %s\n",
-		B(VME)
+		B(s.VME)
 	);
 
 	printf( // Memory
@@ -384,13 +369,13 @@ extern (C) int main(int argc, char** argv) {
 		"\tPage Attribute Table [PAT]: %s\n" ~
 		"\tMemory Type Range Registers [MTRR]: %s\n" ~
 		"\tPage Global Bit [PGE]: %s\n",
-		B(PAE),
-		B(PSE_36),
-		B(Page1GB),
-		B(DCA),
-		B(PAT),
-		B(MTRR),
-		B(PGE)
+		B(s.PAE),
+		B(s.PSE_36),
+		B(s.Page1GB),
+		B(s.DCA),
+		B(s.PAT),
+		B(s.MTRR),
+		B(s.PGE)
 	);
 
 	printf( // Debugging
@@ -403,14 +388,14 @@ extern (C) int main(int argc, char** argv) {
 		"\t64-bit DS Area [DTES64]: %s\n" ~
 		"\tPerfmon and Debug Capability [PDCM]: %s\n" ~
 		"\tIA32_DEBUG_INTERFACE (MSR) [SDBG]: %s\n",
-		B(MCA),
-		B(MCE),
-		B(DE),
-		B(DS),
-		B(DS_CPL),
-		B(DTES64),
-		B(PDCM),
-		B(SDBG)
+		B(s.MCA),
+		B(s.MCE),
+		B(s.DE),
+		B(s.DS),
+		B(s.DS_CPL),
+		B(s.DTES64),
+		B(s.PDCM),
+		B(s.SDBG)
 	);
 
 	printf( // Other features
@@ -424,18 +409,18 @@ extern (C) int main(int argc, char** argv) {
 		"\tPending Break Enable [PBE]: %s\n" ~
 		"\tSupervisor Mode Execution Protection [SMEP]: %s\n" ~
 		"\tBit Manipulation Groups [BMI]:",
-		BrandIndex,
-		B(CNXT_ID),
-		B(xTPR),
-		B(PCID),
-		B(PSN),
-		B(SS),
-		B(PBE),
-		B(SMEP)
+		s.BrandIndex,
+		B(s.CNXT_ID),
+		B(s.xTPR),
+		B(s.PCID),
+		B(s.PSN),
+		B(s.SS),
+		B(s.PBE),
+		B(s.SMEP)
 	);
-	if (BMI1 || BMI2) {
-		if (BMI1) printf(" BMI1");
-		if (BMI2) printf(" BMI2");
+	if (s.BMI1 || s.BMI2) {
+		if (s.BMI1) printf(" BMI1");
+		if (s.BMI2) printf(" BMI2");
 		putchar('\n');
 	} else
 		puts(" None");
@@ -443,12 +428,26 @@ extern (C) int main(int argc, char** argv) {
 	return 0;
 } // main
 
-extern(C) immutable(char)* B(uint c) pure @nogc nothrow {
+extern(C)
+immutable(char)* B(uint c) pure @nogc nothrow {
 	return c ? "Yes" : "No";
 }
 
 template BIT(int n) {
 	enum { BIT = 1 << n }
+}
+
+/**
+ * Check bit at position
+ * Params:
+ *   r = Register value
+ *   n = bit mask (use BIT!)
+ * Returns: 1 if present
+ */
+pragma(inline, true)
+extern (C)
+ubyte CHECK(int n) {
+	return n ? 1 : 0;
 }
 
 struct Cache {
@@ -459,13 +458,19 @@ struct Cache {
 	 */
 	ubyte type = void; // data=1, instructions=2, unified=3
 	ubyte level = void; // L1, L2, etc.
-	ubyte ways = void; // n-way
-	ubyte partitions = void; // or "lines per tag" (AMD)
-	ubyte linesize = void;
+	union {
+		uint __bundle1;
+		struct {
+			ubyte linesize = void;
+			ubyte partitions = void; // or "lines per tag" (AMD)
+			ubyte ways = void; // n-way
+			ubyte _amdsize; // (old AMD) Size in KB
+		}
+	}
+	uint size = void; // Size in KB
 	ushort sets = void;
-	uint size = void; // (AMD) size in KB
 	// Intel
-	// -- ebx
+	// -- ebxc
 	// bit 0, Self Initializing cache level
 	// bit 1, Fully Associative cache
 	// -- edx
@@ -485,100 +490,80 @@ __gshared Cache[6] cache; // all inits to 0
  *****************************/
 
 extern (C)
-void fetchInfo() {
-	uint a = void, b = void, c = void, d = void; // EAX to EDX
-
-	version (Posix) { // For -fPIC code
-		size_t __A = cast(size_t)&vendorString;
-		size_t __B = cast(size_t)&cpuString;
-	}
+void fetchInfo(__CPUINFO* s) {
+	size_t __A = cast(size_t)&s.vendorString;
+	size_t __B = cast(size_t)&s.cpuString;
 
 	// Get processor vendor and processor brand string
 	version (X86_64) {
-		version (Windows)
-			asm { lea RDI, vendorString; }
-		else
-			asm { mov RDI, __A; }
 		asm {
-		mov EAX, 0;
-		cpuid;
-		mov [RDI], EBX;
-		mov [RDI+4], EDX;
-		mov [RDI+8], ECX;
-		mov byte ptr [RDI+12], 0;
-		}
+			mov RDI, __A;
+			mov EAX, 0;
+			cpuid;
+			mov [RDI], EBX;
+			mov [RDI+4], EDX;
+			mov [RDI+8], ECX;
+			mov byte ptr [RDI+12], 0;
 
-		version (Windows)
-			asm { lea RDI, cpuString; }
-		else
-			asm { mov RDI, __B; }
-		asm {
-		mov EAX, 0x8000_0002;
-		cpuid;
-		mov [RDI], EAX;
-		mov [RDI+ 4], EBX;
-		mov [RDI+ 8], ECX;
-		mov [RDI+12], EDX;
-		mov EAX, 0x8000_0003;
-		cpuid;
-		mov [RDI+16], EAX;
-		mov [RDI+20], EBX;
-		mov [RDI+24], ECX;
-		mov [RDI+28], EDX;
-		mov EAX, 0x8000_0004;
-		cpuid;
-		mov [RDI+32], EAX;
-		mov [RDI+36], EBX;
-		mov [RDI+40], ECX;
-		mov [RDI+44], EDX;
-		mov byte ptr [RDI+48], 0;
+			mov RDI, __B;
+			mov EAX, 0x8000_0002;
+			cpuid;
+			mov [RDI], EAX;
+			mov [RDI+ 4], EBX;
+			mov [RDI+ 8], ECX;
+			mov [RDI+12], EDX;
+			mov EAX, 0x8000_0003;
+			cpuid;
+			mov [RDI+16], EAX;
+			mov [RDI+20], EBX;
+			mov [RDI+24], ECX;
+			mov [RDI+28], EDX;
+			mov EAX, 0x8000_0004;
+			cpuid;
+			mov [RDI+32], EAX;
+			mov [RDI+36], EBX;
+			mov [RDI+40], ECX;
+			mov [RDI+44], EDX;
+			mov byte ptr [RDI+48], 0;
 		}
-	} else {
-		version (Windows)
-			asm { lea EDI, vendorString; }
-		else
-			asm { mov EDI, __A; }
+	} else { // version X86
 		asm {
-		mov EAX, 0;
-		cpuid;
-		mov [EDI], EBX;
-		mov [EDI+4], EDX;
-		mov [EDI+8], ECX;
-		mov byte ptr [EDI+12], 0;
-		}
+			mov EDI, __A;
+			mov EAX, 0;
+			cpuid;
+			mov [EDI], EBX;
+			mov [EDI+4], EDX;
+			mov [EDI+8], ECX;
+			mov byte ptr [EDI+12], 0;
 
-		version (Windows)
-			asm { lea EDI, cpuString; }
-		else
-			asm { mov EDI, __B; }
-		asm {
-		mov EAX, 0x8000_0002;
-		cpuid;
-		mov [EDI], EAX;
-		mov [EDI+ 4], EBX;
-		mov [EDI+ 8], ECX;
-		mov [EDI+12], EDX;
-		mov EAX, 0x8000_0003;
-		cpuid;
-		mov [EDI+16], EAX;
-		mov [EDI+20], EBX;
-		mov [EDI+24], ECX;
-		mov [EDI+28], EDX;
-		mov EAX, 0x8000_0004;
-		cpuid;
-		mov [EDI+32], EAX;
-		mov [EDI+36], EBX;
-		mov [EDI+40], ECX;
-		mov [EDI+44], EDX;
-		mov byte ptr [EDI+48], 0;
+			mov EDI, __B;
+			mov EAX, 0x8000_0002;
+			cpuid;
+			mov [EDI], EAX;
+			mov [EDI+ 4], EBX;
+			mov [EDI+ 8], ECX;
+			mov [EDI+12], EDX;
+			mov EAX, 0x8000_0003;
+			cpuid;
+			mov [EDI+16], EAX;
+			mov [EDI+20], EBX;
+			mov [EDI+24], ECX;
+			mov [EDI+28], EDX;
+			mov EAX, 0x8000_0004;
+			cpuid;
+			mov [EDI+32], EAX;
+			mov [EDI+36], EBX;
+			mov [EDI+40], ECX;
+			mov [EDI+44], EDX;
+			mov byte ptr [EDI+48], 0;
 		}
 	}
 
 	// Why compare strings when you can just compare numbers?
-	VendorID = *cast(uint*)vendorString;
+	VendorID = *cast(uint*)s.vendorString;
 
-	ubyte* bp = cast(ubyte*)&b;
-	ubyte* cp = cast(ubyte*)&c;
+	uint a = void, b = void, c = void, d = void; // EAX to EDX
+	//ubyte* cp = cast(ubyte*)&c;
 	ubyte* dp = cast(ubyte*)&d;
 
 	uint l; /// Cache level
@@ -612,7 +597,7 @@ CACHE_INTEL:
 			if (d & BIT!(1)) ca.features |= BIT!(3);
 			if (d & BIT!(2)) ca.features |= BIT!(4);
 		} else {
-			ca.size = ca.sets * ca.linesize * ca.partitions * ca.ways;
+			ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) / 1024;
 		}
 
 		debug printf("| %8X | %8X | %8X | %8X | %8X |\n", l, a, b, c, d);
@@ -621,7 +606,7 @@ CACHE_INTEL:
 	case VENDOR_AMD:
 		ubyte _amd_ways_l2 = void; // please the compiler
 
-		if (MaximumExtendedLeaf >= 0x8000_001D) goto CACHE_AMD_NEWER;
+		if (s.MaximumExtendedLeaf >= 0x8000_001D) goto CACHE_AMD_NEWER;
 
 		asm { // olde way
 			mov EAX, 0x8000_0005;
@@ -631,7 +616,11 @@ CACHE_INTEL:
 		}
 		cache[0].level = cache[1].level = 1; // L1
 		cache[0].type = 1; // data
-		cache[0].linesize = *cp;
+		cache[0].__bundle1 = c;
+		cache[0].size = cache[0]._amdsize;
+		cache[1].__bundle1 = d;
+		cache[1].size = cache[1]._amdsize;
+		/*cache[0].linesize = *cp;
 		cache[0].partitions = *(cp + 1);
 		cache[0].ways = *(cp + 2);
 		cache[0].size = *(cp + 3);
@@ -639,9 +628,9 @@ CACHE_INTEL:
 		cache[1].linesize = *dp;
 		cache[1].partitions = *(dp + 1);
 		cache[1].ways = *(dp + 2);
-		cache[1].size = *(dp + 3);
+		cache[1].size = *(dp + 3);*/
 
-		if (MaximumExtendedLeaf < 0x8000_0006) break; // No L2/L3
+		if (s.MaximumExtendedLeaf < 0x8000_0006) break; // No L2/L3
 
 		// Old reference table
 		// See Table E-4. L2/L3 Cache and TLB Associativity Field Encoding
@@ -674,7 +663,7 @@ CACHE_INTEL:
 			cache[2].ways = _amd_ways(_amd_ways_l2);
 			cache[2].size = c >> 16;
 			cache[2].sets = (c >> 8) & 7;
-			cache[2].linesize = *cp;
+			cache[2].linesize = cast(ubyte)c;
 
 			ubyte _amd_ways_l3 = (d >> 12) & 0b111;
 			if (_amd_ways_l3) {
@@ -712,7 +701,7 @@ CACHE_AMD_NEWER:
 			if (d & BIT!(0)) ca.features |= BIT!(2);
 			if (d & BIT!(1)) ca.features |= BIT!(3);
 		} else {
-			ca.size = ca.sets * ca.linesize * ca.partitions * ca.ways;
+			ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) / 1024;
 		}
 
 		debug printf("| %8X | %8X | %8X | %8X | %8X |\n", l, a, b, c, d);
@@ -722,6 +711,7 @@ CACHE_AMD_NEWER:
 	}
 
 CACHE_DONE:
+
 	asm {
 		mov EAX, 1;
 		mov ECX, 0;
@@ -733,109 +723,112 @@ CACHE_DONE:
 	} // ----- 1H
 
 	// EAX
-	Stepping       = a & 0xF;        // EAX[3:0]
-	BaseModel      = a >>  4 &  0xF; // EAX[7:4]
-	BaseFamily     = a >>  8 &  0xF; // EAX[11:8]
-	ProcessorType  = a >> 12 & 0b11; // EAX[13:12]
-	ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
-	ExtendedFamily = cast(ubyte)(a >> 20); // EAX[27:20]
+	s.Stepping       = a & 0xF;        // EAX[3:0]
+	s.BaseModel      = a >>  4 &  0xF; // EAX[7:4]
+	s.BaseFamily     = a >>  8 &  0xF; // EAX[11:8]
+	s.ProcessorType  = a >> 12 & 0b11; // EAX[13:12]
+	s.ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
+	s.ExtendedFamily = cast(ubyte)(a >> 20); // EAX[27:20]
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
-		if (BaseFamily != 0)
-			Family = BaseFamily;
+		if (s.BaseFamily != 0)
+			s.Family = s.BaseFamily;
 		else
-			Family = cast(ubyte)(ExtendedFamily + BaseFamily);
+			s.Family = cast(ubyte)(s.ExtendedFamily + s.BaseFamily);
 
-		if (BaseFamily == 6 || BaseFamily == 0)
-			Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
+		if (s.BaseFamily == 6 || s.BaseFamily == 0)
+			s.Model = cast(ubyte)((s.ExtendedModel << 4) + s.BaseModel);
 		else // DisplayModel = Model_ID;
-			Model = BaseModel;
+			s.Model = s.BaseModel;
 
 		// ECX
-		DTES64      = c & BIT!(2);
-		DS_CPL      = c & BIT!(4);
-		Virt        = c & BIT!(5);
-		SMX         = c & BIT!(6);
-		EIST        = c & BIT!(7);
-		TM2         = c & BIT!(8);
-		CNXT_ID     = c & BIT!(10);
-		SDBG        = c & BIT!(11);
-		xTPR        = c & BIT!(14);
-		PDCM        = c & BIT!(15);
-		PCID        = c & BIT!(17);
-		DCA         = c & BIT!(18);
-		x2APIC      = c & BIT!(21);
-		TscDeadline = c & BIT!(24);
+		s.DTES64      = CHECK(c & BIT!(2));
+		s.DS_CPL      = CHECK(c & BIT!(4));
+		s.Virt        = CHECK(c & BIT!(5));
+		s.SMX         = CHECK(c & BIT!(6));
+		s.EIST        = CHECK(c & BIT!(7));
+		s.TM2         = CHECK(c & BIT!(8));
+		s.CNXT_ID     = CHECK(c & BIT!(10));
+		s.SDBG        = CHECK(c & BIT!(11));
+		s.xTPR        = CHECK(c & BIT!(14));
+		s.PDCM        = CHECK(c & BIT!(15));
+		s.PCID        = CHECK(c & BIT!(17));
+		s.DCA         = CHECK(c & BIT!(18));
+		s.x2APIC      = CHECK(c & BIT!(21));
+		s.TscDeadline = CHECK(c & BIT!(24));
 
 		// EDX
-		PSN  = d & BIT!(18);
-		DS   = d & BIT!(21);
-		ACPI = d & BIT!(22);
-		SS   = d & BIT!(27);
-		TM   = d & BIT!(29);
-		PBE  = d & BIT!(31);
+		s.PSN  = CHECK(d & BIT!(18)); //d & BIT!(18);
+		s.DS   = CHECK(d & BIT!(21));
+		s.ACPI = CHECK(d & BIT!(22));
+		s.SS   = CHECK(d & BIT!(27));
+		s.TM   = CHECK(d & BIT!(29));
+		s.PBE  = CHECK(d & BIT!(31));
 		break;
 	case VENDOR_AMD:
-		if (BaseFamily < 0xF) {
-			Family = BaseFamily;
-			Model = BaseModel;
+		if (s.BaseFamily < 0xF) {
+			s.Family = s.BaseFamily;
+			s.Model = s.BaseModel;
 		} else {
-			Family = cast(ubyte)(ExtendedFamily + BaseFamily);
-			Model = cast(ubyte)((ExtendedModel << 4) + BaseModel);
+			s.Family = cast(ubyte)(s.ExtendedFamily + s.BaseFamily);
+			s.Model = cast(ubyte)((s.ExtendedModel << 4) + s.BaseModel);
 		}
 		break;
 	default:
 	}
 
 	// EBX
-	BrandIndex      = *bp;       // EBX[ 7: 0]
-	CLFLUSHLineSize = *(bp + 1); // EBX[15: 8]
-	MaxIDs          = *(bp + 2); // EBX[23:16]
-	InitialAPICID   = *(bp + 3); // EBX[31:24]
+	//s.BrandIndex      = *bp;       // EBX[ 7: 0]
+	//s.CLFLUSHLineSize = *(bp + 1); // EBX[15: 8]
+	//s.MaxIDs          = *(bp + 2); // EBX[23:16]
+	//s.InitialAPICID   = *(bp + 3); // EBX[31:24]
+	s.__bundle1 = b;
+
+	//*(cast(uint*)BrandIndex) = b;
 
 	// ECX
-	SSE3       = c & BIT!(0);
-	PCLMULQDQ  = c & BIT!(1);
-	MONITOR    = c & BIT!(3);
-	SSSE3      = c & BIT!(9);
-	FMA        = c & BIT!(12);
-	CMPXCHG16B = c & BIT!(13);
-	SSE41      = c & BIT!(15);
-	SSE42      = c & BIT!(20);
-	MOVBE      = c & BIT!(22);
-	POPCNT     = c & BIT!(23);
-	AES        = c & BIT!(25);
-	XSAVE      = c & BIT!(26);
-	OSXSAVE    = c & BIT!(27);
-	AVX        = c & BIT!(28);
-	F16C       = c & BIT!(29);
-	RDRAND     = c & BIT!(30);
+	s.SSE3       = CHECK(c & BIT!(0));
+	s.PCLMULQDQ  = CHECK(c & BIT!(1));
+	s.MONITOR    = CHECK(c & BIT!(3));
+	s.SSSE3      = CHECK(c & BIT!(9));
+	s.FMA        = CHECK(c & BIT!(12));
+	s.CMPXCHG16B = CHECK(c & BIT!(13));
+	s.SSE41      = CHECK(c & BIT!(15));
+	s.SSE42      = CHECK(c & BIT!(20));
+	s.MOVBE      = CHECK(c & BIT!(22));
+	s.POPCNT     = CHECK(c & BIT!(23));
+	s.AES        = CHECK(c & BIT!(25));
+	s.XSAVE      = CHECK(c & BIT!(26));
+	s.OSXSAVE    = CHECK(c & BIT!(27));
+	s.AVX        = CHECK(c & BIT!(28));
+	s.F16C       = CHECK(c & BIT!(29));
+	s.RDRAND     = CHECK(c & BIT!(30));
 
 	// EDX
-	FPU    = d & BIT!(0);
-	VME    = d & BIT!(1);
-	DE     = d & BIT!(2);
-	PSE    = d & BIT!(3);
-	TSC    = d & BIT!(4);
-	MSR    = d & BIT!(5);
-	PAE    = d & BIT!(6);
-	MCE    = d & BIT!(7);
-	CX8    = d & BIT!(8);
-	APIC   = d & BIT!(9);
-	SEP    = d & BIT!(11);
-	MTRR   = d & BIT!(12);
-	PGE    = d & BIT!(13);
-	MCA    = d & BIT!(14);
-	CMOV   = d & BIT!(15);
-	PAT    = d & BIT!(16);
-	PSE_36 = d & BIT!(17);
-	CLFSH  = d & BIT!(19);
-	MMX    = d & BIT!(23);
-	FXSR   = d & BIT!(24);
-	SSE    = d & BIT!(25);
-	SSE2   = d & BIT!(26);
-	HTT    = d & BIT!(28);
+	s.FPU    = CHECK(d & BIT!(0));
+	s.VME    = CHECK(d & BIT!(1));
+	s.DE     = CHECK(d & BIT!(2));
+	s.PSE    = CHECK(d & BIT!(3));
+	s.TSC    = CHECK(d & BIT!(4));
+	s.MSR    = CHECK(d & BIT!(5));
+	s.PAE    = CHECK(d & BIT!(6));
+	s.MCE    = CHECK(d & BIT!(7));
+	s.CX8    = CHECK(d & BIT!(8));
+	s.APIC   = CHECK(d & BIT!(9));
+	s.SEP    = CHECK(d & BIT!(11));
+	s.MTRR   = CHECK(d & BIT!(12));
+	s.PGE    = CHECK(d & BIT!(13));
+	s.MCA    = CHECK(d & BIT!(14));
+	s.CMOV   = CHECK(d & BIT!(15));
+	s.PAT    = CHECK(d & BIT!(16));
+	s.PSE_36 = CHECK(d & BIT!(17));
+	s.CLFSH  = CHECK(d & BIT!(19));
+	s.MMX    = CHECK(d & BIT!(23));
+	s.FXSR   = CHECK(d & BIT!(24));
+	s.SSE    = CHECK(d & BIT!(25));
+	s.SSE2   = CHECK(d & BIT!(26));
+	s.HTT    = CHECK(d & BIT!(28));
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
@@ -848,8 +841,8 @@ CACHE_DONE:
 			//mov c, ECX;
 			//mov d, EDX;
 		} // ----- 6H, avoids calling it if not Intel, for now
-		TurboBoost = a & BIT!(1);
-		TurboBoost3 = a & BIT!(14);
+		s.TurboBoost = CHECK(a & BIT!(1));
+		s.TurboBoost3 = CHECK(a & BIT!(14));
 		break;
 	default:
 	}
@@ -866,26 +859,25 @@ CACHE_DONE:
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
-		AVX512F = b & BIT!(16);
-		AVX512ER = b & BIT!(27);
-		AVX512PF = b & BIT!(26);
-		AVX512CD = b & BIT!(28);
-		AVX512DQ = b & BIT!(17);
-		AVX512BW = b & BIT!(30);
-		AVX512_IFMA = b & BIT!(21);
-		AVX512_VBMI = b & BIT!(31);
-		AVX512VL = c & BIT!(1);
+		s.AVX512F     = CHECK(b & BIT!(16));
+		s.AVX512ER    = CHECK(b & BIT!(27));
+		s.AVX512PF    = CHECK(b & BIT!(26));
+		s.AVX512CD    = CHECK(b & BIT!(28));
+		s.AVX512DQ    = CHECK(b & BIT!(17));
+		s.AVX512BW    = CHECK(b & BIT!(30));
+		s.AVX512_IFMA = CHECK(b & BIT!(21));
+		s.AVX512_VBMI = CHECK(b & BIT!(31));
+		s.AVX512VL    = CHECK(c & BIT!(1));
 		break;
 	default:
 	}
 
-	BMI1   = b & BIT!(4);
-	AVX2   = b & BIT!(5);
-	SMEP   = b & BIT!(7);
-	BMI2   = b & BIT!(8);
-	RDSEED = b & BIT!(18);
-
-	RDPID = c & BIT!(22);
+	s.BMI1   = CHECK(b & BIT!(4));
+	s.AVX2   = CHECK(b & BIT!(5));
+	s.SMEP   = CHECK(b & BIT!(7));
+	s.BMI2   = CHECK(b & BIT!(8));
+	s.RDSEED = CHECK(b & BIT!(18));
+	s.RDPID  = CHECK(c & BIT!(22));
 	
 	/*
 	 * Extended CPUID leafs
@@ -903,23 +895,21 @@ CACHE_DONE:
 
 	switch (VendorID) {
 	case VENDOR_AMD:
-		Virt  = c & BIT!(2); // SVM
-		SSE4a = c & BIT!(6);
-		FMA4  = c & BIT!(16);
-
-		MMXExt    = d & BIT!(22);
-		_3DNowExt = d & BIT!(30);
-		_3DNow    = d & BIT!(31);
+		s.Virt      = CHECK(c & BIT!(2)); // SVM
+		s.SSE4a     = CHECK(c & BIT!(6));
+		s.FMA4      = CHECK(c & BIT!(16));
+		s.MMXExt    = CHECK(d & BIT!(22));
+		s._3DNowExt = CHECK(d & BIT!(30));
+		s._3DNow    = CHECK(d & BIT!(31));
 		break;
 	default:
 	}
 
-	LZCNT     = c & BIT!(5);
-	PREFETCHW = c & BIT!(8);
-
-	NX       = d & BIT!(20);
-	Page1GB  = d & BIT!(26);
-	LongMode = d & BIT!(29);
+	s.LZCNT     = CHECK(c & BIT!(5));
+	s.PREFETCHW = CHECK(c & BIT!(8));
+	s.NX        = CHECK(d & BIT!(20));
+	s.Page1GB   = CHECK(d & BIT!(26));
+	s.LongMode  = CHECK(d & BIT!(29));
 
 	asm {
 		mov EAX, 0x8000_0007;
@@ -933,16 +923,16 @@ CACHE_DONE:
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
-		RDSEED = b & BIT!(28);
+		s.RDSEED = CHECK(b & BIT!(28));
 		break;
 	case VENDOR_AMD:
-		TM = d & BIT!(4);
-		TurboBoost = d & BIT!(9);
+		s.TM = CHECK(d & BIT!(4));
+		s.TurboBoost = CHECK(d & BIT!(9));
 		break;
 	default:
 	}
 
-	TscInvariant = d & BIT!(8);
+	s.TscInvariant = CHECK(d & BIT!(8));
 }
 
 /// Get the maximum leaf.
@@ -996,140 +986,152 @@ INTEL_A:
 extern (C):
 __gshared:
 
-// ---- Basic information ----
-char[13] vendorString = void;
-char[49] cpuString = void;
+struct __CPUINFO {
+	// ---- Basic information ----
+	char[12] vendorString = void;
+	char[48] cpuString = void;
 
-uint MaximumLeaf = void;
-uint MaximumExtendedLeaf = void;
+	uint MaximumLeaf = void;
+	uint MaximumExtendedLeaf = void;
 
-//ushort NumberOfCores;
-//ushort NumberOfThreads;
+	//ushort NumberOfCores;
+	//ushort NumberOfThreads;
 
-ubyte Family = void;
-ubyte BaseFamily = void;
-ubyte ExtendedFamily = void;
-ubyte Model = void;
-ubyte BaseModel = void;
-ubyte ExtendedModel = void;
-ubyte Stepping = void;
-ubyte ProcessorType = void;
+	ubyte Family = void;
+	ubyte BaseFamily = void;
+	ubyte ExtendedFamily = void;
+	ubyte Model = void;
+	ubyte BaseModel = void;
+	ubyte ExtendedModel = void;
+	ubyte Stepping = void;
+	ubyte ProcessorType = void;
 
-uint MMX = void;
-uint MMXExt = void;
-uint SSE = void;
-uint SSE2 = void;
-uint SSE3 = void;
-uint SSSE3 = void;
-uint SSE41 = void;
-uint SSE42 = void;
-uint SSE4a = void;
-uint AES = void;
-uint AVX = void;
-uint AVX2 = void;
-uint AVX512F = void;
-uint AVX512ER = void;
-uint AVX512PF = void;
-uint AVX512CD = void;
-uint AVX512DQ = void;
-uint AVX512BW = void;
-uint AVX512_IFMA = void;
-uint AVX512_VBMI = void;
-uint AVX512VL = void;
+	ubyte MMX = void;
+	ubyte MMXExt = void;
+	ubyte SSE = void;
+	ubyte SSE2 = void;
+	ubyte SSE3 = void;
+	ubyte SSSE3 = void;
+	ubyte SSE41 = void;
+	ubyte SSE42 = void;
+	ubyte SSE4a = void;
+	ubyte AES = void;
+	ubyte AVX = void;
+	ubyte AVX2 = void;
+	ubyte AVX512F = void;
+	ubyte AVX512ER = void;
+	ubyte AVX512PF = void;
+	ubyte AVX512CD = void;
+	ubyte AVX512DQ = void;
+	ubyte AVX512BW = void;
+	ubyte AVX512_IFMA = void;
+	ubyte AVX512_VBMI = void;
+	ubyte AVX512VL = void;
 
-uint _3DNow = void;
-uint _3DNowExt = void;
+	ubyte _3DNow = void;
+	ubyte _3DNowExt = void;
 
-// ---- 01h ----
-// -- EBX --
-ubyte BrandIndex = void;
-ubyte CLFLUSHLineSize = void;
-ubyte MaxIDs = void;
-ubyte InitialAPICID = void;
+	// ---- 01h ----
+	// -- EBX --
+	union {
+		uint __bundle1;
+		struct {
+			ubyte BrandIndex = void;
+			ubyte CLFLUSHLineSize = void;
+			ubyte MaxIDs = void;
+			ubyte InitialAPICID = void;
+		}
+	}
 
-// -- ECX --
-ubyte PCLMULQDQ = void;	// 1
-ubyte DTES64 = void;
-ubyte MONITOR = void;
-ubyte DS_CPL = void;
-ubyte Virt = void; // VMX (intel) / SVM (AMD)
-ubyte SMX = void; // intel txt/tpm
-ubyte EIST = void; // intel speedstep
-ushort TM2 = void;
-ushort CNXT_ID = void; // l1 context id
-ushort SDBG = void; // IA32_DEBUG_INTERFACE silicon debug
-ushort FMA = void;
-uint FMA4 = void;
-uint CMPXCHG16B = void;
-uint xTPR = void;
-uint PDCM = void;
-uint PCID = void; // Process-context identifiers
-uint DCA = void;
-uint x2APIC = void;
-uint MOVBE = void;
-uint POPCNT = void;
-uint TscDeadline = void;
-uint XSAVE = void;
-uint OSXSAVE = void;
-uint F16C = void;
-uint RDRAND = void;	// 30
+	// -- ECX --
+	ubyte PCLMULQDQ = void;	// 1
+	ubyte DTES64 = void;
+	ubyte MONITOR = void;
+	ubyte DS_CPL = void;
+	ubyte Virt = void; // VMX (intel) / SVM (AMD)
+	ubyte SMX = void; // intel txt/tpm
+	ubyte EIST = void; // intel speedstep
+	ubyte TM2 = void;
+	ubyte CNXT_ID = void; // l1 context id
+	ubyte SDBG = void; // IA32_DEBUG_INTERFACE silicon debug
+	ubyte FMA = void;
+	ubyte FMA4 = void;
+	ubyte CMPXCHG16B = void;
+	ubyte xTPR = void;
+	ubyte PDCM = void;
+	ubyte PCID = void; // Process-context identifiers
+	ubyte DCA = void;
+	ubyte x2APIC = void;
+	ubyte MOVBE = void;
+	ubyte POPCNT = void;
+	ubyte TscDeadline = void;
+	ubyte XSAVE = void;
+	ubyte OSXSAVE = void;
+	ubyte F16C = void;
+	ubyte RDRAND = void;	// 30
 
-// -- EDX --
-ubyte FPU = void; // 0
-ubyte VME = void;
-ubyte DE = void;
-ubyte PSE = void;
-ubyte TSC = void;
-ubyte MSR = void;
-ubyte PAE = void;
-ubyte MCE = void;
-ushort CX8 = void;
-ushort APIC = void;
-ushort SEP = void; // sysenter/sysexit
-ushort MTRR = void;
-ushort PGE = void;
-ushort MCA = void;
-ushort CMOV = void;
-uint PAT = void;
-uint PSE_36 = void;
-uint PSN = void;
-uint CLFSH = void;
-uint DS = void;
-uint ACPI = void;
-uint FXSR = void;
-uint SS = void; // self-snoop
-uint HTT = void;
-uint TM = void;
-uint PBE = void; // 31
+	// -- EDX --
+	ubyte FPU = void; // 0
+	ubyte VME = void;
+	ubyte DE = void;
+	ubyte PSE = void;
+	ubyte TSC = void;
+	ubyte MSR = void;
+	ubyte PAE = void;
+	ubyte MCE = void;
+	ubyte CX8 = void;
+	ubyte APIC = void;
+	ubyte SEP = void; // sysenter/sysexit
+	ubyte MTRR = void;
+	ubyte PGE = void;
+	ubyte MCA = void;
+	ubyte CMOV = void;
+	ubyte PAT = void;
+	ubyte PSE_36 = void;
+	ubyte PSN = void;
+	ubyte CLFSH = void;
+	ubyte DS = void;
+	ubyte ACPI = void;
+	ubyte FXSR = void;
+	ubyte SS = void; // self-snoop
+	ubyte HTT = void;
+	ubyte TM = void;
+	ubyte PBE = void; // 31
 
-// ---- 06h ----
-/// eq. to AMD's Core Performance Boost
-ushort TurboBoost = void;	// 1
-ushort TurboBoost3 = void;	// 14
+	// ---- 06h ----
+	/// eq. to AMD's Core Performance Boost
+	ubyte TurboBoost = void;	// 1
+	ubyte TurboBoost3 = void;	// 14
 
-// ---- 07h ----
-// -- EBX --
-ubyte BMI1 = void;	// 3
-ubyte SMEP = void;	// 7
-ushort BMI2 = void;	// 8
-// -- ECX --
-uint RDPID = void;	// 22
+	// ---- 07h ----
+	// -- EBX --
+	ubyte SMEP = void;	// 7
+	union {
+		ushort __bundle2;
+		struct {
+			ubyte BMI1 = void;	// 3
+			ubyte BMI2 = void;	// 8
+		}
+	}
+	// -- ECX --
+	ubyte RDPID = void;	// 22
 
-// ---- 8000_0001 ----
-// ECX
-/// Count the Number of Leading Zero Bits, SSE4 SIMD
-ubyte LZCNT = void;
-/// Prefetch
-ushort PREFETCHW = void;	// 8
+	// ---- 8000_0001 ----
+	// ECX
+	/// Count the Number of Leading Zero Bits, SSE4 SIMD
+	ubyte LZCNT = void;
+	/// Prefetch
+	ubyte PREFETCHW = void;	// 8
 
-/// RDSEED instruction
-uint RDSEED = void;
-// EDX
-uint NX = void;	// 20
-/// 1GB Pages
-uint Page1GB = void;	// 26
-/// Also known as Intel64 or AMD64.
-uint LongMode = void;	// 29
+	/// RDSEED instruction
+	ubyte RDSEED = void;
+	// EDX
+	ubyte NX = void;	// 20
+	/// 1GB Pages
+	ubyte Page1GB = void;	// 26
+	/// Also known as Intel64 or AMD64.
+	ubyte LongMode = void;	// 29
 
-// ---- 8000_0007 ----
-ushort TscInvariant = void;	// 8
+	// ---- 8000_0007 ----
+	ubyte TscInvariant = void;	// 8
+}

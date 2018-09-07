@@ -4,7 +4,7 @@ ddcpuid is a simple x86/x86-64 CPUID information tool, works best with Intel and
 
 I will gladly implement features from VIA, Zhaoxin, and others once I get documentation.
 
-The ddcpuid User Manual is available [here](https://dd86k.space/pub/ddcpuid-manual.pdf).
+The ddcpuid User Manual is available [online](https://dd86k.space/pub/ddcpuid-manual.pdf) (PDF).
 
 ## Bugs
 

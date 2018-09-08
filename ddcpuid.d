@@ -504,7 +504,7 @@ void fetchInfo(__CPUINFO* s) {
 			mov [RDI+36], EBX;
 			mov [RDI+40], ECX;
 			mov [RDI+44], EDX;
-			mov byte ptr [RDI+48], 0;
+			//mov byte ptr [RDI+48], 0;
 		}
 	} else { // version X86
 		asm {
@@ -535,7 +535,7 @@ void fetchInfo(__CPUINFO* s) {
 			mov [EDI+36], EBX;
 			mov [EDI+40], ECX;
 			mov [EDI+44], EDX;
-			mov byte ptr [EDI+48], 0;
+			//mov byte ptr [EDI+48], 0;
 		}
 	}
 
@@ -1033,8 +1033,8 @@ struct __CACHEINFO {
 
 struct __CPUINFO { align(1):
 	// ---- Basic information ----
-	char[12] vendorString;
-	char[48] cpuString;
+	ubyte[12] vendorString;	// inits to 0
+	ubyte[48] cpuString;	// inits to 0
 
 	uint MaximumLeaf;
 	uint MaximumExtendedLeaf;
@@ -1197,6 +1197,16 @@ struct __CPUINFO { align(1):
 	// ---- 8000_000A ----
 	ubyte VirtVersion;	// (AMD) EAX[7:0]
 
+	private ubyte[3] __padding;
+
 	// 6 levels should be enough (L1-D, L1-I, L2, L3, 0, 0)
 	__CACHEINFO[6] cache; // all inits to 0
 }
+
+static assert(__CPUINFO.vendorString.sizeof == 12);
+static assert(__CPUINFO.cpuString.sizeof == 48);
+static assert(__CPUINFO.__bundle1.sizeof == 4);
+static assert(__CPUINFO.__bundle2.sizeof == 2);
+static assert(__CPUINFO.__bundle3.sizeof == 2);
+static assert(__CACHEINFO.__bundle1.sizeof == 4);
+static assert(__CPUINFO.sizeof % 4 == 0, "__CPUINFO structure should be 4-byte padded");

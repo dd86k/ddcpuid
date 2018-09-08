@@ -10,7 +10,7 @@ debug {
 	pragma(msg, "-- sizeof __CACHEINFO: ", __CACHEINFO.sizeof);
 }
 
-enum VERSION = "0.8.1"; /// Program version
+enum VERSION = "0.9.0-rc"; /// Program version
 
 enum
 	MAX_LEAF = 0x20, /// Maximum leaf (-o)
@@ -223,6 +223,8 @@ int main(int argc, char** argv) {
 	}
 	if (s.FMA) printf("\tFMA3");
 	if (s.FMA4) printf("\tFMA4");
+	if (s.BMI1) printf("\tBMI1");
+	if (s.BMI2) printf("\tBMI2");
 
 	// -- Other instructions --
 
@@ -290,13 +292,9 @@ int main(int argc, char** argv) {
 		while (ca.type) {
 			char c = 'K';
 			if (ca.size >= 1024) {
-				ca.size /= 1024;
-				c = 'M';
+				ca.size /= 1024; c = 'M';
 			}
-			printf(
-				"\tL%d%s, %d %cB\n",
-				ca.level, _ct(ca.type), ca.size, c
-			);
+			printf("\tL%d%s, %d %cB\n", ca.level, _ct(ca.type), ca.size, c);
 			++ca;
 		}
 	}
@@ -309,6 +307,7 @@ int main(int argc, char** argv) {
 	case VENDOR_INTEL:
 		if (s.EIST) puts("\tEnhanced SpeedStep(R) Technology");
 		if (s.TurboBoost) {
+			//TODO: Make Turboboost high bit set if 3.0 instead of byte
 			printf("\tTurboBoost");
 			if (s.TurboBoost3) puts(" 3.0");
 			else putchar('\n');
@@ -316,8 +315,7 @@ int main(int argc, char** argv) {
 		if (s.SGX) puts("Intel SGX");
 		break;
 	case VENDOR_AMD:
-		if (s.TurboBoost)
-			puts("\tCore Performance Boost");
+		if (s.TurboBoost) puts("\tCore Performance Boost");
 		break;
 	default:
 	}
@@ -339,7 +337,7 @@ int main(int argc, char** argv) {
 	printf( // Misc. and FPU
 		"\nHighest Leaf: %XH | Extended: %XH\n" ~
 		"Processor type: %s\n" ~
-		"\nFPU\n" ~
+		"\n[FPU]\n" ~
 		"\tFloating Point Unit [FPU]: %s\n" ~
 		"\t16-bit conversion [F16C]: %s\n",
 		s.MaximumLeaf, s.MaximumExtendedLeaf,
@@ -364,10 +362,15 @@ int main(int argc, char** argv) {
 		B(s.TM2)
 	);
 
-	printf( // Virtualization
+	printf( // Virtualization + Cache
 		"\n[Virtualization]\n" ~
-		"\tVirtual 8086 Mode Enhancements [VME]: %s\n",
-		B(s.VME)
+		"\tVirtual 8086 Mode Enhancements [VME]: %s\n" ~
+		"\n[Cache]\n" ~
+		"\tL1 Context ID [CNXT-ID]: %s\n" ~
+		"\tSelf Snoop [SS]: %s\n",
+		B(s.VME),
+		B(s.CNXT_ID),
+		B(s.SS)
 	);
 
 	printf( // Memory
@@ -379,6 +382,7 @@ int main(int argc, char** argv) {
 		"\tPage Attribute Table [PAT]: %s\n" ~
 		"\tMemory Type Range Registers [MTRR]: %s\n" ~
 		"\tPage Global Bit [PGE]: %s\n" ~
+		"\tSupervisor Mode Execution Protection [SMEP]: %s\n" ~
 		"\tMaximum Physical Memory Bits: %d\n" ~
 		"\tMaximum Linear Memory Bits: %d\n",
 		B(s.PAE),
@@ -388,6 +392,7 @@ int main(int argc, char** argv) {
 		B(s.PAT),
 		B(s.MTRR),
 		B(s.PGE),
+		B(s.SMEP),
 		s.addr_phys_bits,
 		s.addr_line_bits
 	);
@@ -415,33 +420,21 @@ int main(int argc, char** argv) {
 	printf( // Other features
 		"\n[Miscellaneous]\n" ~
 		"\tBrand Index: %d\n" ~
-		"\tL1 Context ID [CNXT-ID]: %s\n" ~
 		"\txTPR Update Control [xTPR]: %s\n" ~
 		"\tProcess-context identifiers [PCID]: %s\n" ~
 		"\tProcessor Serial Number [PSN]: %s\n" ~
-		"\tSelf Snoop [SS]: %s\n" ~
-		"\tPending Break Enable [PBE]: %s\n" ~
-		"\tSupervisor Mode Execution Protection [SMEP]: %s\n" ~
-		"\tBit Manipulation Groups [BMI]:",
+		"\tPending Break Enable [PBE]: %s\n",
 		s.BrandIndex,
-		B(s.CNXT_ID),
 		B(s.xTPR),
 		B(s.PCID),
 		B(s.PSN),
-		B(s.SS),
-		B(s.PBE),
-		B(s.SMEP)
+		B(s.PBE)
 	);
-	if (s.__bundle2) { // BMI1/BMI2
-		if (s.BMI1) printf(" BMI1");
-		if (s.BMI2) printf(" BMI2");
-		putchar('\n');
-	} else
-		puts(" None");
 
 	return 0;
 } // main
 
+pragma(inline, true)
 extern(C)
 immutable(char)* B(uint c) pure @nogc nothrow {
 	return c ? "Yes" : "No";
@@ -545,8 +538,6 @@ void fetchInfo(__CPUINFO* s) {
 	debug printf("VendorID: %X\n", VendorID);
 
 	uint a = void, b = void, c = void, d = void; // EAX to EDX
-	//ubyte* cp = cast(ubyte*)&c;
-	//ubyte* dp = cast(ubyte*)&d;
 
 	uint l; /// Cache level
 	__CACHEINFO* ca = cast(__CACHEINFO*)s.cache;
@@ -605,15 +596,6 @@ void fetchInfo(__CPUINFO* s) {
 		s.cache[0].size = s.cache[0]._amdsize;
 		s.cache[1].__bundle1 = d;
 		s.cache[1].size = s.cache[1]._amdsize;
-		/*s.cache[0].linesize = *cp;
-		s.cache[0].partitions = *(cp + 1);
-		s.cache[0].ways = *(cp + 2);
-		s.cache[0].size = *(cp + 3);
-		s.cache[1].type = 2; // instructions
-		s.cache[1].linesize = *dp;
-		s.cache[1].partitions = *(dp + 1);
-		s.cache[1].ways = *(dp + 2);
-		s.cache[1].size = *(dp + 3);*/
 
 		if (s.MaximumExtendedLeaf < 0x8000_0006) break; // No L2/L3
 

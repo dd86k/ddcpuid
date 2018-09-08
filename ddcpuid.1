@@ -17,13 +17,27 @@ is a simple x86 CPUID tool, getting the most out in a Ring 3 context (CPL=3). It
 
 .SH OPTIONS
 .IP -r
-Print a raw table of CPUID data up to the processor's max leaves.
+Print a raw table of CPUID data.
+
+Note: ECX is always cleared.
 
 .IP -o
-Overrides max leaf to 20H and extended max leaf to 8000_0020H, useful with -r.
+Overrides max leaf to 20H and extended max leaf to 8000_0020H. Affects feature scanning and -r.
 
 .IP -d
-Enables advanced mode. In advanced mode, ddcpuid prints a lot more, detailed, information.
+Advanced mode. In advanced mode, ddcpuid prints a lot more, detailed, information.
+
+.EX
+Includes:
+- Detailed cache information
+- Max leaves
+- FPU features
+- ACPI features
+- Virtualization features
+- Memory features
+- Debugging features
+- Miscellaneous details (e.g. Self Snoop)
+.EE
 
 .SH WARNINGS
 ddcpuid is still currently going under active development, you may encounter bugs or incorrect reporting.

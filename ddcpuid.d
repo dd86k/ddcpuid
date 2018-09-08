@@ -62,7 +62,7 @@ Compiler: ` ~ __VENDOR__ ~ " v%d\n",
 	);
 }
 
-//TODO: (AMD) APICv (AVIC) Fn8000_000A_EDX[13], Intel has no bits
+//TODO: (AMD) APICv (AVIC) Fn8000_000A_EDX[13], Intel has no bit for APICv
 //TODO: Physical address bits, both AMD and Intel: CPUID.8000_0008h.EAX[7:0]
 
 extern (C)
@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
 		} // else if
 	} // while arg
 
-	__CPUINFO s; // important zero'd
+	__CPUINFO s; // inits all to zero
 
 	if (Override) {
 		s.MaximumLeaf = MAX_LEAF;
@@ -104,6 +104,7 @@ int main(int argc, char** argv) {
 		s.MaximumLeaf = hleaf;
 		s.MaximumExtendedLeaf = heleaf;
 	}
+	debug printf("max leaf: %Xh\nm e leaf: %Xh\n", s.MaximumLeaf, s.MaximumExtendedLeaf);
 
 	if (Raw) { // -r
 		/// Print cpuid info
@@ -377,14 +378,18 @@ int main(int argc, char** argv) {
 		"\tDirect Cache Access [DCA]: %s\n" ~
 		"\tPage Attribute Table [PAT]: %s\n" ~
 		"\tMemory Type Range Registers [MTRR]: %s\n" ~
-		"\tPage Global Bit [PGE]: %s\n",
+		"\tPage Global Bit [PGE]: %s\n" ~
+		"\tMaximum Physical Memory Bits: %d\n" ~
+		"\tMaximum Linear Memory Bits: %d\n",
 		B(s.PAE),
 		B(s.PSE_36),
 		B(s.Page1GB),
 		B(s.DCA),
 		B(s.PAT),
 		B(s.MTRR),
-		B(s.PGE)
+		B(s.PGE),
+		s.addr_phys_bits,
+		s.addr_line_bits
 	);
 
 	printf( // Debugging
@@ -536,6 +541,8 @@ void fetchInfo(__CPUINFO* s) {
 
 	// Why compare strings when you can just compare numbers?
 	VendorID = *cast(uint*)s.vendorString;
+
+	debug printf("VendorID: %X\n", VendorID);
 
 	uint a = void, b = void, c = void, d = void; // EAX to EDX
 	//ubyte* cp = cast(ubyte*)&c;
@@ -815,7 +822,7 @@ CACHE_DONE:
 		mov EAX, 6;
 		cpuid;
 		mov a, EAX;
-	} // ----- 6H, avoids calling it if not Intel, for now
+	} // ----- 6H
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
@@ -895,7 +902,7 @@ EXTENDED_LEAVES:
 	s.RDTSCP    = CHECK(d & BIT!(27));
 	s.LongMode  = CHECK(d & BIT!(29));
 
-	if (s.MaximumExtendedLeaf <= 0x8000_0001) return;
+	if (s.MaximumExtendedLeaf < 0x8000_0007) return;
 
 	asm {
 		mov EAX, 0x8000_0007;
@@ -917,7 +924,18 @@ EXTENDED_LEAVES:
 
 	s.TscInvariant = CHECK(d & BIT!(8));
 
-	if (s.MaximumExtendedLeaf <= 0x8000_0007) return;
+	if (s.MaximumExtendedLeaf < 0x8000_0008) return;
+
+	asm {
+		mov EAX, 0x8000_0008;
+		cpuid;
+		mov a, EAX;
+	} // EXTENDED 8000_0008H
+
+	//s.addr_phys_bits and s.addr_line_bits	
+	s.__bundle3 = cast(ushort)a;
+
+	if (s.MaximumExtendedLeaf < 0x8000_000A) return;
 
 	asm {
 		mov EAX, 0x8000_000A;
@@ -932,7 +950,7 @@ EXTENDED_LEAVES:
 	default:
 	}
 
-	//if (s.MaximumExtendedLeaf <= 0x8000_000A) return;
+	//if (s.MaximumExtendedLeaf < ...) return;
 }
 
 /// Get the maximum leaf.
@@ -1167,10 +1185,17 @@ struct __CPUINFO { align(1):
 	// ---- 8000_0007 ----
 	ubyte TscInvariant;	// 8
 
+	// ---- 8000_0008 ----
+	union {
+		ushort __bundle3;
+		struct {
+			ubyte addr_phys_bits;	// EAX[7 :0]
+			ubyte addr_line_bits;	// EAX[15:8]
+		}
+	}
+
 	// ---- 8000_000A ----
 	ubyte VirtVersion;	// (AMD) EAX[7:0]
-
-
 
 	// 6 levels should be enough (L1-D, L1-I, L2, L3, 0, 0)
 	__CACHEINFO[6] cache; // all inits to 0

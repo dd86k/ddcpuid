@@ -242,6 +242,8 @@ int main(int argc, char** argv) {
 		if (s.TscInvariant)
 			printf("\t+TSC-Invariant");
 	}
+	if (s.RDTSCP) printf("\tRDTSCP");
+	if (s.RDPID) printf("\tRDPID");
 	if (s.CMOV) {
 		printf("\tCMOV");
 		if (s.FPU) printf("\tFCOMI/FCMOV");
@@ -253,7 +255,6 @@ int main(int argc, char** argv) {
 	if (s.XSAVE) printf("\tXSAVE/XRSTOR");
 	if (s.OSXSAVE) printf("\tXSETBV/XGETBV");
 	if (s.FXSR) printf("\tFXSAVE/FXRSTOR");
-	if (s.RDPID) printf("\tRDPID");
 
 	// -- Cache information --
 
@@ -305,15 +306,13 @@ int main(int argc, char** argv) {
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
-		if (s.EIST)
-			puts("\tEnhanced SpeedStep(R) Technology");
+		if (s.EIST) puts("\tEnhanced SpeedStep(R) Technology");
 		if (s.TurboBoost) {
 			printf("\tTurboBoost");
-			if (s.TurboBoost3)
-				puts(" 3.0");
-			else
-				putchar('\n');
+			if (s.TurboBoost3) puts(" 3.0");
+			else putchar('\n');
 		}
+		if (s.SGX) puts("Intel SGX");
 		break;
 	case VENDOR_AMD:
 		if (s.TurboBoost)
@@ -353,11 +352,13 @@ int main(int argc, char** argv) {
 		"\tACPI: %s\n" ~
 		"\tAPIC: %s (Initial ID: %d, Max: %d)\n" ~
 		"\tx2APIC: %s\n" ~
+		"\tAlways-Running-APIC-Timer [ARAT]: %s\n" ~
 		"\tThermal Monitor: %s\n" ~
 		"\tThermal Monitor 2: %s\n",
 		B(s.ACPI),
 		B(s.APIC), s.InitialAPICID, s.MaxIDs,
 		B(s.x2APIC),
+		B(s.ARAT),
 		B(s.TM),
 		B(s.TM2)
 	);
@@ -808,20 +809,25 @@ CACHE_DONE:
 	s.SSE2   = CHECK(d & BIT!(26));
 	s.HTT    = CHECK(d & BIT!(28));
 
+	if (s.MaximumLeaf < 6) goto EXTENDED_LEAVES;
+
+	asm {
+		mov EAX, 6;
+		cpuid;
+		mov a, EAX;
+	} // ----- 6H, avoids calling it if not Intel, for now
+
 	switch (VendorID) {
 	case VENDOR_INTEL:
-		asm {
-			mov EAX, 6;
-			cpuid;
-			mov a, EAX;
-		} // ----- 6H, avoids calling it if not Intel, for now
 		s.TurboBoost = CHECK(a & BIT!(1));
 		s.TurboBoost3 = CHECK(a & BIT!(14));
 		break;
 	default:
 	}
 
-	if (s.MaximumLeaf <= 6) goto EXTENDED_LEAVES;
+	s.ARAT = CHECK(a & BIT!(2));
+
+	if (s.MaximumLeaf < 7) goto EXTENDED_LEAVES;
 
 	asm {
 		mov EAX, 7;
@@ -833,6 +839,7 @@ CACHE_DONE:
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
+		s.SGX         = CHECK(b & BIT!(2));
 		s.AVX512F     = CHECK(b & BIT!(16));
 		s.AVX512ER    = CHECK(b & BIT!(27));
 		s.AVX512PF    = CHECK(b & BIT!(26));
@@ -853,7 +860,7 @@ CACHE_DONE:
 	s.RDSEED = CHECK(b & BIT!(18));
 	s.RDPID  = CHECK(c & BIT!(22));
 
-	//if (s.MaximumLeaf <= 7) goto EXTENDED_LEAVES;
+	//if (s.MaximumLeaf < ...) goto EXTENDED_LEAVES;
 	
 	/*
 	 * Extended CPUID leaves
@@ -885,6 +892,7 @@ EXTENDED_LEAVES:
 	s.PREFETCHW = CHECK(c & BIT!(8));
 	s.NX        = CHECK(d & BIT!(20));
 	s.Page1GB   = CHECK(d & BIT!(26));
+	s.RDTSCP    = CHECK(d & BIT!(27));
 	s.LongMode  = CHECK(d & BIT!(29));
 
 	if (s.MaximumExtendedLeaf <= 0x8000_0001) return;
@@ -1120,10 +1128,12 @@ struct __CPUINFO { align(1):
 	// ---- 06h ----
 	/// eq. to AMD's Core Performance Boost
 	ubyte TurboBoost;	// 1
+	ubyte ARAT;	/// Always-Running-APIC-Timer feature
 	ubyte TurboBoost3;	// 14
 
 	// ---- 07h ----
 	// -- EBX --
+	ubyte SGX;	// 2 Intel SGX (Software Guard Extensions)
 	ubyte SMEP;	// 7
 	union {
 		ushort __bundle2;
@@ -1151,11 +1161,16 @@ struct __CPUINFO { align(1):
 	/// Also known as Intel64 or AMD64.
 	ubyte LongMode;	// 29
 
+	// EDX
+	ubyte RDTSCP;	// 27
+
 	// ---- 8000_0007 ----
 	ubyte TscInvariant;	// 8
 
 	// ---- 8000_000A ----
 	ubyte VirtVersion;	// (AMD) EAX[7:0]
+
+
 
 	// 6 levels should be enough (L1-D, L1-I, L2, L3, 0, 0)
 	__CACHEINFO[6] cache; // all inits to 0

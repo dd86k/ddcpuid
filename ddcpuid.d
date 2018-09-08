@@ -270,7 +270,7 @@ int main(int argc, char** argv) {
 	}
 
 	__CACHEINFO* ca = cast(__CACHEINFO*)s.cache; /// Cache levels
-	
+
 	if (Details) {
 		while (ca.type) {
 			printf(
@@ -547,18 +547,19 @@ void fetchInfo(__CPUINFO* s) {
 
 	switch (VendorID) { // CACHE INFORMATION
 	case VENDOR_INTEL:
-CACHE_INTEL:
 		asm {
 			mov EAX, 4;
 			mov ECX, l;
 			cpuid;
-			cmp EAX, 0; // Check ZF
-			jz CACHE_DONE; // if EAX=0, get out
+			//cmp EAX, 0; // Check ZF
+			//jz CACHE_DONE; // if EAX=0, get out
 			mov a, EAX;
 			mov b, EBX;
 			mov c, ECX;
 			mov d, EDX;
 		}
+		// Fix LDC2 compiling issue (#13)
+		if (a == 0) goto CACHE_DONE;
 
 		ca.type = (a & 0b1111);
 		ca.level = cast(ubyte)((a >> 5) & 0b111);
@@ -578,7 +579,7 @@ CACHE_INTEL:
 
 		debug printf("| %8X | %8X | %8X | %8X | %8X |\n", l, a, b, c, d);
 		++l; ++ca;
-		goto CACHE_INTEL;
+		goto case VENDOR_INTEL;
 	case VENDOR_AMD:
 		ubyte _amd_ways_l2 = void; // please the compiler
 
@@ -611,7 +612,8 @@ CACHE_INTEL:
 		// Old reference table
 		// See Table E-4. L2/L3 Cache and TLB Associativity Field Encoding
 		// Returns: n-ways
-		extern (C) ubyte _amd_ways(ubyte w) {
+		extern (C)
+		ubyte _amd_ways(ubyte w) {
 			switch (w) {
 			case 1, 2, 4: return w;
 			case 6: return 8;
@@ -626,12 +628,13 @@ CACHE_INTEL:
 			}
 		}
 
-		asm { // olde way
+		asm { // AMD olde way
 			mov EAX, 0x8000_0006;
 			cpuid;
 			mov c, ECX;
 			mov d, EDX;
 		}
+
 		_amd_ways_l2 = (c >> 12) & 7;
 		if (_amd_ways_l2) {
 			s.cache[2].level = 2; // L2
@@ -657,13 +660,15 @@ CACHE_AMD_NEWER:
 			mov EAX, 0x8000_001D;
 			mov ECX, l;
 			cpuid;
-			cmp AL, 0; // Check ZF
-			jz CACHE_DONE; // if AL=0, get out
+			//cmp AL, 0; // Check ZF
+			//jz CACHE_DONE; // if AL=0, get out
 			mov a, EAX;
 			mov b, EBX;
 			mov c, ECX;
 			mov d, EDX;
 		}
+		// Fix LDC2 compiling issue (#13)
+		if (a == 0) goto CACHE_DONE;
 
 		ca.type = (a & 0b1111); // Same as Intel
 		ca.level = cast(ubyte)((a >> 5) & 0b111);

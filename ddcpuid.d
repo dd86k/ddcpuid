@@ -10,7 +10,7 @@ debug {
 	pragma(msg, "-- sizeof __CACHEINFO: ", __CACHEINFO.sizeof);
 }
 
-enum VERSION = "0.9.0-rc"; /// Program version
+enum VERSION = "0.9.0"; /// Program version
 
 enum
 	MAX_LEAF = 0x20, /// Maximum leaf (-o)

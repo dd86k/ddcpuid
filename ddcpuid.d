@@ -10,7 +10,7 @@ debug {
 	pragma(msg, "-- sizeof __CACHEINFO: ", __CACHEINFO.sizeof);
 }
 
-enum VERSION = "0.9.0"; /// Program version
+enum VERSION = "0.10.0"; /// Program version
 
 enum
 	MAX_LEAF = 0x20, /// Maximum leaf (-o)
@@ -422,11 +422,13 @@ int main(int argc, char** argv) {
 		"\tBrand Index: %d\n" ~
 		"\txTPR Update Control [xTPR]: %s\n" ~
 		"\tProcess-context identifiers [PCID]: %s\n" ~
+		"\tHardware Lock Elision [HLE]: %s\n" ~
 		"\tProcessor Serial Number [PSN]: %s\n" ~
 		"\tPending Break Enable [PBE]: %s\n",
 		s.BrandIndex,
 		B(s.xTPR),
 		B(s.PCID),
+		B(s.HLE),
 		B(s.PSN),
 		B(s.PBE)
 	);
@@ -464,6 +466,7 @@ template BIT(int n) {
 extern (C)
 void fetchInfo(__CPUINFO* s) {
 	// In case compiler mis-aligns char[12], we're safe here
+	// Plus Position Independant Code compliant
 	size_t __A = cast(size_t)&s.vendorString;
 	size_t __B = cast(size_t)&s.cpuString;
 
@@ -829,6 +832,7 @@ CACHE_DONE:
 	switch (VendorID) {
 	case VENDOR_INTEL:
 		s.SGX         = CHECK(b & BIT!(2));
+		s.HLE         = CHECK(b & BIT!(4));
 		s.AVX512F     = CHECK(b & BIT!(16));
 		s.AVX512ER    = CHECK(b & BIT!(27));
 		s.AVX512PF    = CHECK(b & BIT!(26));
@@ -1134,6 +1138,7 @@ struct __CPUINFO { align(1):
 	// ---- 07h ----
 	// -- EBX --
 	ubyte SGX;	// 2 Intel SGX (Software Guard Extensions)
+	ubyte HLE;	// 4 hardware lock elision
 	ubyte SMEP;	// 7
 	union {
 		ushort __bundle2;

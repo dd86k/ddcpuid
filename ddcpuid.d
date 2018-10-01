@@ -1184,11 +1184,11 @@ struct __CPUINFO { align(1):
 	// ---- 8000_000A ----
 	ubyte VirtVersion;	// (AMD) EAX[7:0]
 
-	private ubyte[3] __padding;
-
 	// 6 levels should be enough (L1-D, L1-I, L2, L3, 0, 0)
 	__CACHEINFO[6] cache; // all inits to 0
 }
+
+pragma(msg, "__CPUINFO size: ", __CPUINFO.sizeof);
 
 static assert(__CPUINFO.vendorString.sizeof == 12);
 static assert(__CPUINFO.cpuString.sizeof == 48);
@@ -1196,4 +1196,3 @@ static assert(__CPUINFO.__bundle1.sizeof == 4);
 static assert(__CPUINFO.__bundle2.sizeof == 2);
 static assert(__CPUINFO.__bundle3.sizeof == 2);
 static assert(__CACHEINFO.__bundle1.sizeof == 4);
-static assert(__CPUINFO.sizeof % 4 == 0, "__CPUINFO structure should be 4-byte padded");

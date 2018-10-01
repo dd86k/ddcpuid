@@ -14,7 +14,7 @@ ddcpuid isn't perfect. If you find a bug, something is missing, or something is 
 
 It is highly recommended to use the `-betterC` switch when compiling.
 
-Only DMD and LDC2 are supported.
+DMD, GDC, and LDC compilers are supported.
 
 # Example
 

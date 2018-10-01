@@ -5,10 +5,8 @@ extern (C) {
 	int putchar(int c);
 }
 
-debug {
-	pragma(msg, "-- sizeof __CPUINFO: ", __CPUINFO.sizeof);
-	pragma(msg, "-- sizeof __CACHEINFO: ", __CACHEINFO.sizeof);
-}
+pragma(msg, "-- sizeof __CPUINFO: ", __CPUINFO.sizeof);
+pragma(msg, "-- sizeof __CACHEINFO: ", __CACHEINFO.sizeof);
 
 enum VERSION = "0.10.0"; /// Program version
 
@@ -110,7 +108,18 @@ int main(int argc, char** argv) {
 		/// Print cpuid info
 		extern(C) void printc(uint leaf) {
 			uint a = void, b = void, c = void, d = void;
-			asm {
+			// GAS: asm { "asm" : output : input : clobber }
+			version (GNU) asm { // at&t
+				"mov %4, %%eax\n"~
+				"mov $0, %%ecx\n"~
+				"cpuid\n"~
+				"mov %%eax, %0\n"~
+				"mov %%ebx, %1\n"~
+				"mov %%ecx, %2\n"~
+				"mov %%edx, %3"
+				: "=a" a, "=b" b, "=c" c, "=d" d
+				: "r" leaf;
+			} else asm {
 				mov EAX, leaf;
 				mov ECX, 0;
 				cpuid;
@@ -468,20 +477,48 @@ template BIT(int n) {
 extern (C)
 void fetchInfo(__CPUINFO* s) {
 	// In case compiler mis-aligns char[12], we're safe here
-	// Plus Position Independant Code compliant
+	// Position Independant Code compliant
 	size_t __A = cast(size_t)&s.vendorString;
 	size_t __B = cast(size_t)&s.cpuString;
 
 	// Get processor vendor and processor brand string
 	version (X86_64) {
-		asm {
+		version (GNU) asm {
+			"mov %0, %%rdi\n"~
+			"mov $0, %%eax\n"~
+			"cpuid\n"~
+			"mov %%ebx, (%%rdi)\n"~
+			"mov %%edx, 4(%%rdi)\n"~
+			"mov %%ecx, 8(%%rdi)\n"~
+
+			"mov %1, %%rdi\n"~
+			"mov $0x80000002, %%eax\n"~
+			"cpuid\n"
+			"mov %%eax, (%%rdi)\n"~
+			"mov %%ebx, 4(%%rdi)\n"~
+			"mov %%ecx, 8(%%rdi)\n"~
+			"mov %%edx, 12(%%rdi)\n"~
+			"mov $0x80000003, %%eax\n"~
+			"cpuid\n"
+			"mov %%eax, 16(%%rdi)\n"~
+			"mov %%ebx, 20(%%rdi)\n"~
+			"mov %%ecx, 24(%%rdi)\n"~
+			"mov %%edx, 28(%%rdi)\n"~
+			"mov $0x80000004, %%eax\n"~
+			"cpuid\n"
+			"mov %%eax, 32(%%rdi)\n"~
+			"mov %%ebx, 36(%%rdi)\n"~
+			"mov %%ecx, 40(%%rdi)\n"~
+			"mov %%edx, 44(%%rdi)"
+			:
+			: "m" __A, "m" __B;
+		} else asm {
 			mov RDI, __A;
 			mov EAX, 0;
 			cpuid;
 			mov [RDI], EBX;
 			mov [RDI+4], EDX;
 			mov [RDI+8], ECX;
-			mov byte ptr [RDI+12], 0;
 
 			mov RDI, __B;
 			mov EAX, 0x8000_0002;
@@ -502,17 +539,44 @@ void fetchInfo(__CPUINFO* s) {
 			mov [RDI+36], EBX;
 			mov [RDI+40], ECX;
 			mov [RDI+44], EDX;
-			//mov byte ptr [RDI+48], 0;
 		}
 	} else { // version X86
-		asm {
+		version (GNU) asm {
+			"mov %0, %%edi\n"~
+			"mov $0, %%eax\n"~
+			"cpuid\n"~
+			"mov %%ebx, disp(%%edi)\n"~
+			"mov %%edx, disp(%%edi+4)\n"~
+			"mov %%ecx, disp(%%edi+8)\n"~
+
+			"mov %1, %%edi\n"~
+			"mov $0x80000002, %%eax\n"~
+			"cpuid\n"
+			"mov %%eax, disp(%%edi)\n"~
+			"mov %%ebx, disp(%%edi+4)\n"~
+			"mov %%ecx, disp(%%edi+8)\n"~
+			"mov %%edx, disp(%%edi+12)\n"~
+			"mov $0x80000003, %%eax\n"~
+			"cpuid\n"
+			"mov %%eax, disp(%%edi+16)\n"~
+			"mov %%ebx, disp(%%edi+20)\n"~
+			"mov %%ecx, disp(%%edi+24)\n"~
+			"mov %%edx, disp(%%edi+28)\n"~
+			"mov $0x80000004, %%eax\n"~
+			"cpuid\n"
+			"mov %%eax, disp(%%edi+32)\n"~
+			"mov %%ebx, disp(%%edi+36)\n"~
+			"mov %%ecx, disp(%%edi+40)\n"~
+			"mov %%edx, disp(%%edi+44)"
+			:
+			: "r" __A, "r" __B;
+		} else asm {
 			mov EDI, __A;
 			mov EAX, 0;
 			cpuid;
 			mov [EDI], EBX;
 			mov [EDI+4], EDX;
 			mov [EDI+8], ECX;
-			mov byte ptr [EDI+12], 0;
 
 			mov EDI, __B;
 			mov EAX, 0x8000_0002;
@@ -533,7 +597,6 @@ void fetchInfo(__CPUINFO* s) {
 			mov [EDI+36], EBX;
 			mov [EDI+40], ECX;
 			mov [EDI+44], EDX;
-			//mov byte ptr [EDI+48], 0;
 		}
 	}
 
@@ -551,7 +614,17 @@ void fetchInfo(__CPUINFO* s) {
 
 	switch (VendorID) { // CACHE INFORMATION
 	case VENDOR_INTEL:
-		asm {
+		version (GNU) asm {
+			"mov $4, %%eax\n"~
+			"mov %4, %%ecx\n"~
+			"cpuid\n"~
+			"mov %%eax, %0\n"~
+			"mov %%ebx, %1\n"~
+			"mov %%ecx, %2\n"~
+			"mov %%edx, %3"
+			: "=a" a, "=b" b, "=c" c, "=d" d
+			: "m" l;
+		} else asm {
 			mov EAX, 4;
 			mov ECX, l;
 			cpuid;
@@ -562,6 +635,7 @@ void fetchInfo(__CPUINFO* s) {
 			mov c, ECX;
 			mov d, EDX;
 		}
+
 		// Fix LDC2 compiling issue (#13)
 		if (a == 0) goto CACHE_DONE;
 
@@ -589,7 +663,13 @@ void fetchInfo(__CPUINFO* s) {
 
 		if (s.MaximumExtendedLeaf >= 0x8000_001D) goto CACHE_AMD_NEWER;
 
-		asm { // olde way
+		version (GNU) asm {
+			"mov $0x80000005, %%eax\n"~
+			"cpuid\n"~
+			"mov %%ecx, %0\n"~
+			"mov %%edx, %1"
+			: "=c" c, "=d" d;
+		} else asm { // olde way
 			mov EAX, 0x8000_0005;
 			cpuid;
 			mov c, ECX;
@@ -623,7 +703,13 @@ void fetchInfo(__CPUINFO* s) {
 			}
 		}
 
-		asm { // AMD olde way
+		version (GNU) asm {
+			"mov $0x80000006, %%eax\n"~
+			"cpuid\n"~
+			"mov %%ecx, %0\n"~
+			"mov %%edx, %1"
+			: "=c" c, "=d" d;
+		} else asm { // AMD olde way
 			mov EAX, 0x8000_0006;
 			cpuid;
 			mov c, ECX;
@@ -651,7 +737,17 @@ void fetchInfo(__CPUINFO* s) {
 		}
 
 CACHE_AMD_NEWER:
-		asm {
+		version (GNU) asm {
+			"mov $0x8000001d, %%eax\n"~
+			"mov %4, %%ecx\n"~
+			"cpuid\n"~
+			"mov %%eax, %0\n"~
+			"mov %%ebx, %1\n"~
+			"mov %%ecx, %2\n"~
+			"mov %%edx, %3"
+			: "=a" a, "=b" b, "=c" c, "=d" d
+			: "m" l;
+		} else asm {
 			mov EAX, 0x8000_001D;
 			mov ECX, l;
 			cpuid;
@@ -688,7 +784,14 @@ CACHE_AMD_NEWER:
 
 CACHE_DONE:
 
-	asm {
+	version (GNU) asm {
+		"mov $1, %%eax\n"~
+		"cpuid\n"~
+		"mov %%eax, %0\n"~
+		"mov %%ebx, %1\n"~
+		"mov %%ecx, %2\n"~
+		"mov %%edx, %3" : "=a" a, "=b" b, "=c" c, "=d" d;
+	} else asm {
 		mov EAX, 1;
 		cpuid;
 		mov a, EAX;
@@ -805,7 +908,11 @@ CACHE_DONE:
 
 	if (s.MaximumLeaf < 6) goto EXTENDED_LEAVES;
 
-	asm {
+	version (GNU) asm {
+		"mov $6, %%eax\n"~
+		"cpuid\n"~
+		"mov %%eax, %0" : "=a" a;
+	} else asm {
 		mov EAX, 6;
 		cpuid;
 		mov a, EAX;
@@ -823,7 +930,13 @@ CACHE_DONE:
 
 	if (s.MaximumLeaf < 7) goto EXTENDED_LEAVES;
 
-	asm {
+	version (GNU) asm {
+		"mov $7, %%eax\n"~
+		"mov $0, %%ecx\n"~
+		"cpuid\n"~
+		"mov %%ebx, %0\n"~
+		"mov %%ecx, %1" : "=b" b, "=c" c;
+	} else asm {
 		mov EAX, 7;
 		mov ECX, 0;
 		cpuid;
@@ -835,8 +948,8 @@ CACHE_DONE:
 	case VENDOR_INTEL:
 		s.SGX         = CHECK(b & BIT!(2));
 		s.HLE         = CHECK(b & BIT!(4));
-		s.AVX512F     = CHECK(b & BIT!(16));
 		s.RTM         = CHECK(b & BIT!(11));
+		s.AVX512F     = CHECK(b & BIT!(16));
 		s.AVX512ER    = CHECK(b & BIT!(27));
 		s.AVX512PF    = CHECK(b & BIT!(26));
 		s.AVX512CD    = CHECK(b & BIT!(28));
@@ -864,7 +977,13 @@ CACHE_DONE:
 
 EXTENDED_LEAVES:
 
-	asm {
+	version (GNU) asm {
+		"mov $0x80000001, %%eax\n"~
+		"cpuid\n"~
+		"mov %%ebx, %0\n"~
+		"mov %%ecx, %1\n"~
+		"mov %%edx, %2" : "=b" b, "=c" c, "=d" d;
+	} else asm {
 		mov EAX, 0x8000_0001;
 		cpuid;
 		mov b, EBX;
@@ -893,7 +1012,12 @@ EXTENDED_LEAVES:
 
 	if (s.MaximumExtendedLeaf < 0x8000_0007) return;
 
-	asm {
+	version (GNU) asm {
+		"mov $0x80000007, %%eax\n"~
+		"cpuid\n"~
+		"mov %%ebx, %0\n"~
+		"mov %%edx, %1" : "=b" b, "=d" d;
+	} else asm {
 		mov EAX, 0x8000_0007;
 		cpuid;
 		mov b, EBX;
@@ -915,7 +1039,11 @@ EXTENDED_LEAVES:
 
 	if (s.MaximumExtendedLeaf < 0x8000_0008) return;
 
-	asm {
+	version (GNU) asm {
+		"mov $0x80000008, %%eax\n"~
+		"cpuid\n"~
+		"mov %%eax, %0" : "=a" a;
+	} else asm {
 		mov EAX, 0x8000_0008;
 		cpuid;
 		mov a, EAX;
@@ -926,7 +1054,11 @@ EXTENDED_LEAVES:
 
 	if (s.MaximumExtendedLeaf < 0x8000_000A) return;
 
-	asm {
+	version (GNU) asm {
+		"mov $0x8000000a, %%eax\n"~
+		"cpuid\n"~
+		"mov %%eax, %0" : "=a" a;
+	} else asm {
 		mov EAX, 0x8000_000A;
 		cpuid;
 		mov a, EAX;
@@ -942,23 +1074,45 @@ EXTENDED_LEAVES:
 	//if (s.MaximumExtendedLeaf < ...) return;
 }
 
-/// Get the maximum leaf.
-/// Returns: Maximum leaf
-extern (C) uint hleaf() {
-	asm { naked;
-		mov EAX, 0;
-		cpuid;
-		ret;
+version (GNU) {
+	/// Get the maximum leaf.
+	/// Returns: Maximum leaf
+	extern (C) uint hleaf() {
+		uint r = void;
+		asm {
+			"mov $0, %%eax\n"~
+			"cpuid" : "=a" r;
+		}
+		return r;
 	}
-}
-
-/// Get the maximum extended leaf.
-/// Returns: Maximum extended leaf
-extern (C) uint heleaf() {
-	asm { naked;
-		mov EAX, 0x8000_0000;
-		cpuid;
-		ret;
+	/// Get the maximum extended leaf.
+	/// Returns: Maximum extended leaf
+	extern (C) uint heleaf() {
+		uint r = void;
+		asm {
+			"mov $0x80000000, %%eax\n"~
+			"cpuid" : "=a" r;
+		}
+		return r;
+	}
+} else {
+	/// Get the maximum leaf.
+	/// Returns: Maximum leaf
+	extern (C) uint hleaf() {
+		asm { naked;
+			mov EAX, 0;
+			cpuid;
+			ret;
+		}
+	}
+	/// Get the maximum extended leaf.
+	/// Returns: Maximum extended leaf
+	extern (C) uint heleaf() {
+		asm { naked;
+			mov EAX, 0x8000_0000;
+			cpuid;
+			ret;
+		}
 	}
 }
 
@@ -1191,8 +1345,6 @@ struct __CPUINFO { align(1):
 	// 6 levels should be enough (L1-D, L1-I, L2, L3, 0, 0)
 	__CACHEINFO[6] cache; // all inits to 0
 }
-
-pragma(msg, "__CPUINFO size: ", __CPUINFO.sizeof);
 
 static assert(__CPUINFO.vendorString.sizeof == 12);
 static assert(__CPUINFO.cpuString.sizeof == 48);

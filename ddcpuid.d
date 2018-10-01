@@ -335,7 +335,7 @@ int main(int argc, char** argv) {
 	}
 
 	printf( // Misc. and FPU
-		"\nHighest Leaf: %XH | Extended: %XH\n" ~
+		"\nHighest Leaf: %Xh | Extended: %Xh\n" ~
 		"Processor type: %s\n" ~
 		"\n[FPU]\n" ~
 		"\tFloating Point Unit [FPU]: %s\n" ~
@@ -423,12 +423,14 @@ int main(int argc, char** argv) {
 		"\txTPR Update Control [xTPR]: %s\n" ~
 		"\tProcess-context identifiers [PCID]: %s\n" ~
 		"\tHardware Lock Elision [HLE]: %s\n" ~
+		"\tRestricted Transactional Memory [RTM]: %s\n" ~
 		"\tProcessor Serial Number [PSN]: %s\n" ~
 		"\tPending Break Enable [PBE]: %s\n",
 		s.BrandIndex,
 		B(s.xTPR),
 		B(s.PCID),
 		B(s.HLE),
+		B(s.RTM),
 		B(s.PSN),
 		B(s.PBE)
 	);
@@ -834,6 +836,7 @@ CACHE_DONE:
 		s.SGX         = CHECK(b & BIT!(2));
 		s.HLE         = CHECK(b & BIT!(4));
 		s.AVX512F     = CHECK(b & BIT!(16));
+		s.RTM         = CHECK(b & BIT!(11));
 		s.AVX512ER    = CHECK(b & BIT!(27));
 		s.AVX512PF    = CHECK(b & BIT!(26));
 		s.AVX512CD    = CHECK(b & BIT!(28));
@@ -1147,6 +1150,7 @@ struct __CPUINFO { align(1):
 			ubyte BMI2;	// 8
 		}
 	}
+	ubyte RTM;	// 11 restricted transactional memory
 	// -- ECX --
 	ubyte RDPID;	// 22
 

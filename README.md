@@ -12,6 +12,12 @@ It is highly recommended to use the `-betterC` switch when compiling.
 
 DMD, GDC, and LDC compilers are supported.
 
+## GDC Notes
+
+By default, GDC produces a static binary.
+
+BUG: Compiling above -O1 segfaults at run-time.
+
 # Example
 
 Normal mode. For more information about your processor, use the `-d` switch.

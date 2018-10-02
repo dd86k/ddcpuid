@@ -282,7 +282,7 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	__CACHEINFO* ca = cast(__CACHEINFO*)s.cache; /// Cache levels
+	__CACHEINFO* ca = cast(__CACHEINFO*)s.cache; /// Caches
 
 	if (Details) {
 		while (ca.type) {
@@ -447,28 +447,17 @@ int main(int argc, char** argv) {
 	return 0;
 } // main
 
-pragma(inline, true)
-extern(C)
+pragma(inline, true) extern(C)
 immutable(char)* B(uint c) pure @nogc nothrow {
 	return c ? "Yes" : "No";
 }
 
-/**
- * Check bit at position
- * Params:
- *   r = Register value
- *   n = bit mask (use BIT!)
- * Returns: 1 if present
- */
-pragma(inline, true)
-extern (C)
-ubyte CHECK(int n) {
+pragma(inline, true) extern (C)
+ubyte CHECK(int n) pure @nogc nothrow {
 	return n ? 1 : 0;
 }
 
-template BIT(int n) {
-	enum { BIT = 1 << n }
-}
+template BIT(int n) { enum { BIT = 1 << n } }
 
 /*****************************
  * FETCH INFO
@@ -476,7 +465,6 @@ template BIT(int n) {
 
 extern (C)
 void fetchInfo(__CPUINFO* s) {
-	// In case compiler mis-aligns char[12], we're safe here
 	// Position Independant Code compliant
 	size_t __A = cast(size_t)&s.vendorString;
 	size_t __B = cast(size_t)&s.cpuString;
@@ -569,7 +557,7 @@ void fetchInfo(__CPUINFO* s) {
 			"mov %%ecx, disp(%%edi+40)\n"~
 			"mov %%edx, disp(%%edi+44)"
 			:
-			: "r" __A, "r" __B;
+			: "m" __A, "m" __B;
 		} else asm {
 			mov EDI, __A;
 			mov EAX, 0;

@@ -6,10 +6,6 @@ I will gladly implement features from VIA, Zhaoxin, and others once I get docume
 
 The ddcpuid User Manual is available [online](https://dd86k.space/pub/ddcpuid-manual.pdf) (PDF).
 
-# Bugs
-
-ddcpuid isn't perfect. If you find a bug, something is missing, or something is incorrect, please make an Issue on this repo or email me (email's on my profile). 
-
 # Compiling
 
 It is highly recommended to use the `-betterC` switch when compiling.

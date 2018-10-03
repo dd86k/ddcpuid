@@ -481,19 +481,19 @@ void fetchInfo(__CPUINFO* s) {
 
 			"mov %1, %%rdi\n"~
 			"mov $0x80000002, %%eax\n"~
-			"cpuid\n"
+			"cpuid\n"~
 			"mov %%eax, (%%rdi)\n"~
 			"mov %%ebx, 4(%%rdi)\n"~
 			"mov %%ecx, 8(%%rdi)\n"~
 			"mov %%edx, 12(%%rdi)\n"~
 			"mov $0x80000003, %%eax\n"~
-			"cpuid\n"
+			"cpuid\n"~
 			"mov %%eax, 16(%%rdi)\n"~
 			"mov %%ebx, 20(%%rdi)\n"~
 			"mov %%ecx, 24(%%rdi)\n"~
 			"mov %%edx, 28(%%rdi)\n"~
 			"mov $0x80000004, %%eax\n"~
-			"cpuid\n"
+			"cpuid\n"~
 			"mov %%eax, 32(%%rdi)\n"~
 			"mov %%ebx, 36(%%rdi)\n"~
 			"mov %%ecx, 40(%%rdi)\n"~

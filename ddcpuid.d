@@ -110,15 +110,9 @@ int main(int argc, char** argv) {
 			uint a = void, b = void, c = void, d = void;
 			// GAS: asm { "asm" : output : input : clobber }
 			version (GNU) asm { // at&t
-				"mov %4, %%eax\n"~
-				"mov $0, %%ecx\n"~
-				"cpuid\n"~
-				"mov %%eax, %0\n"~
-				"mov %%ebx, %1\n"~
-				"mov %%ecx, %2\n"~
-				"mov %%edx, %3"
+				"cpuid\n"
 				: "=a" a, "=b" b, "=c" c, "=d" d
-				: "r" leaf;
+				: "a" leaf;
 			} else asm {
 				mov EAX, leaf;
 				mov ECX, 0;

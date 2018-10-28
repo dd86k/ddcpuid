@@ -20,7 +20,7 @@ BUG: Compiling above -O1 segfaults at run-time.
 
 # Example
 
-Normal mode. For more information about your processor, use the `-d` switch.
+Default mode example, for more information about your processor, use the `-d` switch.
 ```
 [Vendor] GenuineIntel
 [String] Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz

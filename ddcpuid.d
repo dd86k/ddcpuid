@@ -26,9 +26,12 @@ enum // LSB
 	VENDOR_VIA	= 0x20414956;	// "VIA "
 
 __gshared uint VendorID; /// Vendor "ID", inits to VENDOR_OTHER
-__gshared byte Raw;	/// Raw option (-r)
-__gshared byte Details;	/// Detailed output option (-d)
-__gshared byte Override;	/// Override max leaf option (-o)
+__gshared ubyte opt_raw;	/// Raw option (-r)
+__gshared ubyte opt_details;	/// Detailed output option (-d)
+__gshared ubyte opt_override;	/// opt_override max leaf option (-o)
+__gshared ubyte opt_future;	/// Enable showing future features
+// See Intel(R) Architecture Instruction Set Extensions and Future Features
+// Programming Reference
 
 extern (C)
 void help() {
@@ -41,6 +44,8 @@ OPTIONS
   -d    Advanced information mode
   -r    Show raw CPUID data in a table
   -o    Override leaves to 20h and 8000_0020h
+  -f    (Intel) Show features not yet officially documented when possible
+        This flag is more likely to work with very recent processors.
 
   -v, --version   Print version information screen and quit
   -h, --help      Print this help screen and quit`
@@ -80,9 +85,10 @@ int main(int argc, char** argv) {
 			char* a = argv[argc];
 			while (*++a != 0) {
 				switch (*a) {
-				case 'o': ++Override; break;
-				case 'd': ++Details; break;
-				case 'r': ++Raw; break;
+				case 'o': ++opt_override; break;
+				case 'd': ++opt_details; break;
+				case 'r': ++opt_raw; break;
+				case 'f': ++opt_future; break;
 				case 'h', '?': help; return 0;
 				case 'v': version_; return 0;
 				default:
@@ -95,7 +101,7 @@ int main(int argc, char** argv) {
 
 	__CPUINFO s; // inits all to zero
 
-	if (Override) {
+	if (opt_override) {
 		s.MaximumLeaf = MAX_LEAF;
 		s.MaximumExtendedLeaf = MAX_ELEAF;
 	} else {
@@ -104,7 +110,7 @@ int main(int argc, char** argv) {
 	}
 	debug printf("max leaf: %Xh\nm e leaf: %Xh\n", s.MaximumLeaf, s.MaximumExtendedLeaf);
 
-	if (Raw) { // -r
+	if (opt_raw) { // -r
 		/// Print cpuid info
 		extern(C) void printc(uint leaf) {
 			uint a = void, b = void, c = void, d = void;
@@ -161,7 +167,7 @@ int main(int argc, char** argv) {
 		cast(char*)s.vendorString, cstring
 	);
 
-	if (Details == 0)
+	if (opt_details == 0)
 		printf(
 			"[Identifier] Family %d Model %d Stepping %d\n",
 			s.Family, s.Model, s.Stepping
@@ -228,6 +234,9 @@ int main(int argc, char** argv) {
 	if (s.FMA4) printf("\tFMA4");
 	if (s.BMI1) printf("\tBMI1");
 	if (s.BMI2) printf("\tBMI2");
+	if (opt_future) {
+		if (s.WAITPKG) printf("\tWAITPKG");
+	}
 
 	// -- Other instructions --
 
@@ -261,6 +270,13 @@ int main(int argc, char** argv) {
 	if (s.XSAVE) printf("\tXSAVE/XRSTOR");
 	if (s.OSXSAVE) printf("\tXSETBV/XGETBV");
 	if (s.FXSR) printf("\tFXSAVE/FXRSTOR");
+	if (opt_future) {
+		if (s.PCONFIG) printf("\tPCONFIG");
+		if (s.WBNOINVD) printf("\tWBNOINVD");
+		if (s.CLDEMOTE) printf("\tCLDEMOTE");
+		if (s.MOVDIRI) printf("\tMOVDIRI");
+		if (s.MOVDIR64B) printf("\tMOVDIR64B");
+	}
 
 	// -- Cache information --
 
@@ -278,7 +294,7 @@ int main(int argc, char** argv) {
 
 	__CACHEINFO* ca = cast(__CACHEINFO*)s.cache; /// Caches
 
-	if (Details) {
+	if (opt_details) {
 		while (ca.type) {
 			printf(
 				"\tL%d%s, %d ways, %d partitions, %d B, %d sets\n",
@@ -323,7 +339,7 @@ int main(int argc, char** argv) {
 	default:
 	}
 
-	if (Details == 0) return 0;
+	if (opt_details == 0) return 0;
 
 	// -- Processor detailed features --
 
@@ -437,6 +453,12 @@ int main(int argc, char** argv) {
 		B(s.PSN),
 		B(s.PBE)
 	);
+	if (opt_future) {
+		printf(
+			"\tFast Short REP MOV [FSREPMOV]: %s\n",
+			B(s.FSREPMOV)
+		);
+	}
 
 	return 0;
 } // main
@@ -627,7 +649,7 @@ void fetchInfo(__CPUINFO* s) {
 		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
 		ca.ways = cast(ubyte)((b >> 22) + 1);
 		ca.sets = cast(ushort)(c + 1);
-		if (Details) {
+		if (opt_details) {
 			if (a & BIT!(8)) ca.features = 1;
 			if (a & BIT!(9)) ca.features |= BIT!(1);
 			if (d & BIT!(0)) ca.features |= BIT!(2);
@@ -749,7 +771,7 @@ CACHE_AMD_NEWER:
 		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
 		ca.ways = cast(ubyte)((b >> 22) + 1);
 		ca.sets = cast(ushort)(c + 1);
-		if (Details) {
+		if (opt_details) {
 			if (a & BIT!(8)) ca.features = 1;
 			if (a & BIT!(9)) ca.features |= BIT!(1);
 			if (d & BIT!(0)) ca.features |= BIT!(2);
@@ -940,6 +962,12 @@ CACHE_DONE:
 		s.AVX512_IFMA = CHECK(b & BIT!(21));
 		s.AVX512_VBMI = CHECK(b & BIT!(31));
 		s.AVX512VL    = CHECK(c & BIT!(1));
+		s.FSREPMOV    = CHECK(c & BIT!(4));
+		s.WAITPKG     = CHECK(c & BIT!(5));
+		s.CLDEMOTE    = CHECK(c & BIT!(25));
+		s.MOVDIRI     = CHECK(c & BIT!(27));
+		s.MOVDIR64B   = CHECK(c & BIT!(28));
+		s.PCONFIG     = CHECK(d & BIT!(18));
 		break;
 	default:
 	}
@@ -1031,8 +1059,14 @@ EXTENDED_LEAVES:
 		mov a, EAX;
 	} // EXTENDED 8000_0008H
 
-	//s.addr_phys_bits and s.addr_line_bits	
-	s.__bundle3 = cast(ushort)a;
+	switch (VendorID) {
+	case VENDOR_INTEL:
+		s.WBNOINVD = CHECK(b & BIT!(9));
+		break;
+	default:
+	}
+
+	s.__bundle3 = cast(ushort)a; // s.addr_phys_bits and s.addr_line_bits
 
 	if (s.MaximumExtendedLeaf < 0x8000_000A) return;
 
@@ -1288,7 +1322,14 @@ struct __CPUINFO { align(1):
 	}
 	ubyte RTM;	// 11 restricted transactional memory
 	// -- ECX --
+	ubyte FSREPMOV;	// 4
+	ubyte WAITPKG;	// 5
 	ubyte RDPID;	// 22
+	ubyte CLDEMOTE;	// 25
+	ubyte MOVDIRI;	// 27
+	ubyte MOVDIR64B;	// 28
+	// -- EDX --
+	ubyte PCONFIG;	// 18
 
 	// ---- 8000_0001 ----
 	// ECX
@@ -1320,6 +1361,8 @@ struct __CPUINFO { align(1):
 			ubyte addr_line_bits;	// EAX[15:8]
 		}
 	}
+	// EBX
+	ubyte WBNOINVD;	// 9
 
 	// ---- 8000_000A ----
 	ubyte VirtVersion;	// (AMD) EAX[7:0]

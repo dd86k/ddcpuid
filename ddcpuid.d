@@ -206,7 +206,7 @@ int main(int argc, char** argv) {
 		case VENDOR_AMD: // SVM
 			printf("\tAMD-V (v%d)", s.VirtVersion);
 			break;
-		//case VENDOR_VIA: printf("\tVIA VT"); break; <- Uncomment when ready
+		//case VENDOR_VIA: printf("\tVIA VT"); break; <- Uncomment when VIA
 		default: printf("\tVMX"); break;
 		}
 	if (s.NX)
@@ -240,7 +240,7 @@ int main(int argc, char** argv) {
 
 	// -- Other instructions --
 
-	puts("\n[Other instructions]");
+	puts("\n[+Instructions]");
 	if (s.MONITOR) printf("\tMONITOR/MWAIT");
 	if (s.PCLMULQDQ) printf("\tPCLMULQDQ");
 	if (s.CX8) printf("\tCMPXCHG8B");
@@ -435,6 +435,44 @@ int main(int argc, char** argv) {
 		B(s.PDCM),
 		B(s.SDBG)
 	);
+
+	switch (VendorID) {
+	case VENDOR_INTEL:
+		printf( // Security
+			"\n[Security]\n" ~
+			"\tIndirect Branch Prediction Barrier [IBPB]: %s\n"~
+			"\tIndirect Branch Restricted Speculation [IBRS]: %s\n"~
+			"\tSingle Thread Indirect Branch Predictor [STIBP]: %s\n"~
+			"\tL1D_FLUSH: %s\n"~
+			"\tIA32_ARCH_CAPABILITIES MSR: %s\n"~
+			"\tSpeculative Store Bypass Disable [SSBD]: %s\n",
+			B(s.IBPB),
+			B(s.IBRS),
+			B(s.STIBP),
+			B(s.L1D_FLUSH),
+			B(s.IA32_ARCH_CAPABILITIES),
+			B(s.SSBD)
+		);
+		break;
+	case VENDOR_AMD:
+		printf( // Security
+			"\n[Security]\n" ~
+			"Indirect Branch Prediction Barrier [IBPB]: %s\n"~
+			"Indirect Branch Restricted Speculation [IBRS]: %s\n"~
+			"Single Thread Indirect Branch Predictor [STIBP]: %s\n"~
+			"IBRS Always On: %s\n"~
+			"STIBP Always On: %s\n"~
+			"IBRS Preferred: %s\n",
+			B(s.IBPB),
+			B(s.IBRS),
+			B(s.STIBP),
+			B(s.IBRS_ON),
+			B(s.STIBP_ON),
+			B(s.IBRS_PREF)
+		);
+		break;
+	default:
+	}
 
 	printf( // Other features
 		"\n[Miscellaneous]\n" ~
@@ -939,13 +977,16 @@ CACHE_DONE:
 		"mov $0, %%ecx\n"~
 		"cpuid\n"~
 		"mov %%ebx, %0\n"~
-		"mov %%ecx, %1" : "=b" b, "=c" c;
+		"mov %%ecx, %1\n"~
+		"mov %%edx, %2\n"
+		: "=b" b, "=c" c, "=d" d;
 	} else asm {
 		mov EAX, 7;
 		mov ECX, 0;
 		cpuid;
 		mov b, EBX;
 		mov c, ECX;
+		mov d, EDX;
 	} // ----- 7H
 
 	switch (VendorID) {
@@ -968,6 +1009,11 @@ CACHE_DONE:
 		s.MOVDIRI     = CHECK(c & BIT!(27));
 		s.MOVDIR64B   = CHECK(c & BIT!(28));
 		s.PCONFIG     = CHECK(d & BIT!(18));
+		s.IBRS = s.IBPB = CHECK(d & BIT!(26));
+		s.STIBP       = CHECK(d & BIT!(27));
+		s.L1D_FLUSH   = CHECK(d & BIT!(28));
+		s.IA32_ARCH_CAPABILITIES = CHECK(d & BIT!(29));
+		s.SSBD        = CHECK(d & BIT!(31));
 		break;
 	default:
 	}
@@ -1052,16 +1098,27 @@ EXTENDED_LEAVES:
 	version (GNU) asm {
 		"mov $0x80000008, %%eax\n"~
 		"cpuid\n"~
-		"mov %%eax, %0" : "=a" a;
+		"mov %%eax, %0\n"~
+		"mov %%ebx, %1\n"
+		: "=a" a, "=b" b;
 	} else asm {
 		mov EAX, 0x8000_0008;
 		cpuid;
 		mov a, EAX;
+		mov b, EBX;
 	} // EXTENDED 8000_0008H
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
 		s.WBNOINVD = CHECK(b & BIT!(9));
+		break;
+	case VENDOR_AMD:
+		s.IBPB      = CHECK(b & BIT!(12));
+		s.IBRS      = CHECK(b & BIT!(14));
+		s.STIBP     = CHECK(b & BIT!(15));
+		s.IBRS_ON   = CHECK(b & BIT!(16));
+		s.STIBP_ON  = CHECK(b & BIT!(17));
+		s.IBRS_PREF = CHECK(b & BIT!(18));
 		break;
 	default:
 	}
@@ -1309,6 +1366,7 @@ struct __CPUINFO { align(1):
 	ubyte TurboBoost3;	// 14
 
 	// ---- 07h ----
+	// -- EAX --
 	// -- EBX --
 	ubyte SGX;	// 2 Intel SGX (Software Guard Extensions)
 	ubyte HLE;	// 4 hardware lock elision
@@ -1330,6 +1388,12 @@ struct __CPUINFO { align(1):
 	ubyte MOVDIR64B;	// 28
 	// -- EDX --
 	ubyte PCONFIG;	// 18
+	ubyte IBPB;	// 26
+	ubyte IBRS;	// 26
+	ubyte STIBP;	// 27
+	ubyte L1D_FLUSH;	// 28
+	ubyte IA32_ARCH_CAPABILITIES;	// 29
+	ubyte SSBD;	// 31
 
 	// ---- 8000_0001 ----
 	// ECX
@@ -1363,6 +1427,9 @@ struct __CPUINFO { align(1):
 	}
 	// EBX
 	ubyte WBNOINVD;	// 9
+	ubyte IBRS_ON;	// 16
+	ubyte STIBP_ON;	// 17
+	ubyte IBRS_PREF;	// 18
 
 	// ---- 8000_000A ----
 	ubyte VirtVersion;	// (AMD) EAX[7:0]

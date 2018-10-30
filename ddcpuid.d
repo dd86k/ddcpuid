@@ -464,11 +464,11 @@ int main(int argc, char** argv) {
 	case VENDOR_AMD:
 		printf(
 			"\tIBRS Always On: %s\n"~
-			"\tSTIBP Always On: %s\n"~
-			"\tIBRS Preferred: %s\n",
+			"\tIBRS Preferred: %s\n"~
+			"\tSTIBP Always On: %s\n",
 			B(s.IBRS_ON),
-			B(s.STIBP_ON),
 			B(s.IBRS_PREF),
+			B(s.STIBP_ON),
 		);
 		break;
 	default:

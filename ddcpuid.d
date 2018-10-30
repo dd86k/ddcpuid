@@ -33,6 +33,12 @@ __gshared ubyte opt_future;	/// Enable showing future features
 // See Intel(R) Architecture Instruction Set Extensions and Future Features
 // Programming Reference
 
+version (X86) {
+	enum PLATFORM = "i686";
+} else version (X86_64) {
+	enum PLATFORM = "amd64";
+}
+
 extern (C)
 void help() {
 	puts(
@@ -56,7 +62,7 @@ extern (C)
 void version_() {
 	printf(
 //-----------------------------------------------------------------------------|
-`ddcpuid v` ~ VERSION ~ ` (` ~ __TIMESTAMP__ ~ `)
+`ddcpuid-`~PLATFORM~` v` ~ VERSION ~ ` (` ~ __TIMESTAMP__ ~ `)
 Copyright (c) dd86k 2016-2018
 License: MIT License <http://opensource.org/licenses/MIT>
 Project page: <https://github.com/dd86k/ddcpuid>

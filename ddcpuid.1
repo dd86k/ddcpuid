@@ -2,13 +2,13 @@
 ." Please read man-pages(7) and groff_man(7) about the manual page format.
 ." Don't forget to respect the format of this document!
 ."
-.TH ddcpuid 1 "September 2018" dd86k "User manual"
+.TH ddcpuid 1 "November 2018" dd86k "User manual"
 .SH NAME
 ddcpuid - Simple x86 CPUID tool
 
 .SH SYNOPSIS
 .SY ddcpuid
-.OP \-rod
+.OP \-rodfvh
 .YS
 
 .SH DESCRIPTION
@@ -16,16 +16,25 @@ ddcpuid - Simple x86 CPUID tool
 is a simple x86 CPUID tool, getting the most out in a Ring 3 context (CPL=3). It reports on quite a few bits, such as processor vendor, processor brand string, cache, processor extentions, and processor technologies.
 
 .SH OPTIONS
+.IP -h
+Show help screen and exit.
+
+.IP -v
+Show version screen and exit.
+
 .IP -r
 Print a raw table of CPUID data.
 
 Note: ECX is always cleared.
 
 .IP -o
-Overrides max leaf to 20H and extended max leaf to 8000_0020H. Affects feature scanning and -r.
+Overrides max leaf to 20h and extended max leaf to 8000_0020h. Affects feature scanning and -r.
 
 .IP -d
-Advanced mode. In advanced mode, ddcpuid prints a lot more, detailed, information.
+Advanced mode, where ddcpuid prints a lot more detailed information.
+
+.IP -f
+Show future extensions, such as features not yet present in the reference manuals.
 
 .EX
 Includes:
@@ -36,6 +45,7 @@ Includes:
 - Virtualization features
 - Memory features
 - Debugging features
+- Security features
 - Miscellaneous details
 .EE
 

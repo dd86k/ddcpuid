@@ -431,7 +431,7 @@ int main(int argc, char** argv) {
 		"\tDebug Store CPL [DS-CPL]: %s\n" ~
 		"\t64-bit DS Area [DTES64]: %s\n" ~
 		"\tPerfmon and Debug Capability [PDCM]: %s\n" ~
-		"\tIA32_DEBUG_INTERFACE (MSR) [SDBG]: %s\n",
+		"\tIA32_DEBUG_INTERFACE MSR [SDBG]: %s\n",
 		B(s.MCA),
 		B(s.MCE),
 		B(s.DE),
@@ -442,39 +442,33 @@ int main(int argc, char** argv) {
 		B(s.SDBG)
 	);
 
+	printf( // Security
+		"\n[Security]\n" ~
+		"\tIndirect Branch Prediction Barrier [IBPB]: %s\n"~
+		"\tIndirect Branch Restricted Speculation [IBRS]: %s\n"~
+		"\tSingle Thread Indirect Branch Predictor [STIBP]: %s\n"~
+		"\tSpeculative Store Bypass Disable [SSBD]: %s\n",
+		B(s.IBPB),
+		B(s.IBRS),
+		B(s.STIBP),
+		B(s.SSBD)
+	);
+
 	switch (VendorID) {
 	case VENDOR_INTEL:
-		printf( // Security
-			"\n[Security]\n" ~
-			"\tIndirect Branch Prediction Barrier [IBPB]: %s\n"~
-			"\tIndirect Branch Restricted Speculation [IBRS]: %s\n"~
-			"\tSingle Thread Indirect Branch Predictor [STIBP]: %s\n"~
-			"\tL1D_FLUSH: %s\n"~
-			"\tIA32_ARCH_CAPABILITIES MSR: %s\n"~
-			"\tSpeculative Store Bypass Disable [SSBD]: %s\n",
-			B(s.IBPB),
-			B(s.IBRS),
-			B(s.STIBP),
-			B(s.L1D_FLUSH),
-			B(s.IA32_ARCH_CAPABILITIES),
-			B(s.SSBD)
+		printf(
+			"\tL1D_FLUSH: %s\n",
+			B(s.L1D_FLUSH)
 		);
 		break;
 	case VENDOR_AMD:
-		printf( // Security
-			"\n[Security]\n" ~
-			"Indirect Branch Prediction Barrier [IBPB]: %s\n"~
-			"Indirect Branch Restricted Speculation [IBRS]: %s\n"~
-			"Single Thread Indirect Branch Predictor [STIBP]: %s\n"~
-			"IBRS Always On: %s\n"~
-			"STIBP Always On: %s\n"~
-			"IBRS Preferred: %s\n",
-			B(s.IBPB),
-			B(s.IBRS),
-			B(s.STIBP),
+		printf(
+			"\tIBRS Always On: %s\n"~
+			"\tSTIBP Always On: %s\n"~
+			"\tIBRS Preferred: %s\n",
 			B(s.IBRS_ON),
 			B(s.STIBP_ON),
-			B(s.IBRS_PREF)
+			B(s.IBRS_PREF),
 		);
 		break;
 	default:
@@ -488,14 +482,16 @@ int main(int argc, char** argv) {
 		"\tHardware Lock Elision [HLE]: %s\n" ~
 		"\tRestricted Transactional Memory [RTM]: %s\n" ~
 		"\tProcessor Serial Number [PSN]: %s\n" ~
-		"\tPending Break Enable [PBE]: %s\n",
+		"\tPending Break Enable [PBE]: %s\n"~
+		"\tIA32_ARCH_CAPABILITIES MSR: %s\n",
 		s.BrandIndex,
 		B(s.xTPR),
 		B(s.PCID),
 		B(s.HLE),
 		B(s.RTM),
 		B(s.PSN),
-		B(s.PBE)
+		B(s.PBE),
+		B(s.IA32_ARCH_CAPABILITIES),
 	);
 	if (opt_future) {
 		printf(
@@ -1125,6 +1121,7 @@ EXTENDED_LEAVES:
 		s.IBRS_ON   = CHECK(b & BIT!(16));
 		s.STIBP_ON  = CHECK(b & BIT!(17));
 		s.IBRS_PREF = CHECK(b & BIT!(18));
+		s.SSBD      = CHECK(b & BIT!(24));
 		break;
 	default:
 	}

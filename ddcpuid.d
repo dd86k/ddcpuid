@@ -29,21 +29,25 @@ __gshared uint VendorID; /// Vendor "ID", inits to VENDOR_OTHER
 __gshared ubyte opt_raw;	/// Raw option (-r)
 __gshared ubyte opt_details;	/// Detailed output option (-d)
 __gshared ubyte opt_override;	/// opt_override max leaf option (-o)
-__gshared ubyte opt_future;	/// Enable showing future features
 // See Intel(R) Architecture Instruction Set Extensions and Future Features
 // Programming Reference
+__gshared ubyte opt_future;	/// Enable showing future features
 
 version (X86) {
-	enum PLATFORM = "i686";
+	enum PLATFORM = "x86";
 } else version (X86_64) {
 	enum PLATFORM = "amd64";
+} else {
+	static assert(0,
+		"Nice try, but ddcpuid is strictly a x86/AMD64 tool at the moment");
 }
 
-extern (C)
-void help() {
+// GAS reminder: asm { "asm" : output : input : clobber }
+
+extern (C) void help() {
 	puts(
 //-----------------------------------------------------------------------------|
-`CPUID information tool
+`x86 CPUID information tool
   Usage: ddcpuid [OPTIONS]
 
 OPTIONS
@@ -51,32 +55,29 @@ OPTIONS
   -r    Show raw CPUID data in a table
   -o    Override leaves to 20h and 8000_0020h
   -f    (Intel) Show features not yet officially documented when possible
-        This flag is more likely to work with very recent processors.
+        This flag is more likely to work with *very* recent processors
 
   -v, --version   Print version information screen and quit
   -h, --help      Print this help screen and quit`
 	);
 }
 
-extern (C)
-void version_() {
+extern (C) void version_() {
 	printf(
-//-----------------------------------------------------------------------------|
-`ddcpuid-`~PLATFORM~` v` ~ VERSION ~ ` (` ~ __TIMESTAMP__ ~ `)
+`ddcpuid-`~PLATFORM~` v`~VERSION~` (`~__TIMESTAMP__~`)
 Copyright (c) dd86k 2016-2018
 License: MIT License <http://opensource.org/licenses/MIT>
 Project page: <https://github.com/dd86k/ddcpuid>
-Compiler: ` ~ __VENDOR__ ~ " v%d\n",
+Compiler: `~ __VENDOR__ ~" v%d\n",
 		__VERSION__
 	);
 }
 
 //TODO: (AMD) APICv (AVIC) Fn8000_000A_EDX[13], Intel has no bit for APICv
-//TODO: Physical address bits, both AMD and Intel: CPUID.8000_0008h.EAX[7:0]
 
 extern (C)
 int main(int argc, char** argv) {
-	while (--argc >= 1) {
+	while (--argc >= 1) { // CLI
 		if (argv[argc][1] == '-') { // Long arguments
 			char* a = argv[argc] + 2;
 			if (strcmp(a, "help") == 0) {
@@ -120,8 +121,7 @@ int main(int argc, char** argv) {
 		/// Print cpuid info
 		extern(C) void printc(uint leaf) {
 			uint a = void, b = void, c = void, d = void;
-			// GAS: asm { "asm" : output : input : clobber }
-			version (GNU) asm { // at&t
+			version (GNU) asm {
 				"cpuid\n"
 				: "=a" a, "=b" b, "=c" c, "=d" d
 				: "a" leaf;
@@ -136,7 +136,6 @@ int main(int argc, char** argv) {
 			}
 			printf("| %8X | %8X | %8X | %8X | %8X |\n", leaf, a, b, c, d);
 		}
-
 		puts(
 			"| Leaf     | EAX      | EBX      | ECX      | EDX      |\n"~
 			"|----------|----------|----------|----------|----------|"
@@ -173,17 +172,17 @@ int main(int argc, char** argv) {
 		cast(char*)s.vendorString, cstring
 	);
 
-	if (opt_details == 0)
-		printf(
-			"[Identifier] Family %d Model %d Stepping %d\n",
-			s.Family, s.Model, s.Stepping
-		);
-	else
+	if (opt_details)
 		printf(
 			"[Identifier] Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh\n",
 			s.Family, s.BaseFamily, s.ExtendedFamily,
 			s.Model, s.BaseModel, s.ExtendedModel,
 			s.Stepping
+		);
+	else
+		printf(
+			"[Identifier] Family %d Model %d Stepping %d\n",
+			s.Family, s.Model, s.Stepping
 		);
 
 	// -- Processor extensions --
@@ -208,9 +207,9 @@ int main(int argc, char** argv) {
 		}
 	if (s.Virt)
 		switch (VendorID) {
-		case VENDOR_INTEL: printf("\tVT-x"); break; // VMX
+		case VENDOR_INTEL: printf("\tVT-x (VMX)"); break; // VMX
 		case VENDOR_AMD: // SVM
-			printf("\tAMD-V (v%d)", s.VirtVersion);
+			printf("\tAMD-V (VMX, v%d)", s.VirtVersion);
 			break;
 		//case VENDOR_VIA: printf("\tVIA VT"); break; <- Uncomment when VIA
 		default: printf("\tVMX"); break;
@@ -289,8 +288,7 @@ int main(int argc, char** argv) {
 	puts("\n\n[Cache information]");
 
 	/// Return cache type as string
-	extern (C) 
-	immutable(char)* _ct(ubyte t) {
+	extern (C) immutable(char)* _ct(ubyte t) {
 		switch (t) {
 		case 1: return " Data";
 		case 2: return " Instructions";
@@ -703,7 +701,7 @@ void fetchInfo(__CPUINFO* s) {
 		++l; ++ca;
 		goto case VENDOR_INTEL;
 	case VENDOR_AMD:
-		ubyte _amd_ways_l2 = void; // please the compiler
+		ubyte _amd_ways_l2 = void; // please the compiler (for further goto)
 
 		if (s.MaximumExtendedLeaf >= 0x8000_001D) goto CACHE_AMD_NEWER;
 
@@ -795,14 +793,13 @@ CACHE_AMD_NEWER:
 			mov EAX, 0x8000_001D;
 			mov ECX, l;
 			cpuid;
-			//cmp AL, 0; // Check ZF
-			//jz CACHE_DONE; // if AL=0, get out
 			mov a, EAX;
 			mov b, EBX;
 			mov c, ECX;
 			mov d, EDX;
 		}
 		// Fix LDC2 compiling issue (#13)
+		// LDC has some trouble jumping to an exterior label
 		if (a == 0) goto CACHE_DONE;
 
 		ca.type = (a & 0b1111); // Same as Intel
@@ -881,7 +878,7 @@ CACHE_DONE:
 		s.TscDeadline = CHECK(c & BIT!(24));
 
 		// EDX
-		s.PSN  = CHECK(d & BIT!(18)); //d & BIT!(18);
+		s.PSN  = CHECK(d & BIT!(18));
 		s.DS   = CHECK(d & BIT!(21));
 		s.ACPI = CHECK(d & BIT!(22));
 		s.SS   = CHECK(d & BIT!(27));
@@ -901,11 +898,7 @@ CACHE_DONE:
 	}
 
 	// EBX
-	//s.BrandIndex      = *bp;       // EBX[ 7: 0]
-	//s.CLFLUSHLineSize = *(bp + 1); // EBX[15: 8]
-	//s.MaxIDs          = *(bp + 2); // EBX[23:16]
-	//s.InitialAPICID   = *(bp + 3); // EBX[31:24]
-	s.__bundle1 = b;
+	s.__bundle1 = b; // BrandIndex, CLFLUSHLineSize, MaxIDs, InitialAPICID
 
 	// ECX
 	s.SSE3       = CHECK(c & BIT!(0));
@@ -1038,13 +1031,11 @@ EXTENDED_LEAVES:
 	version (GNU) asm {
 		"mov $0x80000001, %%eax\n"~
 		"cpuid\n"~
-		"mov %%ebx, %0\n"~
-		"mov %%ecx, %1\n"~
-		"mov %%edx, %2" : "=b" b, "=c" c, "=d" d;
+		"mov %%ecx, %0\n"~
+		"mov %%edx, %1" : "=c" c, "=d" d;
 	} else asm {
 		mov EAX, 0x8000_0001;
 		cpuid;
-		mov b, EBX;
 		mov c, ECX;
 		mov d, EDX;
 	} // EXTENDED 8000_0001H
@@ -1126,7 +1117,7 @@ EXTENDED_LEAVES:
 	default:
 	}
 
-	s.__bundle3 = cast(ushort)a; // s.addr_phys_bits and s.addr_line_bits
+	s.__bundle3 = cast(ushort)a; // s.addr_phys_bits, s.addr_line_bits
 
 	if (s.MaximumExtendedLeaf < 0x8000_000A) return;
 
@@ -1400,15 +1391,14 @@ struct __CPUINFO { align(1):
 
 	// ---- 8000_0001 ----
 	// ECX
-	/// Count the Number of Leading Zero Bits, SSE4 SIMD
-	ubyte LZCNT;
+	ubyte LZCNT;	/// Counts leading zero bits, SSE4 SIMD
 	/// Prefetch
 	ubyte PREFETCHW;	// 8
 
 	/// RDSEED instruction
 	ubyte RDSEED;
 	// EDX
-	ubyte NX;	// 20
+	ubyte NX;	// No execute, 20
 	/// 1GB Pages
 	ubyte Page1GB;	// 26
 	/// Also known as Intel64 or AMD64.
@@ -1430,15 +1420,15 @@ struct __CPUINFO { align(1):
 	}
 	// EBX
 	ubyte WBNOINVD;	// 9
-	ubyte IBRS_ON;	// 16
-	ubyte STIBP_ON;	// 17
-	ubyte IBRS_PREF;	// 18
+	ubyte IBRS_ON;	// AMD, 16
+	ubyte STIBP_ON;	// AMD, 17
+	ubyte IBRS_PREF;	// AMD, 18
 
 	// ---- 8000_000A ----
 	ubyte VirtVersion;	// (AMD) EAX[7:0]
 
 	// 6 levels should be enough (L1-D, L1-I, L2, L3, 0, 0)
-	__CACHEINFO[6] cache; // all inits to 0
+	__CACHEINFO[6] cache;	// all inits to 0
 }
 
 static assert(__CPUINFO.vendorString.sizeof == 12);

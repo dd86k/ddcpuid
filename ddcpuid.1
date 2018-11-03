@@ -4,7 +4,7 @@
 ."
 .TH ddcpuid 1 "November 2018" dd86k "User manual"
 .SH NAME
-ddcpuid - Simple x86 CPUID tool
+ddcpuid - Simple x86/AMD64 CPUID tool
 
 .SH SYNOPSIS
 .SY ddcpuid
@@ -13,7 +13,7 @@ ddcpuid - Simple x86 CPUID tool
 
 .SH DESCRIPTION
 .B ddcpuid
-is a simple x86 CPUID tool, getting the most out in a Ring 3 context (CPL=3). It reports on quite a few bits, such as processor vendor, processor brand string, cache, processor extentions, and processor technologies.
+is a simple x86/AMD64 CPUID tool, getting the most out in a Ring 3 context (CPL=3). It reports on quite a few bits, such as processor vendor, processor brand string, cache, processor extentions, and processor technologies.
 
 .SH OPTIONS
 .IP -h
@@ -33,9 +33,6 @@ Overrides max leaf to 20h and extended max leaf to 8000_0020h. Affects feature s
 .IP -d
 Advanced mode, where ddcpuid prints a lot more detailed information.
 
-.IP -f
-Show future extensions, such as features not yet present in the reference manuals.
-
 .EX
 Includes:
 - Detailed cache information
@@ -48,6 +45,9 @@ Includes:
 - Security features
 - Miscellaneous details
 .EE
+
+.IP -f
+Show future extensions, such as features not yet present in the reference manuals.
 
 .SH WARNINGS
 ddcpuid is still currently going under active development, you may encounter bugs or incorrect reporting.

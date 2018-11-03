@@ -14,7 +14,7 @@ DMD, GDC, and LDC compilers are supported.
 
 ## GDC Notes
 
-By default, GDC produces a static binary.
+GDC support is still a little experimental.
 
 BUG: Compiling above -O1 segfaults at run-time.
 

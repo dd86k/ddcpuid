@@ -90,19 +90,17 @@ int main(int argc, char** argv) {
 			return 1;
 		} else if (argv[argc][0] == '-') { // Short arguments
 			char* a = argv[argc];
-			while (*++a != 0) {
-				switch (*a) {
-				case 'o': ++opt_override; break;
-				case 'd': ++opt_details; break;
-				case 'r': ++opt_raw; break;
-				case 'f': ++opt_future; break;
-				case 'h', '?': help; return 0;
-				case 'v': version_; return 0;
-				default:
-					printf("Unknown parameter: %c\n", *a);
-					return 1;
-				} // switch
-			} // while
+			while (*++a != 0) switch (*a) {
+			case 'o': ++opt_override; break;
+			case 'd': ++opt_details; break;
+			case 'r': ++opt_raw; break;
+			case 'f': ++opt_future; break;
+			case 'h', '?': help; return 0;
+			case 'v': version_; return 0;
+			default:
+				printf("Unknown parameter: %c\n", *a);
+				return 1;
+			} // while+switch
 		} // else if
 	} // while arg
 
@@ -398,7 +396,8 @@ int main(int argc, char** argv) {
 
 	printf( // Memory
 		"\n[Memory]\n" ~
-		"\tPage Size Extension [PAE]: %s\n" ~
+		"\tPhysical Address Extension [PAE]: %s\n" ~
+		"\tPage Size Extension [PSE]: %s\n" ~
 		"\t36-Bit Page Size Extension [PSE-36]: %s\n" ~
 		"\t1 GB Pages support [Page1GB]: %s\n" ~
 		"\tDirect Cache Access [DCA]: %s\n" ~
@@ -409,6 +408,7 @@ int main(int argc, char** argv) {
 		"\tMaximum Physical Memory Bits: %d\n" ~
 		"\tMaximum Linear Memory Bits: %d\n",
 		B(s.PAE),
+		B(s.PSE),
 		B(s.PSE_36),
 		B(s.Page1GB),
 		B(s.DCA),
@@ -681,8 +681,8 @@ void fetchInfo(__CPUINFO* s) {
 		// Fix LDC2 compiling issue (#13)
 		if (a == 0) goto CACHE_DONE;
 
-		ca.type = (a & 0b1111);
-		ca.level = cast(ubyte)((a >> 5) & 0b111);
+		ca.type = (a & 0xF);
+		ca.level = cast(ubyte)((a >> 5) & 7);
 		ca.linesize = cast(ubyte)((b & 0x7FF) + 1);
 		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
 		ca.ways = cast(ubyte)((b >> 22) + 1);
@@ -802,8 +802,8 @@ CACHE_AMD_NEWER:
 		// LDC has some trouble jumping to an exterior label
 		if (a == 0) goto CACHE_DONE;
 
-		ca.type = (a & 0b1111); // Same as Intel
-		ca.level = cast(ubyte)((a >> 5) & 0b111);
+		ca.type = (a & 0xF); // Same as Intel
+		ca.level = cast(ubyte)((a >> 5) & 7);
 		ca.linesize = cast(ubyte)((b & 0x7FF) + 1);
 		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
 		ca.ways = cast(ubyte)((b >> 22) + 1);

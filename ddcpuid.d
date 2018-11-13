@@ -304,28 +304,24 @@ int main(int argc, char** argv) {
 
 	__CACHEINFO* ca = cast(__CACHEINFO*)s.cache; /// Caches
 
-	if (opt_details) {
-		while (ca.type) {
+	while (ca.type) {
+		char c = 'K';
+		if (ca.size >= 1024) {
+			ca.size /= 1024; c = 'M';
+		}
+		printf("\tL%d%s, %d %cB", ca.level, _ct(ca.type), ca.size, c);
+		if (opt_details) {
 			printf(
-				"\tL%d%s, %d ways, %d partitions, %d B, %d sets\n",
-				ca.level, _ct(ca.type), ca.ways, ca.partitions, ca.linesize, ca.sets
+				", %d ways, %d partitions, %d B, %d sets\n",
+				ca.ways, ca.partitions, ca.linesize, ca.sets
 			);
 			if (ca.features & BIT!(0)) puts("\t\tSelf Initializing");
 			if (ca.features & BIT!(1)) puts("\t\tFully Associative");
 			if (ca.features & BIT!(2)) puts("\t\tNo Write-Back Validation");
 			if (ca.features & BIT!(3)) puts("\t\tCache Inclusive");
 			if (ca.features & BIT!(4)) puts("\t\tComplex Cache Indexing");
-			++ca;
-		}
-	} else {
-		while (ca.type) {
-			char c = 'K';
-			if (ca.size >= 1024) {
-				ca.size /= 1024; c = 'M';
-			}
-			printf("\tL%d%s, %d %cB\n", ca.level, _ct(ca.type), ca.size, c);
-			++ca;
-		}
+		} else putchar('\n');
+		++ca;
 	}
 
 	// -- Vendor specific features ---
@@ -701,9 +697,8 @@ void fetchInfo(__CPUINFO* s) {
 			if (d & BIT!(0)) ca.features |= BIT!(2);
 			if (d & BIT!(1)) ca.features |= BIT!(3);
 			if (d & BIT!(2)) ca.features |= BIT!(4);
-		} else {
-			ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) / 1024;
 		}
+		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) / 1024;
 
 		debug printf("| %8X | %8X | %8X | %8X | %8X |\n", l, a, b, c, d);
 		++l; ++ca;
@@ -821,9 +816,8 @@ CACHE_AMD_NEWER:
 			if (a & BIT!(9)) ca.features |= BIT!(1);
 			if (d & BIT!(0)) ca.features |= BIT!(2);
 			if (d & BIT!(1)) ca.features |= BIT!(3);
-		} else {
-			ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) / 1024;
 		}
+		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) / 1024;
 
 		debug printf("| %8X | %8X | %8X | %8X | %8X |\n", l, a, b, c, d);
 		++l; ++ca;

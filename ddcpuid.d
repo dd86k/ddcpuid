@@ -8,7 +8,7 @@ extern (C) {
 pragma(msg, "-- sizeof __CPUINFO: ", __CPUINFO.sizeof);
 pragma(msg, "-- sizeof __CACHEINFO: ", __CACHEINFO.sizeof);
 
-enum VERSION = "0.10.0"; /// Program version
+enum VERSION = "0.11.0"; /// Program version
 
 enum
 	MAX_LEAF = 0x20, /// Maximum leaf (-o)
@@ -232,6 +232,13 @@ int main(int argc, char** argv) {
 		if (s.AVX512VL) printf("\tAVX512VL");
 		if (s.AVX512_IFMA) printf("\tAVX512_IFMA");
 		if (s.AVX512_VBMI) printf("\tAVX512_VBMI");
+		if (opt_future) {
+			if (s.AVX512_VBMI2) printf("\tAVX512_VBMI2");
+			if (s.AVX512_GFNI) printf("\tAVX512_GFNI");
+			if (s.AVX512_VAES) printf("\tAVX512_VAES");
+			if (s.AVX512_VNNI) printf("\tAVX512_VNNI");
+			if (s.AVX512_BITALG) printf("\tAVX512_BITALG");
+		}
 	}
 	if (s.FMA) printf("\tFMA3");
 	if (s.FMA4) printf("\tFMA4");
@@ -279,6 +286,7 @@ int main(int argc, char** argv) {
 		if (s.CLDEMOTE) printf("\tCLDEMOTE");
 		if (s.MOVDIRI) printf("\tMOVDIRI");
 		if (s.MOVDIR64B) printf("\tMOVDIR64B");
+		if (s.AVX512_VPOPCNTDQ) printf("\tVPOPCNTDQ");
 	}
 
 	// -- Cache information --
@@ -1000,6 +1008,12 @@ CACHE_DONE:
 		s.AVX512VL    = CHECK(c & BIT!(1));
 		s.FSREPMOV    = CHECK(c & BIT!(4));
 		s.WAITPKG     = CHECK(c & BIT!(5));
+		s.AVX512_VBMI2 = CHECK(c & BIT!(6));
+		s.AVX512_GFNI = CHECK(c & BIT!(8));
+		s.AVX512_VAES = CHECK(c & BIT!(9));
+		s.AVX512_VNNI = CHECK(c & BIT!(11));
+		s.AVX512_BITALG = CHECK(c & BIT!(12));
+		s.AVX512_VPOPCNTDQ = CHECK(c & BIT!(14));
 		s.CLDEMOTE    = CHECK(c & BIT!(25));
 		s.MOVDIRI     = CHECK(c & BIT!(27));
 		s.MOVDIR64B   = CHECK(c & BIT!(28));
@@ -1281,6 +1295,12 @@ struct __CPUINFO { align(1):
 	ubyte AVX512BW;
 	ubyte AVX512_IFMA;
 	ubyte AVX512_VBMI;
+	ubyte AVX512_VBMI2;
+	ubyte AVX512_GFNI;
+	ubyte AVX512_VAES;
+	ubyte AVX512_VNNI;
+	ubyte AVX512_BITALG;
+	ubyte AVX512_VPOPCNTDQ;
 	ubyte AVX512VL;
 
 	ubyte _3DNow;

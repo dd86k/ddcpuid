@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
 	// -- Processor basic information --
 
 	printf(
-		"[Vendor] %.12s\n" ~
+		"[Vendor] %.12s\n"~
 		"[String] %.48s\n",
 		cast(char*)s.vendorString, cstring
 	);
@@ -364,10 +364,10 @@ int main(int argc, char** argv) {
 	}
 
 	printf( // Misc. and FPU
-		"\nHighest Leaf: %Xh | Extended: %Xh\n" ~
-		"Processor type: %s\n" ~
-		"\n[FPU]\n" ~
-		"\tFloating Point Unit [FPU]: %s\n" ~
+		"\nHighest Leaf: %Xh | Extended: %Xh\n"~
+		"Processor type: %s\n"~
+		"\n[FPU]\n"~
+		"\tFloating Point Unit [FPU]: %s\n"~
 		"\t16-bit conversion [F16C]: %s\n",
 		s.MaximumLeaf, s.MaximumExtendedLeaf,
 		_pt,
@@ -376,12 +376,12 @@ int main(int argc, char** argv) {
 	);
 
 	printf( // ACPI
-		"\n[ACPI]\n" ~
-		"\tACPI: %s\n" ~
-		"\tAPIC: %s (Initial ID: %d, Max: %d)\n" ~
-		"\tx2APIC: %s\n" ~
-		"\tAlways-Running-APIC-Timer [ARAT]: %s\n" ~
-		"\tThermal Monitor: %s\n" ~
+		"\n[ACPI]\n"~
+		"\tACPI: %s\n"~
+		"\tAPIC: %s (Initial ID: %d, Max: %d)\n"~
+		"\tx2APIC: %s\n"~
+		"\tAlways-Running-APIC-Timer [ARAT]: %s\n"~
+		"\tThermal Monitor: %s\n"~
 		"\tThermal Monitor 2: %s\n",
 		B(s.ACPI),
 		B(s.APIC), s.InitialAPICID, s.MaxIDs,
@@ -392,10 +392,10 @@ int main(int argc, char** argv) {
 	);
 
 	printf( // Virtualization + Cache
-		"\n[Virtualization]\n" ~
-		"\tVirtual 8086 Mode Enhancements [VME]: %s\n" ~
-		"\n[Cache]\n" ~
-		"\tL1 Context ID [CNXT-ID]: %s\n" ~
+		"\n[Virtualization]\n"~
+		"\tVirtual 8086 Mode Enhancements [VME]: %s\n"~
+		"\n[Cache]\n"~
+		"\tL1 Context ID [CNXT-ID]: %s\n"~
 		"\tSelf Snoop [SS]: %s\n",
 		B(s.VME),
 		B(s.CNXT_ID),
@@ -403,17 +403,17 @@ int main(int argc, char** argv) {
 	);
 
 	printf( // Memory
-		"\n[Memory]\n" ~
-		"\tPhysical Address Extension [PAE]: %s\n" ~
-		"\tPage Size Extension [PSE]: %s\n" ~
-		"\t36-Bit Page Size Extension [PSE-36]: %s\n" ~
-		"\t1 GB Pages support [Page1GB]: %s\n" ~
-		"\tDirect Cache Access [DCA]: %s\n" ~
-		"\tPage Attribute Table [PAT]: %s\n" ~
-		"\tMemory Type Range Registers [MTRR]: %s\n" ~
-		"\tPage Global Bit [PGE]: %s\n" ~
-		"\tSupervisor Mode Execution Protection [SMEP]: %s\n" ~
-		"\tMaximum Physical Memory Bits: %d\n" ~
+		"\n[Memory]\n"~
+		"\tPhysical Address Extension [PAE]: %s\n"~
+		"\tPage Size Extension [PSE]: %s\n"~
+		"\t36-Bit Page Size Extension [PSE-36]: %s\n"~
+		"\t1 GB Pages support [Page1GB]: %s\n"~
+		"\tDirect Cache Access [DCA]: %s\n"~
+		"\tPage Attribute Table [PAT]: %s\n"~
+		"\tMemory Type Range Registers [MTRR]: %s\n"~
+		"\tPage Global Bit [PGE]: %s\n"~
+		"\tSupervisor Mode Execution Protection [SMEP]: %s\n"~
+		"\tMaximum Physical Memory Bits: %d\n"~
 		"\tMaximum Linear Memory Bits: %d\n",
 		B(s.PAE),
 		B(s.PSE),
@@ -429,14 +429,14 @@ int main(int argc, char** argv) {
 	);
 
 	printf( // Debugging
-		"\n[Debugging]\n" ~
-		"\tMachine Check Architecture [MCA]: %s\n" ~
-		"\tMachine Check Exception [MCE]: %s\n" ~
-		"\tDebugging Extensions [DE]: %s\n" ~
-		"\tDebug Store [DS]: %s\n" ~
-		"\tDebug Store CPL [DS-CPL]: %s\n" ~
-		"\t64-bit DS Area [DTES64]: %s\n" ~
-		"\tPerfmon and Debug Capability [PDCM]: %s\n" ~
+		"\n[Debugging]\n"~
+		"\tMachine Check Architecture [MCA]: %s\n"~
+		"\tMachine Check Exception [MCE]: %s\n"~
+		"\tDebugging Extensions [DE]: %s\n"~
+		"\tDebug Store [DS]: %s\n"~
+		"\tDebug Store CPL [DS-CPL]: %s\n"~
+		"\t64-bit DS Area [DTES64]: %s\n"~
+		"\tPerfmon and Debug Capability [PDCM]: %s\n"~
 		"\tIA32_DEBUG_INTERFACE MSR [SDBG]: %s\n",
 		B(s.MCA),
 		B(s.MCE),
@@ -449,7 +449,7 @@ int main(int argc, char** argv) {
 	);
 
 	printf( // Security
-		"\n[Security]\n" ~
+		"\n[Security]\n"~
 		"\tIndirect Branch Prediction Barrier [IBPB]: %s\n"~
 		"\tIndirect Branch Restricted Speculation [IBRS]: %s\n"~
 		"\tSingle Thread Indirect Branch Predictor [STIBP]: %s\n"~
@@ -481,13 +481,13 @@ int main(int argc, char** argv) {
 	}
 
 	printf( // Other features
-		"\n[Miscellaneous]\n" ~
-		"\tBrand Index: %d\n" ~
-		"\txTPR Update Control [xTPR]: %s\n" ~
-		"\tProcess-context identifiers [PCID]: %s\n" ~
-		"\tHardware Lock Elision [HLE]: %s\n" ~
-		"\tRestricted Transactional Memory [RTM]: %s\n" ~
-		"\tProcessor Serial Number [PSN]: %s\n" ~
+		"\n[Miscellaneous]\n"~
+		"\tBrand Index: %d\n"~
+		"\txTPR Update Control [xTPR]: %s\n"~
+		"\tProcess-context identifiers [PCID]: %s\n"~
+		"\tHardware Lock Elision [HLE]: %s\n"~
+		"\tRestricted Transactional Memory [RTM]: %s\n"~
+		"\tProcessor Serial Number [PSN]: %s\n"~
 		"\tPending Break Enable [PBE]: %s\n"~
 		"\tIA32_ARCH_CAPABILITIES MSR: %s\n",
 		s.BrandIndex,

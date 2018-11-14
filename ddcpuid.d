@@ -5,13 +5,9 @@ extern (C) {
 	int putchar(int c);
 }
 
-pragma(msg, "-- sizeof __CPUINFO: ", __CPUINFO.sizeof);
-pragma(msg, "-- sizeof __CACHEINFO: ", __CACHEINFO.sizeof);
-
 enum VERSION = "0.11.0"; /// Program version
 
-enum
-	MAX_LEAF = 0x20, /// Maximum leaf (-o)
+enum	MAX_LEAF = 0x20, /// Maximum leaf (-o)
 	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
 
 /*
@@ -26,12 +22,7 @@ enum // LSB
 	VENDOR_VIA	= 0x20414956;	// "VIA "
 
 __gshared uint VendorID; /// Vendor "ID", inits to VENDOR_OTHER
-__gshared ubyte opt_raw;	/// Raw option (-r)
 __gshared ubyte opt_details;	/// Detailed output option (-d)
-__gshared ubyte opt_override;	/// opt_override max leaf option (-o)
-// See Intel(R) Architecture Instruction Set Extensions and Future Features
-// Programming Reference
-__gshared ubyte opt_future;	/// Enable showing future features
 
 version (X86) {
 	enum PLATFORM = "x86";
@@ -41,8 +32,6 @@ version (X86) {
 	static assert(0,
 		"Nice try, but ddcpuid is strictly a x86/AMD64 tool at the moment");
 }
-
-// GAS reminder: asm { "asm" : output : input : clobber }
 
 extern (C) void help() {
 	puts(
@@ -74,9 +63,16 @@ Compiler: `~ __VENDOR__ ~" v%d\n",
 }
 
 //TODO: (AMD) APICv (AVIC) Fn8000_000A_EDX[13], Intel has no bit for APICv
+// GAS reminder: asm { "asm" : output : input : clobber }
 
 extern (C)
 int main(int argc, char** argv) {
+	ubyte opt_raw;	/// Raw option (-r)
+	// See Intel(R) Architecture Instruction Set Extensions and Future
+	// Features Programming Reference
+	ubyte opt_future;	/// Enable showing future features
+	ubyte opt_override;	/// opt_override max leaf option (-o)
+
 	while (--argc >= 1) { // CLI
 		if (argv[argc][1] == '-') { // Long arguments
 			char* a = argv[argc] + 2;
@@ -1445,6 +1441,8 @@ struct __CPUINFO { align(1):
 	__CACHEINFO[6] cache;	// all inits to 0
 }
 
+pragma(msg, "-- sizeof __CPUINFO: ", __CPUINFO.sizeof);
+pragma(msg, "-- sizeof __CACHEINFO: ", __CACHEINFO.sizeof);
 static assert(__CPUINFO.vendorString.sizeof == 12);
 static assert(__CPUINFO.cpuString.sizeof == 48);
 static assert(__CPUINFO.__bundle1.sizeof == 4);

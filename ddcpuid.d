@@ -1,7 +1,7 @@
 extern (C) {
-	int strcmp(scope const char* s1, scope const char* s2);
-	int printf(scope const char* format, ...);
-	int puts(scope const char* s);
+	int strcmp(scope const char *s1, scope const char* s2);
+	int printf(scope const char *format, ...);
+	int puts(scope const char *s);
 	int putchar(int c);
 }
 
@@ -66,7 +66,7 @@ Compiler: `~ __VENDOR__ ~" v%d\n",
 // GAS reminder: asm { "asm" : output : input : clobber }
 
 extern (C)
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 	ubyte opt_raw;	/// Raw option (-r)
 	// See Intel(R) Architecture Instruction Set Extensions and Future
 	// Features Programming Reference
@@ -149,7 +149,7 @@ int main(int argc, char** argv) {
 
 	fetchInfo(&s);
 
-	char* cstring = cast(char*)s.cpuString;
+	char *cstring = cast(char*)s.cpuString;
 
 	switch (VendorID) {
 	case VENDOR_INTEL: // Common in Intel processor brand strings
@@ -290,7 +290,7 @@ int main(int argc, char** argv) {
 	puts("\n\n[Cache information]");
 
 	/// Return cache type as string
-	extern (C) immutable(char)* _ct(ubyte t) {
+	extern (C) immutable(char) *_ct(ubyte t) {
 		switch (t) {
 		case 1: return " Data";
 		case 2: return " Instructions";
@@ -298,7 +298,7 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	__CACHEINFO* ca = cast(__CACHEINFO*)s.cache; /// Caches
+	__CACHEINFO *ca = cast(__CACHEINFO*)s.cache; /// Caches
 
 	while (ca.type) {
 		char c = 'K';
@@ -345,7 +345,7 @@ int main(int argc, char** argv) {
 
 	// -- Processor detailed features --
 
-	immutable(char)* _pt() { // D call for parent stack frame
+	immutable(char) *_pt() { // D call for parent stack frame
 		switch (s.ProcessorType) { // 2 bit value
 		case 0: return "Original OEM Processor";
 		case 1: return "Intel OverDrive Processor";
@@ -502,7 +502,7 @@ int main(int argc, char** argv) {
 } // main
 
 pragma(inline, true) extern(C)
-immutable(char)* B(uint c) pure @nogc nothrow {
+immutable(char) *B(uint c) pure @nogc nothrow {
 	return c ? "Yes" : "No";
 }
 
@@ -518,7 +518,7 @@ template BIT(int n) { enum { BIT = 1 << n } }
  *****************************/
 
 extern (C)
-void fetchInfo(__CPUINFO* s) {
+void fetchInfo(__CPUINFO *s) {
 	// Position Independant Code compliant
 	size_t __A = cast(size_t)&s.vendorString;
 	size_t __B = cast(size_t)&s.cpuString;
@@ -650,7 +650,7 @@ void fetchInfo(__CPUINFO* s) {
 	uint a = void, b = void, c = void, d = void; // EAX to EDX
 
 	uint l; /// Cache level
-	__CACHEINFO* ca = cast(__CACHEINFO*)s.cache;
+	__CACHEINFO *ca = cast(__CACHEINFO*)s.cache;
 
 	debug puts("--- Cache information ---");
 
@@ -1170,7 +1170,7 @@ version (GNU) {
 	/// Get the maximum leaf.
 	/// Returns: Maximum leaf
 	extern (C) uint hleaf() {
-		asm { naked;
+		asm {	naked;
 			mov EAX, 0;
 			cpuid;
 			ret;
@@ -1179,7 +1179,7 @@ version (GNU) {
 	/// Get the maximum extended leaf.
 	/// Returns: Maximum extended leaf
 	extern (C) uint heleaf() {
-		asm { naked;
+		asm {	naked;
 			mov EAX, 0x8000_0000;
 			cpuid;
 			ret;
@@ -1247,8 +1247,8 @@ struct __CACHEINFO {
 
 struct __CPUINFO { align(1):
 	// ---- Basic information ----
-	ubyte[12] vendorString;	// inits to 0
-	ubyte[48] cpuString;	// inits to 0
+	ubyte [12]vendorString;	// inits to 0
+	ubyte [48]cpuString;	// inits to 0
 
 	uint MaximumLeaf;
 	uint MaximumExtendedLeaf;
@@ -1438,7 +1438,7 @@ struct __CPUINFO { align(1):
 	ubyte VirtVersion;	// (AMD) EAX[7:0]
 
 	// 6 levels should be enough (L1-D, L1-I, L2, L3, 0, 0)
-	__CACHEINFO[6] cache;	// all inits to 0
+	__CACHEINFO [6]cache;	// all inits to 0
 }
 
 pragma(msg, "-- sizeof __CPUINFO: ", __CPUINFO.sizeof);

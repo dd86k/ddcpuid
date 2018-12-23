@@ -51,7 +51,7 @@ OPTIONS
 	);
 }
 
-extern (C) void version_() {
+extern (C) void sversion() {
 	printf(
 `ddcpuid-`~PLATFORM~` v`~VERSION~` (`~__TIMESTAMP__~`)
 Copyright (c) dd86k 2016-2018
@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
 				help; return 0;
 			}
 			if (strcmp(a, "version") == 0) {
-				version_; return 0;
+				sversion; return 0;
 			}
 			printf("Unknown parameter: %s\n", a);
 			return 1;
@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
 			case 'r': ++opt_raw; break;
 			case 'f': ++opt_future; break;
 			case 'h', '?': help; return 0;
-			case 'v': version_; return 0;
+			case 'v': sversion; return 0;
 			default:
 				printf("Unknown parameter: %c\n", *a);
 				return 1;
@@ -228,6 +228,8 @@ int main(int argc, char **argv) {
 		if (s.AVX512VL) printf("\tAVX512VL");
 		if (s.AVX512_IFMA) printf("\tAVX512_IFMA");
 		if (s.AVX512_VBMI) printf("\tAVX512_VBMI");
+		if (s.AVX512_4VNNIW) printf("\tAVX512_4VNNIW");
+		if (s.AVX512_4FMAPS) printf("\tAVX512_4FMAPS");
 		if (opt_future) {
 			if (s.AVX512_VBMI2) printf("\tAVX512_VBMI2");
 			if (s.AVX512_GFNI) printf("\tAVX512_GFNI");
@@ -507,8 +509,8 @@ immutable(char) *B(uint c) pure @nogc nothrow {
 }
 
 pragma(inline, true) extern (C)
-ubyte CHECK(int n) pure @nogc nothrow {
-	return n ? 1 : 0;
+ubyte CHECK(int n, int f) pure @nogc nothrow {
+	return (n & f) ? 1 : 0;
 }
 
 template BIT(int n) { enum { BIT = 1 << n } }
@@ -860,28 +862,28 @@ CACHE_DONE:
 			s.Model = s.BaseModel;
 
 		// ECX
-		s.DTES64      = CHECK(c & BIT!(2));
-		s.DS_CPL      = CHECK(c & BIT!(4));
-		s.Virt        = CHECK(c & BIT!(5));
-		s.SMX         = CHECK(c & BIT!(6));
-		s.EIST        = CHECK(c & BIT!(7));
-		s.TM2         = CHECK(c & BIT!(8));
-		s.CNXT_ID     = CHECK(c & BIT!(10));
-		s.SDBG        = CHECK(c & BIT!(11));
-		s.xTPR        = CHECK(c & BIT!(14));
-		s.PDCM        = CHECK(c & BIT!(15));
-		s.PCID        = CHECK(c & BIT!(17));
-		s.DCA         = CHECK(c & BIT!(18));
-		s.x2APIC      = CHECK(c & BIT!(21));
-		s.TscDeadline = CHECK(c & BIT!(24));
+		s.DTES64      = CHECK(c, BIT!(2));
+		s.DS_CPL      = CHECK(c, BIT!(4));
+		s.Virt        = CHECK(c, BIT!(5));
+		s.SMX         = CHECK(c, BIT!(6));
+		s.EIST        = CHECK(c, BIT!(7));
+		s.TM2         = CHECK(c, BIT!(8));
+		s.CNXT_ID     = CHECK(c, BIT!(10));
+		s.SDBG        = CHECK(c, BIT!(11));
+		s.xTPR        = CHECK(c, BIT!(14));
+		s.PDCM        = CHECK(c, BIT!(15));
+		s.PCID        = CHECK(c, BIT!(17));
+		s.DCA         = CHECK(c, BIT!(18));
+		s.x2APIC      = CHECK(c, BIT!(21));
+		s.TscDeadline = CHECK(c, BIT!(24));
 
 		// EDX
-		s.PSN  = CHECK(d & BIT!(18));
-		s.DS   = CHECK(d & BIT!(21));
-		s.ACPI = CHECK(d & BIT!(22));
-		s.SS   = CHECK(d & BIT!(27));
-		s.TM   = CHECK(d & BIT!(29));
-		s.PBE  = CHECK(d & BIT!(31));
+		s.PSN  = CHECK(d, BIT!(18));
+		s.DS   = CHECK(d, BIT!(21));
+		s.ACPI = CHECK(d, BIT!(22));
+		s.SS   = CHECK(d, BIT!(27));
+		s.TM   = CHECK(d, BIT!(29));
+		s.PBE  = CHECK(d, BIT!(31));
 		break;
 	case VENDOR_AMD:
 		if (s.BaseFamily < 0xF) {
@@ -899,47 +901,47 @@ CACHE_DONE:
 	s.__bundle1 = b; // BrandIndex, CLFLUSHLineSize, MaxIDs, InitialAPICID
 
 	// ECX
-	s.SSE3       = CHECK(c & BIT!(0));
-	s.PCLMULQDQ  = CHECK(c & BIT!(1));
-	s.MONITOR    = CHECK(c & BIT!(3));
-	s.SSSE3      = CHECK(c & BIT!(9));
-	s.FMA        = CHECK(c & BIT!(12));
-	s.CMPXCHG16B = CHECK(c & BIT!(13));
-	s.SSE41      = CHECK(c & BIT!(15));
-	s.SSE42      = CHECK(c & BIT!(20));
-	s.MOVBE      = CHECK(c & BIT!(22));
-	s.POPCNT     = CHECK(c & BIT!(23));
-	s.AES        = CHECK(c & BIT!(25));
-	s.XSAVE      = CHECK(c & BIT!(26));
-	s.OSXSAVE    = CHECK(c & BIT!(27));
-	s.AVX        = CHECK(c & BIT!(28));
-	s.F16C       = CHECK(c & BIT!(29));
-	s.RDRAND     = CHECK(c & BIT!(30));
+	s.SSE3       = CHECK(c, BIT!(0));
+	s.PCLMULQDQ  = CHECK(c, BIT!(1));
+	s.MONITOR    = CHECK(c, BIT!(3));
+	s.SSSE3      = CHECK(c, BIT!(9));
+	s.FMA        = CHECK(c, BIT!(12));
+	s.CMPXCHG16B = CHECK(c, BIT!(13));
+	s.SSE41      = CHECK(c, BIT!(15));
+	s.SSE42      = CHECK(c, BIT!(20));
+	s.MOVBE      = CHECK(c, BIT!(22));
+	s.POPCNT     = CHECK(c, BIT!(23));
+	s.AES        = CHECK(c, BIT!(25));
+	s.XSAVE      = CHECK(c, BIT!(26));
+	s.OSXSAVE    = CHECK(c, BIT!(27));
+	s.AVX        = CHECK(c, BIT!(28));
+	s.F16C       = CHECK(c, BIT!(29));
+	s.RDRAND     = CHECK(c, BIT!(30));
 
 	// EDX
-	s.FPU    = CHECK(d & BIT!(0));
-	s.VME    = CHECK(d & BIT!(1));
-	s.DE     = CHECK(d & BIT!(2));
-	s.PSE    = CHECK(d & BIT!(3));
-	s.TSC    = CHECK(d & BIT!(4));
-	s.MSR    = CHECK(d & BIT!(5));
-	s.PAE    = CHECK(d & BIT!(6));
-	s.MCE    = CHECK(d & BIT!(7));
-	s.CX8    = CHECK(d & BIT!(8));
-	s.APIC   = CHECK(d & BIT!(9));
-	s.SEP    = CHECK(d & BIT!(11));
-	s.MTRR   = CHECK(d & BIT!(12));
-	s.PGE    = CHECK(d & BIT!(13));
-	s.MCA    = CHECK(d & BIT!(14));
-	s.CMOV   = CHECK(d & BIT!(15));
-	s.PAT    = CHECK(d & BIT!(16));
-	s.PSE_36 = CHECK(d & BIT!(17));
-	s.CLFSH  = CHECK(d & BIT!(19));
-	s.MMX    = CHECK(d & BIT!(23));
-	s.FXSR   = CHECK(d & BIT!(24));
-	s.SSE    = CHECK(d & BIT!(25));
-	s.SSE2   = CHECK(d & BIT!(26));
-	s.HTT    = CHECK(d & BIT!(28));
+	s.FPU    = CHECK(d, BIT!(0));
+	s.VME    = CHECK(d, BIT!(1));
+	s.DE     = CHECK(d, BIT!(2));
+	s.PSE    = CHECK(d, BIT!(3));
+	s.TSC    = CHECK(d, BIT!(4));
+	s.MSR    = CHECK(d, BIT!(5));
+	s.PAE    = CHECK(d, BIT!(6));
+	s.MCE    = CHECK(d, BIT!(7));
+	s.CX8    = CHECK(d, BIT!(8));
+	s.APIC   = CHECK(d, BIT!(9));
+	s.SEP    = CHECK(d, BIT!(11));
+	s.MTRR   = CHECK(d, BIT!(12));
+	s.PGE    = CHECK(d, BIT!(13));
+	s.MCA    = CHECK(d, BIT!(14));
+	s.CMOV   = CHECK(d, BIT!(15));
+	s.PAT    = CHECK(d, BIT!(16));
+	s.PSE_36 = CHECK(d, BIT!(17));
+	s.CLFSH  = CHECK(d, BIT!(19));
+	s.MMX    = CHECK(d, BIT!(23));
+	s.FXSR   = CHECK(d, BIT!(24));
+	s.SSE    = CHECK(d, BIT!(25));
+	s.SSE2   = CHECK(d, BIT!(26));
+	s.HTT    = CHECK(d, BIT!(28));
 
 	if (s.MaximumLeaf < 6) goto EXTENDED_LEAVES;
 
@@ -955,13 +957,13 @@ CACHE_DONE:
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
-		s.TurboBoost = CHECK(a & BIT!(1));
-		s.TurboBoost3 = CHECK(a & BIT!(14));
+		s.TurboBoost = CHECK(a, BIT!(1));
+		s.TurboBoost3 = CHECK(a, BIT!(14));
 		break;
 	default:
 	}
 
-	s.ARAT = CHECK(a & BIT!(2));
+	s.ARAT = CHECK(a, BIT!(2));
 
 	if (s.MaximumLeaf < 7) goto EXTENDED_LEAVES;
 
@@ -984,45 +986,50 @@ CACHE_DONE:
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
-		s.SGX         = CHECK(b & BIT!(2));
-		s.HLE         = CHECK(b & BIT!(4));
-		s.RTM         = CHECK(b & BIT!(11));
-		s.AVX512F     = CHECK(b & BIT!(16));
-		s.AVX512ER    = CHECK(b & BIT!(27));
-		s.AVX512PF    = CHECK(b & BIT!(26));
-		s.AVX512CD    = CHECK(b & BIT!(28));
-		s.AVX512DQ    = CHECK(b & BIT!(17));
-		s.AVX512BW    = CHECK(b & BIT!(30));
-		s.AVX512_IFMA = CHECK(b & BIT!(21));
-		s.AVX512_VBMI = CHECK(b & BIT!(31));
-		s.AVX512VL    = CHECK(c & BIT!(1));
-		s.FSREPMOV    = CHECK(c & BIT!(4));
-		s.WAITPKG     = CHECK(c & BIT!(5));
-		s.AVX512_VBMI2 = CHECK(c & BIT!(6));
-		s.AVX512_GFNI = CHECK(c & BIT!(8));
-		s.AVX512_VAES = CHECK(c & BIT!(9));
-		s.AVX512_VNNI = CHECK(c & BIT!(11));
-		s.AVX512_BITALG = CHECK(c & BIT!(12));
-		s.AVX512_VPOPCNTDQ = CHECK(c & BIT!(14));
-		s.CLDEMOTE    = CHECK(c & BIT!(25));
-		s.MOVDIRI     = CHECK(c & BIT!(27));
-		s.MOVDIR64B   = CHECK(c & BIT!(28));
-		s.PCONFIG     = CHECK(d & BIT!(18));
-		s.IBRS = s.IBPB = CHECK(d & BIT!(26));
-		s.STIBP       = CHECK(d & BIT!(27));
-		s.L1D_FLUSH   = CHECK(d & BIT!(28));
-		s.IA32_ARCH_CAPABILITIES = CHECK(d & BIT!(29));
-		s.SSBD        = CHECK(d & BIT!(31));
+		// b
+		s.SGX         = CHECK(b, BIT!(2));
+		s.HLE         = CHECK(b, BIT!(4));
+		s.RTM         = CHECK(b, BIT!(11));
+		s.AVX512F     = CHECK(b, BIT!(16));
+		s.AVX512ER    = CHECK(b, BIT!(27));
+		s.AVX512PF    = CHECK(b, BIT!(26));
+		s.AVX512CD    = CHECK(b, BIT!(28));
+		s.AVX512DQ    = CHECK(b, BIT!(17));
+		s.AVX512BW    = CHECK(b, BIT!(30));
+		s.AVX512_IFMA = CHECK(b, BIT!(21));
+		s.AVX512_VBMI = CHECK(b, BIT!(31));
+		// c
+		s.AVX512VL    = CHECK(c, BIT!(1));
+		s.FSREPMOV    = CHECK(c, BIT!(4));
+		s.WAITPKG     = CHECK(c, BIT!(5));
+		s.AVX512_VBMI2 = CHECK(c, BIT!(6));
+		s.AVX512_GFNI = CHECK(c, BIT!(8));
+		s.AVX512_VAES = CHECK(c, BIT!(9));
+		s.AVX512_VNNI = CHECK(c, BIT!(11));
+		s.AVX512_BITALG = CHECK(c, BIT!(12));
+		s.AVX512_VPOPCNTDQ = CHECK(c, BIT!(14));
+		s.CLDEMOTE    = CHECK(c, BIT!(25));
+		s.MOVDIRI     = CHECK(c, BIT!(27));
+		s.MOVDIR64B   = CHECK(c, BIT!(28));
+		// d
+		s.MOVDIR64B   = CHECK(d, BIT!(2));
+		s.MOVDIR64B   = CHECK(d, BIT!(3));
+		s.PCONFIG     = CHECK(d, BIT!(18));
+		s.IBRS = s.IBPB = CHECK(d, BIT!(26));
+		s.STIBP       = CHECK(d, BIT!(27));
+		s.L1D_FLUSH   = CHECK(d, BIT!(28));
+		s.IA32_ARCH_CAPABILITIES = CHECK(d, BIT!(29));
+		s.SSBD        = CHECK(d, BIT!(31));
 		break;
 	default:
 	}
 
-	s.BMI1   = CHECK(b & BIT!(4));
-	s.AVX2   = CHECK(b & BIT!(5));
-	s.SMEP   = CHECK(b & BIT!(7));
-	s.BMI2   = CHECK(b & BIT!(8));
-	s.RDSEED = CHECK(b & BIT!(18));
-	s.RDPID  = CHECK(c & BIT!(22));
+	s.BMI1   = CHECK(b, BIT!(4));
+	s.AVX2   = CHECK(b, BIT!(5));
+	s.SMEP   = CHECK(b, BIT!(7));
+	s.BMI2   = CHECK(b, BIT!(8));
+	s.RDSEED = CHECK(b, BIT!(18));
+	s.RDPID  = CHECK(c, BIT!(22));
 
 	//if (s.MaximumLeaf < ...) goto EXTENDED_LEAVES;
 	
@@ -1046,22 +1053,22 @@ EXTENDED_LEAVES:
 
 	switch (VendorID) {
 	case VENDOR_AMD:
-		s.Virt      = CHECK(c & BIT!(2)); // SVM
-		s.SSE4a     = CHECK(c & BIT!(6));
-		s.FMA4      = CHECK(c & BIT!(16));
-		s.MMXExt    = CHECK(d & BIT!(22));
-		s._3DNowExt = CHECK(d & BIT!(30));
-		s._3DNow    = CHECK(d & BIT!(31));
+		s.Virt      = CHECK(c, BIT!(2)); // SVM
+		s.SSE4a     = CHECK(c, BIT!(6));
+		s.FMA4      = CHECK(c, BIT!(16));
+		s.MMXExt    = CHECK(d, BIT!(22));
+		s._3DNowExt = CHECK(d, BIT!(30));
+		s._3DNow    = CHECK(d, BIT!(31));
 		break;
 	default:
 	}
 
-	s.LZCNT     = CHECK(c & BIT!(5));
-	s.PREFETCHW = CHECK(c & BIT!(8));
-	s.NX        = CHECK(d & BIT!(20));
-	s.Page1GB   = CHECK(d & BIT!(26));
-	s.RDTSCP    = CHECK(d & BIT!(27));
-	s.LongMode  = CHECK(d & BIT!(29));
+	s.LZCNT     = CHECK(c, BIT!(5));
+	s.PREFETCHW = CHECK(c, BIT!(8));
+	s.NX        = CHECK(d, BIT!(20));
+	s.Page1GB   = CHECK(d, BIT!(26));
+	s.RDTSCP    = CHECK(d, BIT!(27));
+	s.LongMode  = CHECK(d, BIT!(29));
 
 	if (s.MaximumExtendedLeaf < 0x8000_0007) return;
 
@@ -1079,16 +1086,16 @@ EXTENDED_LEAVES:
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
-		s.RDSEED = CHECK(b & BIT!(28));
+		s.RDSEED = CHECK(b, BIT!(28));
 		break;
 	case VENDOR_AMD:
-		s.TM = CHECK(d & BIT!(4));
-		s.TurboBoost = CHECK(d & BIT!(9));
+		s.TM = CHECK(d, BIT!(4));
+		s.TurboBoost = CHECK(d, BIT!(9));
 		break;
 	default:
 	}
 
-	s.TscInvariant = CHECK(d & BIT!(8));
+	s.TscInvariant = CHECK(d, BIT!(8));
 
 	if (s.MaximumExtendedLeaf < 0x8000_0008) return;
 
@@ -1107,16 +1114,16 @@ EXTENDED_LEAVES:
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
-		s.WBNOINVD = CHECK(b & BIT!(9));
+		s.WBNOINVD = CHECK(b, BIT!(9));
 		break;
 	case VENDOR_AMD:
-		s.IBPB      = CHECK(b & BIT!(12));
-		s.IBRS      = CHECK(b & BIT!(14));
-		s.STIBP     = CHECK(b & BIT!(15));
-		s.IBRS_ON   = CHECK(b & BIT!(16));
-		s.STIBP_ON  = CHECK(b & BIT!(17));
-		s.IBRS_PREF = CHECK(b & BIT!(18));
-		s.SSBD      = CHECK(b & BIT!(24));
+		s.IBPB      = CHECK(b, BIT!(12));
+		s.IBRS      = CHECK(b, BIT!(14));
+		s.STIBP     = CHECK(b, BIT!(15));
+		s.IBRS_ON   = CHECK(b, BIT!(16));
+		s.STIBP_ON  = CHECK(b, BIT!(17));
+		s.IBRS_PREF = CHECK(b, BIT!(18));
+		s.SSBD      = CHECK(b, BIT!(24));
 		break;
 	default:
 	}
@@ -1291,6 +1298,8 @@ struct __CPUINFO { align(1):
 	ubyte AVX512_VNNI;
 	ubyte AVX512_BITALG;
 	ubyte AVX512_VPOPCNTDQ;
+	ubyte AVX512_4VNNIW;
+	ubyte AVX512_4FMAPS;
 	ubyte AVX512VL;
 
 	ubyte _3DNow;

@@ -18,7 +18,7 @@ GDC support is still experimental. **Compiling above -O1 segfaults at run-time.*
 
 ## LDC 1.13.0+ on Windows
 
-Since LDC includes lld-link on Windows platforms, the project may fail to link. Using the older linker from Microsoft will likely fail as well. No work-arounds has been found up to this date.
+Since LDC 1.13.0 includes lld-link on Windows platforms, the project may fail to link. Using the older linker from Microsoft will likely fail as well. No work-arounds has been found up to this date other than using LDC 1.12.x.
 
 # Default Mode Example
 

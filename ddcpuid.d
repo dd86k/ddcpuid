@@ -62,6 +62,25 @@ Compiler: `~ __VENDOR__ ~" v%d\n",
 	);
 }
 
+/// Print cpuid info
+extern(C) void printc(uint leaf) {
+	uint a = void, b = void, c = void, d = void;
+	version (GNU) asm {
+		"cpuid\n"
+		: "=a" a, "=b" b, "=c" c, "=d" d
+		: "a" leaf;
+	} else asm {
+		mov EAX, leaf;
+		mov ECX, 0;
+		cpuid;
+		mov a, EAX;
+		mov b, EBX;
+		mov c, ECX;
+		mov d, EDX;
+	}
+	printf("| %8X | %8X | %8X | %8X | %8X |\n", leaf, a, b, c, d);
+}
+
 //TODO: (AMD) APICv (AVIC) Fn8000_000A_EDX[13], Intel has no bit for APICv
 // GAS reminder: asm { "asm" : output : input : clobber }
 
@@ -112,24 +131,6 @@ int main(int argc, char **argv) {
 	debug printf("max leaf: %Xh\nm e leaf: %Xh\n", s.MaximumLeaf, s.MaximumExtendedLeaf);
 
 	if (opt_raw) { // -r
-		/// Print cpuid info
-		extern(C) void printc(uint leaf) {
-			uint a = void, b = void, c = void, d = void;
-			version (GNU) asm {
-				"cpuid\n"
-				: "=a" a, "=b" b, "=c" c, "=d" d
-				: "a" leaf;
-			} else asm {
-				mov EAX, leaf;
-				mov ECX, 0;
-				cpuid;
-				mov a, EAX;
-				mov b, EBX;
-				mov c, ECX;
-				mov d, EDX;
-			}
-			printf("| %8X | %8X | %8X | %8X | %8X |\n", leaf, a, b, c, d);
-		}
 		puts(
 			"| Leaf     | EAX      | EBX      | ECX      | EDX      |\n"~
 			"|----------|----------|----------|----------|----------|"
@@ -1013,8 +1014,8 @@ CACHE_DONE:
 		s.MOVDIRI     = CHECK(c, BIT!(27));
 		s.MOVDIR64B   = CHECK(c, BIT!(28));
 		// d
-		s.MOVDIR64B   = CHECK(d, BIT!(2));
-		s.MOVDIR64B   = CHECK(d, BIT!(3));
+		s.AVX512_4VNNIW   = CHECK(d, BIT!(2));
+		s.AVX512_4FMAPS   = CHECK(d, BIT!(3));
 		s.PCONFIG     = CHECK(d, BIT!(18));
 		s.IBRS = s.IBPB = CHECK(d, BIT!(26));
 		s.STIBP       = CHECK(d, BIT!(27));
@@ -1415,8 +1416,7 @@ struct __CPUINFO { align(1):
 	ubyte RDSEED;	// RDSEED instruction
 	// EDX
 	ubyte NX;	// 20, No execute
-	/// 1GB Pages
-	ubyte Page1GB;	// 26
+	ubyte Page1GB;	// 26, 1 GB pages
 	ubyte LongMode;	// 29, Intel64/AMD64
 
 	// EDX
@@ -1450,8 +1450,8 @@ struct __CPUINFO { align(1):
 
 pragma(msg, "-- sizeof __CPUINFO: ", __CPUINFO.sizeof);
 pragma(msg, "-- sizeof __CACHEINFO: ", __CACHEINFO.sizeof);
-static assert(__CPUINFO.vendorString.sizeof == 12);
-static assert(__CPUINFO.cpuString.sizeof == 48);
+static if (__CPUINFO.sizeof % 4 != 0)
+	pragma(msg, "__CPUINFO structure should be padded to 4 bytes");
 static assert(__CPUINFO.__bundle1.sizeof == 4);
 static assert(__CPUINFO.__bundle2.sizeof == 2);
 static assert(__CPUINFO.__bundle3.sizeof == 2);

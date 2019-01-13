@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
 		} // else if
 	} // while arg
 
-	__CPUINFO s; // inits all to zero
+	CPUINFO s; // inits all to zero
 
 	if (opt_override) {
 		s.MaximumLeaf = MAX_LEAF;
@@ -128,7 +128,8 @@ int main(int argc, char **argv) {
 		s.MaximumLeaf = hleaf;
 		s.MaximumExtendedLeaf = heleaf;
 	}
-	debug printf("max leaf: %Xh\nm e leaf: %Xh\n", s.MaximumLeaf, s.MaximumExtendedLeaf);
+	debug printf("max leaf: %Xh\nm e leaf: %Xh\n",
+		s.MaximumLeaf, s.MaximumExtendedLeaf);
 
 	if (opt_raw) { // -r
 		puts(
@@ -148,7 +149,7 @@ int main(int argc, char **argv) {
 
 	debug printf("[L%04d] Fetching info...\n", __LINE__);
 
-	fetchInfo(&s);
+	fetchInfo(s);
 
 	immutable(char) *cstring = cast(immutable(char) *)s.cpuString;
 
@@ -302,7 +303,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	__CACHEINFO *ca = cast(__CACHEINFO*)s.cache; /// Caches
+	CACHE *ca = cast(CACHE*)s.cache; /// Caches
 
 	while (ca.type) {
 		char c = 'K';
@@ -359,46 +360,28 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	printf( // Misc. and FPU
+	printf(
+		// Misc. and FPU
 		"\nHighest Leaf: %Xh | Extended: %Xh\n"~
 		"Processor type: %s\n"~
 		"\n[FPU]\n"~
 		"\tFloating Point Unit [FPU]: %s\n"~
-		"\t16-bit conversion [F16C]: %s\n",
-		s.MaximumLeaf, s.MaximumExtendedLeaf,
-		_pt,
-		B(s.FPU),
-		B(s.F16C)
-	);
-
-	printf( // ACPI
+		"\t16-bit conversion [F16C]: %s\n"~
+		// ACPI
 		"\n[ACPI]\n"~
 		"\tACPI: %s\n"~
 		"\tAPIC: %s (Initial ID: %d, Max: %d)\n"~
 		"\tx2APIC: %s\n"~
 		"\tAlways-Running-APIC-Timer [ARAT]: %s\n"~
 		"\tThermal Monitor: %s\n"~
-		"\tThermal Monitor 2: %s\n",
-		B(s.ACPI),
-		B(s.APIC), s.InitialAPICID, s.MaxIDs,
-		B(s.x2APIC),
-		B(s.ARAT),
-		B(s.TM),
-		B(s.TM2)
-	);
-
-	printf( // Virtualization + Cache
+		"\tThermal Monitor 2: %s\n"~
+		// Virtualization + Cache
 		"\n[Virtualization]\n"~
 		"\tVirtual 8086 Mode Enhancements [VME]: %s\n"~
 		"\n[Cache]\n"~
 		"\tL1 Context ID [CNXT-ID]: %s\n"~
-		"\tSelf Snoop [SS]: %s\n",
-		B(s.VME),
-		B(s.CNXT_ID),
-		B(s.SS)
-	);
-
-	printf( // Memory
+		"\tSelf Snoop [SS]: %s\n"~
+		// Memory
 		"\n[Memory]\n"~
 		"\tPhysical Address Extension [PAE]: %s\n"~
 		"\tPage Size Extension [PSE]: %s\n"~
@@ -410,7 +393,40 @@ int main(int argc, char **argv) {
 		"\tPage Global Bit [PGE]: %s\n"~
 		"\tSupervisor Mode Execution Protection [SMEP]: %s\n"~
 		"\tMaximum Physical Memory Bits: %d\n"~
-		"\tMaximum Linear Memory Bits: %d\n",
+		"\tMaximum Linear Memory Bits: %d\n"~
+		// Debugging
+		"\n[Debugging]\n"~
+		"\tMachine Check Architecture [MCA]: %s\n"~
+		"\tMachine Check Exception [MCE]: %s\n"~
+		"\tDebugging Extensions [DE]: %s\n"~
+		"\tDebug Store [DS]: %s\n"~
+		"\tDebug Store CPL [DS-CPL]: %s\n"~
+		"\t64-bit DS Area [DTES64]: %s\n"~
+		"\tPerfmon and Debug Capability [PDCM]: %s\n"~
+		"\tIA32_DEBUG_INTERFACE MSR [SDBG]: %s\n"~
+		// Security
+		"\n[Security]\n"~
+		"\tIndirect Branch Prediction Barrier [IBPB]: %s\n"~
+		"\tIndirect Branch Restricted Speculation [IBRS]: %s\n"~
+		"\tSingle Thread Indirect Branch Predictor [STIBP]: %s\n"~
+		"\tSpeculative Store Bypass Disable [SSBD]: %s\n"
+		, // Misc. and FPU
+		s.MaximumLeaf, s.MaximumExtendedLeaf,
+		_pt,
+		B(s.FPU),
+		B(s.F16C),
+		// ACPI
+		B(s.ACPI),
+		B(s.APIC), s.InitialAPICID, s.MaxIDs,
+		B(s.x2APIC),
+		B(s.ARAT),
+		B(s.TM),
+		B(s.TM2),
+		// Virtualization + Cache
+		B(s.VME),
+		B(s.CNXT_ID),
+		B(s.SS),
+		// Memory
 		B(s.PAE),
 		B(s.PSE),
 		B(s.PSE_36),
@@ -421,19 +437,8 @@ int main(int argc, char **argv) {
 		B(s.PGE),
 		B(s.SMEP),
 		s.addr_phys_bits,
-		s.addr_line_bits
-	);
-
-	printf( // Debugging
-		"\n[Debugging]\n"~
-		"\tMachine Check Architecture [MCA]: %s\n"~
-		"\tMachine Check Exception [MCE]: %s\n"~
-		"\tDebugging Extensions [DE]: %s\n"~
-		"\tDebug Store [DS]: %s\n"~
-		"\tDebug Store CPL [DS-CPL]: %s\n"~
-		"\t64-bit DS Area [DTES64]: %s\n"~
-		"\tPerfmon and Debug Capability [PDCM]: %s\n"~
-		"\tIA32_DEBUG_INTERFACE MSR [SDBG]: %s\n",
+		s.addr_line_bits,
+		// Debugging
 		B(s.MCA),
 		B(s.MCE),
 		B(s.DE),
@@ -441,15 +446,8 @@ int main(int argc, char **argv) {
 		B(s.DS_CPL),
 		B(s.DTES64),
 		B(s.PDCM),
-		B(s.SDBG)
-	);
-
-	printf( // Security
-		"\n[Security]\n"~
-		"\tIndirect Branch Prediction Barrier [IBPB]: %s\n"~
-		"\tIndirect Branch Restricted Speculation [IBRS]: %s\n"~
-		"\tSingle Thread Indirect Branch Predictor [STIBP]: %s\n"~
-		"\tSpeculative Store Bypass Disable [SSBD]: %s\n",
+		B(s.SDBG),
+		// Security
 		B(s.IBPB),
 		B(s.IBRS),
 		B(s.STIBP),
@@ -485,7 +483,8 @@ int main(int argc, char **argv) {
 		"\tRestricted Transactional Memory [RTM]: %s\n"~
 		"\tProcessor Serial Number [PSN]: %s\n"~
 		"\tPending Break Enable [PBE]: %s\n"~
-		"\tIA32_ARCH_CAPABILITIES MSR: %s\n",
+		"\tIA32_ARCH_CAPABILITIES MSR: %s\n"~
+		"\tLAHF/SAHF in 64-bit mode: %s\n",
 		s.BrandIndex,
 		B(s.xTPR),
 		B(s.PCID),
@@ -494,6 +493,7 @@ int main(int argc, char **argv) {
 		B(s.PSN),
 		B(s.PBE),
 		B(s.IA32_ARCH_CAPABILITIES),
+		B(s.LAHF64),
 	);
 	if (opt_future) {
 		printf(
@@ -522,7 +522,7 @@ template BIT(int n) { enum { BIT = 1 << n } }
  *****************************/
 
 extern (C)
-void fetchInfo(__CPUINFO *s) {
+void fetchInfo(ref CPUINFO s) {
 	// Position Independant Code compliant
 	size_t __A = cast(size_t)&s.vendorString;
 	size_t __B = cast(size_t)&s.cpuString;
@@ -654,7 +654,7 @@ void fetchInfo(__CPUINFO *s) {
 	uint a = void, b = void, c = void, d = void; // EAX to EDX
 
 	uint l; /// Cache level
-	__CACHEINFO *ca = cast(__CACHEINFO*)s.cache;
+	CACHE *ca = cast(CACHE*)s.cache;
 
 	debug puts("--- Cache information ---");
 
@@ -1034,7 +1034,7 @@ CACHE_DONE:
 	s.RDPID  = CHECK(c, BIT!(22));
 
 	//if (s.MaximumLeaf < ...) goto EXTENDED_LEAVES;
-	
+
 	/*
 	 * Extended CPUID leaves
 	 */
@@ -1065,6 +1065,7 @@ EXTENDED_LEAVES:
 	default:
 	}
 
+	s.LAHF64    = CHECK(c, BIT!(0));
 	s.LZCNT     = CHECK(c, BIT!(5));
 	s.PREFETCHW = CHECK(c, BIT!(8));
 	s.NX        = CHECK(d, BIT!(20));
@@ -1222,7 +1223,7 @@ INTEL_A:
 
 extern (C):
 
-struct __CACHEINFO {
+struct CACHE {
 	/*
 	 * Cache Size in Bytes
 	 * (Ways + 1) * (Partitions + 1) * (Line_Size + 1) * (Sets + 1)
@@ -1254,7 +1255,7 @@ struct __CACHEINFO {
 	ubyte features;
 }
 
-struct __CPUINFO { align(1):
+struct CPUINFO { align(1):
 	ubyte [12]vendorString;	// inits to 0
 	ubyte [48]cpuString;	// inits to 0
 
@@ -1410,6 +1411,7 @@ struct __CPUINFO { align(1):
 
 	// ---- 8000_0001 ----
 	// ECX
+	ubyte LAHF64;	/// LAHF/SAHF in LONG mode
 	ubyte LZCNT;	/// Counts leading zero bits, SSE4 SIMD
 	ubyte PREFETCHW;	// 8, Prefetch
 
@@ -1442,17 +1444,13 @@ struct __CPUINFO { align(1):
 	// ---- 8000_000A ----
 	ubyte VirtVersion;	// (AMD) EAX[7:0]
 
-	ubyte [1]pad;
-
 	// 6 levels should be enough (L1-D, L1-I, L2, L3, 0, 0)
-	__CACHEINFO [6]cache;	// all inits to 0
+	CACHE [6]cache;	// all inits to 0
 }
 
-pragma(msg, "-- sizeof __CPUINFO: ", __CPUINFO.sizeof);
-pragma(msg, "-- sizeof __CACHEINFO: ", __CACHEINFO.sizeof);
-static if (__CPUINFO.sizeof % 4 != 0)
-	pragma(msg, "__CPUINFO structure should be padded to 4 bytes");
-static assert(__CPUINFO.__bundle1.sizeof == 4);
-static assert(__CPUINFO.__bundle2.sizeof == 2);
-static assert(__CPUINFO.__bundle3.sizeof == 2);
-static assert(__CACHEINFO.__bundle1.sizeof == 4);
+pragma(msg, "-- sizeof CPUINFO: ", CPUINFO.sizeof);
+pragma(msg, "-- sizeof CACHE: ", CACHE.sizeof);
+static assert(CPUINFO.__bundle1.sizeof == 4);
+static assert(CPUINFO.__bundle2.sizeof == 2);
+static assert(CPUINFO.__bundle3.sizeof == 2);
+static assert(CACHE.__bundle1.sizeof == 4);

@@ -683,7 +683,7 @@ void fetchInfo(ref CPUINFO s) {
 		}
 
 		// Fix LDC2 compiling issue (#13)
-		if (a == 0) goto CACHE_DONE;
+		if (a == 0) goto default;
 
 		ca.type = (a & 0xF);
 		ca.level = cast(ubyte)((a >> 5) & 7);
@@ -714,7 +714,7 @@ void fetchInfo(ref CPUINFO s) {
 			"mov %%ecx, %0\n"~
 			"mov %%edx, %1"
 			: "=c" c, "=d" d;
-		} else asm { // olde way
+		} else asm {
 			mov EAX, 0x8000_0005;
 			cpuid;
 			mov c, ECX;
@@ -803,7 +803,7 @@ CACHE_AMD_NEWER:
 		}
 		// Fix LDC2 compiling issue (#13)
 		// LDC has some trouble jumping to an exterior label
-		if (a == 0) goto CACHE_DONE;
+		if (a == 0) goto default;
 
 		ca.type = (a & 0xF); // Same as Intel
 		ca.level = cast(ubyte)((a >> 5) & 7);
@@ -824,8 +824,6 @@ CACHE_AMD_NEWER:
 		goto CACHE_AMD_NEWER;
 	default:
 	}
-
-CACHE_DONE:
 
 	version (GNU) asm {
 		"mov $1, %%eax\n"~

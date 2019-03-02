@@ -5,7 +5,7 @@ extern (C) {
 	int putchar(int c);
 }
 
-enum VERSION = "0.11.0"; /// Program version
+enum VERSION = "0.12.0"; /// Program version
 
 enum	MAX_LEAF = 0x20, /// Maximum leaf (-o)
 	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
@@ -392,6 +392,8 @@ int main(int argc, char **argv) {
 		"\tMemory Type Range Registers [MTRR]: %s\n"~
 		"\tPage Global Bit [PGE]: %s\n"~
 		"\tSupervisor Mode Execution Protection [SMEP]: %s\n"~
+		"\tSupervisor Mode Access Protection [SMAP]: %s\n"~
+		"\tProtection Key Units [PKU]: %s\n"~
 		"\tMaximum Physical Memory Bits: %d\n"~
 		"\tMaximum Linear Memory Bits: %d\n"~
 		// Debugging
@@ -436,6 +438,8 @@ int main(int argc, char **argv) {
 		B(s.MTRR),
 		B(s.PGE),
 		B(s.SMEP),
+		B(s.SMAP),
+		B(s.PKU),
 		s.addr_phys_bits,
 		s.addr_line_bits,
 		// Debugging
@@ -991,6 +995,7 @@ CACHE_AMD_NEWER:
 		s.HLE         = CHECK(b, BIT!(4));
 		s.RTM         = CHECK(b, BIT!(11));
 		s.AVX512F     = CHECK(b, BIT!(16));
+		s.SMAP        = CHECK(b, BIT!(20));
 		s.AVX512ER    = CHECK(b, BIT!(27));
 		s.AVX512PF    = CHECK(b, BIT!(26));
 		s.AVX512CD    = CHECK(b, BIT!(28));
@@ -1000,6 +1005,7 @@ CACHE_AMD_NEWER:
 		s.AVX512_VBMI = CHECK(b, BIT!(31));
 		// c
 		s.AVX512VL    = CHECK(c, BIT!(1));
+		s.PKU    = CHECK(c, BIT!(3));
 		s.FSREPMOV    = CHECK(c, BIT!(4));
 		s.WAITPKG     = CHECK(c, BIT!(5));
 		s.AVX512_VBMI2 = CHECK(c, BIT!(6));
@@ -1015,7 +1021,7 @@ CACHE_AMD_NEWER:
 		s.AVX512_4VNNIW   = CHECK(d, BIT!(2));
 		s.AVX512_4FMAPS   = CHECK(d, BIT!(3));
 		s.PCONFIG     = CHECK(d, BIT!(18));
-		s.IBRS = s.IBPB = CHECK(d, BIT!(26));
+		s.IBRS        = s.IBPB = CHECK(d, BIT!(26));
 		s.STIBP       = CHECK(d, BIT!(27));
 		s.L1D_FLUSH   = CHECK(d, BIT!(28));
 		s.IA32_ARCH_CAPABILITIES = CHECK(d, BIT!(29));
@@ -1391,7 +1397,9 @@ struct CPUINFO { align(1):
 		}
 	}
 	ubyte RTM;	// 11 restricted transactional memory
+	ubyte SMAP;	// 22
 	// -- ECX --
+	ubyte PKU;	// 3
 	ubyte FSREPMOV;	// 4
 	ubyte WAITPKG;	// 5
 	ubyte RDPID;	// 22

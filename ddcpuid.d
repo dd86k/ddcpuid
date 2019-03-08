@@ -21,49 +21,55 @@ enum // LSB
 	VENDOR_AMD	= 0x68747541,	// "Auth"
 	VENDOR_VIA	= 0x20414956;	// "VIA "
 
-__gshared uint VendorID; /// Vendor "ID", inits to VENDOR_OTHER
-__gshared ubyte opt_details;	/// Detailed output option (-d)
-
 version (X86) {
 	enum PLATFORM = "x86";
 } else version (X86_64) {
 	enum PLATFORM = "amd64";
+} else version (ARM) {
+	enum PLATFORM = "aarch32";
+	static assert(0, "aarch32 support is planned");
+} else version (AArch64) {
+	enum PLATFORM = "aarch64";
+	static assert(0, "aarch64 support is planned");
 } else {
 	static assert(0,
 		"ddcpuid is strictly a x86/AMD64 tool at the current moment");
 }
 
-extern (C) void shelp() {
+extern (C):
+
+__gshared uint VendorID; /// Vendor "ID", inits to VENDOR_OTHER
+__gshared ubyte opt_details;	/// Detailed output option (-d)
+
+void shelp() {
 	puts(
-//-----------------------------------------------------------------------------|
-`x86 CPUID information tool
-  Usage: ddcpuid [OPTIONS]
-
-OPTIONS
-  -d    Advanced information mode
-  -r    Show raw CPUID data in a table
-  -o    Override leaves to 20h and 8000_0020h
-  -f    (Intel) Show features not yet in the main reference manual
-        This flag is more likely to work with *very* recent processors
-
-  -v, --version   Print version information screen and quit
-  -h, --help      Print this help screen and quit`
+		"x86 CPUID information tool\n"~
+		"\tUsage: ddcpuid [OPTIONS]\n\n"~
+		"OPTIONS\n"~
+		"\t-d    Advanced information mode\n"~
+	  	"\t-r    Show raw CPUID data in a table\n"~
+		"\t-o    Override leaves to 20h and 8000_0020h\n"~
+		"\t-f    (Intel) Show features not yet in the mainline reference manual\n"~
+		"\n"~
+		"\t-v, --version   Print version information screen and quit\n"~
+		"\t-h, --help      Print this help screen and quit"
 	);
 }
 
-extern (C) void sversion() {
+void sversion() {
+	import d = std.compiler;
 	printf(
-`ddcpuid-`~PLATFORM~` v`~VERSION~` (`~__TIMESTAMP__~`)
-Copyright (c) dd86k 2016-2018
-License: MIT License <http://opensource.org/licenses/MIT>
-Project page: <https://github.com/dd86k/ddcpuid>
-Compiler: `~ __VENDOR__ ~" v%d\n",
-		__VERSION__
+		"ddcpuid-"~PLATFORM~" v"~VERSION~" ("~__TIMESTAMP__~")\n"~
+		"Copyright (c) dd86k 2016-2018\n"~
+		"License: MIT License <http://opensource.org/licenses/MIT>\n"~
+		"Project page: <https://github.com/dd86k/ddcpuid>\n"~
+		"Compiler: "~ __VENDOR__ ~" v%d.%03d\n",
+		d.version_major, d.version_minor
 	);
 }
 
 /// Print cpuid info
-extern(C) void printc(uint leaf) {
+void printc(uint leaf) {
 	uint a = void, b = void, c = void, d = void;
 	version (GNU) asm {
 		"cpuid\n"
@@ -84,13 +90,12 @@ extern(C) void printc(uint leaf) {
 //TODO: (AMD) APICv (AVIC) Fn8000_000A_EDX[13], Intel has no bit for APICv
 // GAS reminder: asm { "asm" : output : input : clobber }
 
-extern (C)
 int main(int argc, char **argv) {
-	ubyte opt_raw;	/// Raw option (-r)
+	bool opt_raw;	/// Raw option (-r)
 	// See Intel(R) Architecture Instruction Set Extensions and Future
 	// Features Programming Reference
-	ubyte opt_future;	/// Enable showing future features
-	ubyte opt_override;	/// opt_override max leaf option (-o)
+	bool opt_future;	/// Enable showing future features
+	bool opt_override;	/// opt_override max leaf option (-o)
 
 	while (--argc >= 1) { // CLI
 		if (argv[argc][1] == '-') { // Long arguments
@@ -106,10 +111,10 @@ int main(int argc, char **argv) {
 		} else if (argv[argc][0] == '-') { // Short arguments
 			char* a = argv[argc];
 			while (*++a != 0) switch (*a) {
-			case 'o': ++opt_override; break;
-			case 'd': ++opt_details; break;
-			case 'r': ++opt_raw; break;
-			case 'f': ++opt_future; break;
+			case 'o': opt_override = 1; break;
+			case 'd': opt_details = 1; break;
+			case 'r': opt_raw = 1; break;
+			case 'f': opt_future = 1; break;
 			case 'h', '?': shelp; return 0;
 			case 'v': sversion; return 0;
 			default:
@@ -119,7 +124,8 @@ int main(int argc, char **argv) {
 		} // else if
 	} // while arg
 
-	CPUINFO s; // inits all to zero
+	CPUINFO s = void;
+	s.cache[4].type = 0;
 
 	if (opt_override) {
 		s.MaximumLeaf = MAX_LEAF;
@@ -509,14 +515,14 @@ int main(int argc, char **argv) {
 	return 0;
 } // main
 
-pragma(inline, true) extern(C)
+pragma(inline, true)
 immutable(char) *B(uint c) pure @nogc nothrow {
 	return c ? "Yes" : "No";
 }
 
-pragma(inline, true) extern (C)
+pragma(inline, true)
 ubyte CHECK(int n, int f) pure @nogc nothrow {
-	return (n & f) ? 1 : 0;
+	return (n & f) != 0;
 }
 
 template BIT(int n) { enum { BIT = 1 << n } }
@@ -525,7 +531,6 @@ template BIT(int n) { enum { BIT = 1 << n } }
  * FETCH INFO
  *****************************/
 
-extern (C)
 void fetchInfo(ref CPUINFO s) {
 	// Position Independant Code compliant
 	size_t __A = cast(size_t)&s.vendorString;
@@ -1162,7 +1167,7 @@ EXTENDED_LEAVES:
 version (GNU) {
 	/// Get the maximum leaf.
 	/// Returns: Maximum leaf
-	extern (C) uint hleaf() {
+	uint hleaf() {
 		uint r = void;
 		asm {
 			"mov $0, %%eax\n"~
@@ -1172,7 +1177,7 @@ version (GNU) {
 	}
 	/// Get the maximum extended leaf.
 	/// Returns: Maximum extended leaf
-	extern (C) uint heleaf() {
+	uint heleaf() {
 		uint r = void;
 		asm {
 			"mov $0x80000000, %%eax\n"~
@@ -1183,7 +1188,7 @@ version (GNU) {
 } else {
 	/// Get the maximum leaf.
 	/// Returns: Maximum leaf
-	extern (C) uint hleaf() {
+	uint hleaf() {
 		asm {	naked;
 			mov EAX, 0;
 			cpuid;
@@ -1192,7 +1197,7 @@ version (GNU) {
 	}
 	/// Get the maximum extended leaf.
 	/// Returns: Maximum extended leaf
-	extern (C) uint heleaf() {
+	uint heleaf() {
 		asm {	naked;
 			mov EAX, 0x8000_0000;
 			cpuid;
@@ -1224,8 +1229,6 @@ INTEL_A:
 		ret;
 	}
 }*/
-
-extern (C):
 
 struct CACHE {
 	/*

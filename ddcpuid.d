@@ -286,6 +286,7 @@ int main(int argc, char **argv) {
 	if (s.XSAVE) printf(" XSAVE/XRSTOR");
 	if (s.OSXSAVE) printf(" XSETBV/XGETBV");
 	if (s.FXSR) printf(" FXSAVE/FXRSTOR");
+	if (s.SHA) printf(" SHA");
 	if (opt_future) {
 		if (s.PCONFIG) printf(" PCONFIG");
 		if (s.WBNOINVD) printf(" WBNOINVD");
@@ -1007,6 +1008,7 @@ CACHE_AMD_NEWER:
 		s.AVX512DQ    = CHECK(b, BIT!(17));
 		s.AVX512BW    = CHECK(b, BIT!(30));
 		s.AVX512_IFMA = CHECK(b, BIT!(21));
+		s.SHA         = CHECK(b, BIT!(29));
 		s.AVX512_VBMI = CHECK(b, BIT!(31));
 		// c
 		s.AVX512VL    = CHECK(c, BIT!(1));
@@ -1310,6 +1312,7 @@ struct CPUINFO { align(1):
 	ubyte AVX512_4VNNIW;
 	ubyte AVX512_4FMAPS;
 	ubyte AVX512VL;
+	ubyte SHA;
 
 	ubyte _3DNow;
 	ubyte _3DNowExt;

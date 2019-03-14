@@ -190,109 +190,109 @@ int main(int argc, char **argv) {
 	// -- Processor extensions --
 
 	printf("[Extensions]");
-	if (s.MMX) printf("  MMX");
-	if (s.MMXExt) printf("  Extended MMX");
-	if (s._3DNow) printf("  3DNow!");
-	if (s._3DNowExt) printf("  Extended 3DNow!");
-	if (s.SSE) printf("  SSE");
-	if (s.SSE2) printf("  SSE2");
-	if (s.SSE3) printf("  SSE3");
-	if (s.SSSE3) printf("  SSSE3");
-	if (s.SSE41) printf("  SSE4.1");
-	if (s.SSE42) printf("  SSE4.2");
-	if (s.SSE4a) printf("  SSE4a");
+	if (s.MMX) printf(" MMX");
+	if (s.MMXExt) printf(" Extended MMX");
+	if (s._3DNow) printf(" 3DNow!");
+	if (s._3DNowExt) printf(" Extended 3DNow!");
+	if (s.SSE) printf(" SSE");
+	if (s.SSE2) printf(" SSE2");
+	if (s.SSE3) printf(" SSE3");
+	if (s.SSSE3) printf(" SSSE3");
+	if (s.SSE41) printf(" SSE4.1");
+	if (s.SSE42) printf(" SSE4.2");
+	if (s.SSE4a) printf(" SSE4a");
 	if (s.LongMode)
 		switch (VendorID) {
-		case VENDOR_INTEL: printf("  Intel64"); break;
-		case VENDOR_AMD: printf("  AMD64"); break;
-		default: printf("  x86-64"); break;
+		case VENDOR_INTEL: printf(" Intel64"); break;
+		case VENDOR_AMD: printf(" AMD64"); break;
+		default: printf(" x86-64"); break;
 		}
 	if (s.Virt)
 		switch (VendorID) {
-		case VENDOR_INTEL: printf("  VT-x (VMX)"); break; // VMX
+		case VENDOR_INTEL: printf(" VT-x (VMX)"); break; // VMX
 		case VENDOR_AMD: // SVM
-			printf("  AMD-V (VMX, v%d)\n", s.VirtVersion);
+			printf(" AMD-V (VMX, v%d)\n", s.VirtVersion);
 			break;
-		//case VENDOR_VIA: printf("  VIA VT"); break; <- Uncomment when VIA
-		default: printf("  VMX"); break;
+		//case VENDOR_VIA: printf(" VIA VT"); break; <- Uncomment when VIA
+		default: printf(" VMX"); break;
 		}
 	if (s.NX)
 		switch (VendorID) {
-		case VENDOR_INTEL: printf("  Intel XD (NX)"); break;
-		case VENDOR_AMD: printf("  AMD EVP (NX)"); break;
-		default: printf("  NX"); break;
+		case VENDOR_INTEL: printf(" Intel XD (NX)"); break;
+		case VENDOR_AMD: printf(" AMD EVP (NX)"); break;
+		default: printf(" NX"); break;
 		}
-	if (s.SMX) printf("  Intel TXT (SMX)");
-	if (s.AES) printf("  AES-NI");
-	if (s.AVX) printf("  AVX");
-	if (s.AVX2) printf("  AVX2");
+	if (s.SMX) printf(" Intel TXT (SMX)");
+	if (s.AES) printf(" AES-NI");
+	if (s.AVX) printf(" AVX");
+	if (s.AVX2) printf(" AVX2");
 	if (s.AVX512F) {
-		printf("  AVX512F");
-		if (s.AVX512ER) printf("  AVX512ER");
-		if (s.AVX512PF) printf("  AVX512PF");
-		if (s.AVX512CD) printf("  AVX512CD");
-		if (s.AVX512DQ) printf("  AVX512DQ");
-		if (s.AVX512BW) printf("  AVX512BW");
-		if (s.AVX512VL) printf("  AVX512VL");
-		if (s.AVX512_IFMA) printf("  AVX512_IFMA");
-		if (s.AVX512_VBMI) printf("  AVX512_VBMI");
-		if (s.AVX512_4VNNIW) printf("  AVX512_4VNNIW");
-		if (s.AVX512_4FMAPS) printf("  AVX512_4FMAPS");
+		printf(" AVX512F");
+		if (s.AVX512ER) printf(" AVX512ER");
+		if (s.AVX512PF) printf(" AVX512PF");
+		if (s.AVX512CD) printf(" AVX512CD");
+		if (s.AVX512DQ) printf(" AVX512DQ");
+		if (s.AVX512BW) printf(" AVX512BW");
+		if (s.AVX512VL) printf(" AVX512VL");
+		if (s.AVX512_IFMA) printf(" AVX512_IFMA");
+		if (s.AVX512_VBMI) printf(" AVX512_VBMI");
+		if (s.AVX512_4VNNIW) printf(" AVX512_4VNNIW");
+		if (s.AVX512_4FMAPS) printf(" AVX512_4FMAPS");
 		if (opt_future) {
-			if (s.AVX512_VBMI2) printf("  AVX512_VBMI2");
-			if (s.AVX512_GFNI) printf("  AVX512_GFNI");
-			if (s.AVX512_VAES) printf("  AVX512_VAES");
-			if (s.AVX512_VNNI) printf("  AVX512_VNNI");
-			if (s.AVX512_BITALG) printf("  AVX512_BITALG");
+			if (s.AVX512_VBMI2) printf(" AVX512_VBMI2");
+			if (s.AVX512_GFNI) printf(" AVX512_GFNI");
+			if (s.AVX512_VAES) printf(" AVX512_VAES");
+			if (s.AVX512_VNNI) printf(" AVX512_VNNI");
+			if (s.AVX512_BITALG) printf(" AVX512_BITALG");
 		}
 	}
-	if (s.FMA) printf("  FMA3");
-	if (s.FMA4) printf("  FMA4");
-	if (s.BMI1) printf("  BMI1");
-	if (s.BMI2) printf("  BMI2");
+	if (s.FMA) printf(" FMA3");
+	if (s.FMA4) printf(" FMA4");
+	if (s.BMI1) printf(" BMI1");
+	if (s.BMI2) printf(" BMI2");
 	if (opt_future) {
-		if (s.WAITPKG) printf("  WAITPKG");
+		if (s.WAITPKG) printf(" WAITPKG");
 	}
 
 	// -- Other instructions --
 
 	printf("\n[+Instructions]");
-	if (s.MONITOR) printf("  MONITOR/MWAIT");
-	if (s.PCLMULQDQ) printf("  PCLMULQDQ");
-	if (s.CX8) printf("  CMPXCHG8B");
-	if (s.CMPXCHG16B) printf("  CMPXCHG16B");
-	if (s.MOVBE) printf("  MOVBE"); // Intel Atom and quite a few AMD processors.
-	if (s.RDRAND) printf("  RDRAND");
-	if (s.RDSEED) printf("  RDSEED");
-	if (s.MSR) printf("  RDMSR/WRMSR");
-	if (s.SEP) printf("  SYSENTER/SYSEXIT");
+	if (s.MONITOR) printf(" MONITOR/MWAIT");
+	if (s.PCLMULQDQ) printf(" PCLMULQDQ");
+	if (s.CX8) printf(" CMPXCHG8B");
+	if (s.CMPXCHG16B) printf(" CMPXCHG16B");
+	if (s.MOVBE) printf(" MOVBE"); // Intel Atom and quite a few AMD processors.
+	if (s.RDRAND) printf(" RDRAND");
+	if (s.RDSEED) printf(" RDSEED");
+	if (s.MSR) printf(" RDMSR/WRMSR");
+	if (s.SEP) printf(" SYSENTER/SYSEXIT");
 	if (s.TSC) {
-		printf("  RDTSC");
+		printf(" RDTSC");
 		if (s.TscDeadline)
-			printf("  +TSC-Deadline");
+			printf(" +TSC-Deadline");
 		if (s.TscInvariant)
-			printf("  +TSC-Invariant");
+			printf(" +TSC-Invariant");
 	}
-	if (s.RDTSCP) printf("  RDTSCP");
-	if (s.RDPID) printf("  RDPID");
+	if (s.RDTSCP) printf(" RDTSCP");
+	if (s.RDPID) printf(" RDPID");
 	if (s.CMOV) {
-		printf("  CMOV");
-		if (s.FPU) printf("  FCOMI/FCMOV");
+		printf(" CMOV");
+		if (s.FPU) printf(" FCOMI/FCMOV");
 	}
-	if (s.CLFSH) printf("  CLFLUSH (%d bytes)\n", s.CLFLUSHLineSize * 8);
-	if (s.PREFETCHW) printf("  PREFETCHW");
-	if (s.LZCNT) printf("  LZCNT");
-	if (s.POPCNT) printf("  POPCNT");
-	if (s.XSAVE) printf("  XSAVE/XRSTOR");
-	if (s.OSXSAVE) printf("  XSETBV/XGETBV");
-	if (s.FXSR) printf("  FXSAVE/FXRSTOR");
+	if (s.CLFSH) printf(" CLFLUSH (%d bytes)\n", s.CLFLUSHLineSize * 8);
+	if (s.PREFETCHW) printf(" PREFETCHW");
+	if (s.LZCNT) printf(" LZCNT");
+	if (s.POPCNT) printf(" POPCNT");
+	if (s.XSAVE) printf(" XSAVE/XRSTOR");
+	if (s.OSXSAVE) printf(" XSETBV/XGETBV");
+	if (s.FXSR) printf(" FXSAVE/FXRSTOR");
 	if (opt_future) {
-		if (s.PCONFIG) printf("  PCONFIG");
-		if (s.WBNOINVD) printf("  WBNOINVD");
-		if (s.CLDEMOTE) printf("  CLDEMOTE");
-		if (s.MOVDIRI) printf("  MOVDIRI");
-		if (s.MOVDIR64B) printf("  MOVDIR64B");
-		if (s.AVX512_VPOPCNTDQ) printf("  VPOPCNTDQ");
+		if (s.PCONFIG) printf(" PCONFIG");
+		if (s.WBNOINVD) printf(" WBNOINVD");
+		if (s.CLDEMOTE) printf(" CLDEMOTE");
+		if (s.MOVDIRI) printf(" MOVDIRI");
+		if (s.MOVDIR64B) printf(" MOVDIR64B");
+		if (s.AVX512_VPOPCNTDQ) printf(" VPOPCNTDQ");
 	}
 
 	// -- Cache information --

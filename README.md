@@ -22,8 +22,6 @@ Since LDC 1.13.0 includes lld-link on Windows platforms, the project may fail to
 
 # Default Mode Example
 
-For more information about your processor, use the `-d` switch.
-
 ```
 [Vendor] GenuineIntel
 [String] Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
@@ -42,3 +40,5 @@ For more information about your processor, use the `-d` switch.
         Enhanced SpeedStep(R) Technology
         TurboBoost
 ```
+
+For more details about your processor, use the `-d` switch.

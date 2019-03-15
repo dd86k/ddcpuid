@@ -256,8 +256,8 @@ int main(int argc, char **argv) {
 
 	// -- Other instructions --
 
-	printf("\n[+Instructions]");
-	if (s.MONITOR) printf(" MONITOR/MWAIT");
+	printf("\n[Extra]");
+	if (s.MONITOR) printf(" MONITOR+MWAIT");
 	if (s.PCLMULQDQ) printf(" PCLMULQDQ");
 	if (s.CX8) printf(" CMPXCHG8B");
 	if (s.CMPXCHG16B) printf(" CMPXCHG16B");
@@ -296,6 +296,26 @@ int main(int argc, char **argv) {
 		if (s.AVX512_VPOPCNTDQ) printf(" VPOPCNTDQ");
 	}
 
+	// -- Vendor specific technologies ---
+
+	printf("\n[Technologies]");
+
+	switch (VendorID) {
+	case VENDOR_INTEL:
+		if (s.EIST) printf(" Enhanced-SpeedStep");
+		if (s.TurboBoost) {
+			//TODO: Make Turboboost high bit set if 3.0 instead of byte
+			printf(" TurboBoost");
+			if (s.TurboBoost3) printf("-3.0");
+		}
+		if (s.SGX) printf(" Intel-SGX");
+		break;
+	case VENDOR_AMD:
+		if (s.TurboBoost) printf(" Core-Performance-Boost");
+		break;
+	default:
+	}
+
 	// -- Cache information --
 
 	puts("\n\n[Cache information]");
@@ -330,27 +350,6 @@ int main(int argc, char **argv) {
 			if (ca.features & BIT!(4)) puts("\t\tComplex Cache Indexing");
 		} else putchar('\n');
 		++ca;
-	}
-
-	// -- Vendor specific features ---
-
-	puts("\n[Processor features]");
-
-	switch (VendorID) {
-	case VENDOR_INTEL:
-		if (s.EIST) puts("\tEnhanced SpeedStep(R) Technology");
-		if (s.TurboBoost) {
-			//TODO: Make Turboboost high bit set if 3.0 instead of byte
-			printf("\tTurboBoost");
-			if (s.TurboBoost3) puts(" 3.0");
-			else putchar('\n');
-		}
-		if (s.SGX) puts("Intel SGX");
-		break;
-	case VENDOR_AMD:
-		if (s.TurboBoost) puts("\tCore Performance Boost");
-		break;
-	default:
 	}
 
 	if (opt_details == 0) return 0;

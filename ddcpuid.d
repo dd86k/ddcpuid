@@ -191,9 +191,9 @@ int main(int argc, char **argv) {
 
 	printf("[Extensions]");
 	if (s.MMX) printf(" MMX");
-	if (s.MMXExt) printf(" Extended MMX");
+	if (s.MMXExt) printf(" Ext.MMX");
 	if (s._3DNow) printf(" 3DNow!");
-	if (s._3DNowExt) printf(" Extended 3DNow!");
+	if (s._3DNowExt) printf(" Ext.3DNow!");
 	if (s.SSE) printf(" SSE");
 	if (s.SSE2) printf(" SSE2");
 	if (s.SSE3) printf(" SSE3");
@@ -203,26 +203,26 @@ int main(int argc, char **argv) {
 	if (s.SSE4a) printf(" SSE4a");
 	if (s.LongMode)
 		switch (VendorID) {
-		case VENDOR_INTEL: printf(" Intel64"); break;
-		case VENDOR_AMD: printf(" AMD64"); break;
+		case VENDOR_INTEL: printf(" Intel64/x86-64"); break;
+		case VENDOR_AMD: printf(" AMD64/x86-64"); break;
 		default: printf(" x86-64"); break;
 		}
 	if (s.Virt)
 		switch (VendorID) {
-		case VENDOR_INTEL: printf(" VT-x (VMX)"); break; // VMX
+		case VENDOR_INTEL: printf(" VT-x/VMX"); break; // VMX
 		case VENDOR_AMD: // SVM
-			printf(" AMD-V (VMX, v%d)\n", s.VirtVersion);
+			printf(" AMD-V/VMXv%d\n", s.VirtVersion);
 			break;
-		//case VENDOR_VIA: printf(" VIA VT"); break; <- Uncomment when VIA
+		//case VENDOR_VIA: printf(" VIA-VT/VMX"); break; <- Uncomment when VIA
 		default: printf(" VMX"); break;
 		}
 	if (s.NX)
 		switch (VendorID) {
-		case VENDOR_INTEL: printf(" Intel XD (NX)"); break;
-		case VENDOR_AMD: printf(" AMD EVP (NX)"); break;
+		case VENDOR_INTEL: printf(" Intel-XD/NX"); break;
+		case VENDOR_AMD: printf(" AMD-EVP/NX"); break;
 		default: printf(" NX"); break;
 		}
-	if (s.SMX) printf(" Intel TXT (SMX)");
+	if (s.SMX) printf(" Intel-TXT/SMX");
 	if (s.AES) printf(" AES-NI");
 	if (s.AVX) printf(" AVX");
 	if (s.AVX2) printf(" AVX2");
@@ -264,8 +264,8 @@ int main(int argc, char **argv) {
 	if (s.MOVBE) printf(" MOVBE"); // Intel Atom and quite a few AMD processors.
 	if (s.RDRAND) printf(" RDRAND");
 	if (s.RDSEED) printf(" RDSEED");
-	if (s.MSR) printf(" RDMSR/WRMSR");
-	if (s.SEP) printf(" SYSENTER/SYSEXIT");
+	if (s.MSR) printf(" RDMSR+WRMSR");
+	if (s.SEP) printf(" SYSENTER+SYSEXIT");
 	if (s.TSC) {
 		printf(" RDTSC");
 		if (s.TscDeadline)
@@ -277,15 +277,15 @@ int main(int argc, char **argv) {
 	if (s.RDPID) printf(" RDPID");
 	if (s.CMOV) {
 		printf(" CMOV");
-		if (s.FPU) printf(" FCOMI/FCMOV");
+		if (s.FPU) printf(" FCOMI+FCMOV");
 	}
-	if (s.CLFSH) printf(" CLFLUSH (%d bytes)\n", s.CLFLUSHLineSize * 8);
+	if (s.CLFSH) printf(" CLFLUSH:%dB", s.CLFLUSHLineSize * 8);
 	if (s.PREFETCHW) printf(" PREFETCHW");
 	if (s.LZCNT) printf(" LZCNT");
 	if (s.POPCNT) printf(" POPCNT");
-	if (s.XSAVE) printf(" XSAVE/XRSTOR");
-	if (s.OSXSAVE) printf(" XSETBV/XGETBV");
-	if (s.FXSR) printf(" FXSAVE/FXRSTOR");
+	if (s.XSAVE) printf(" XSAVE+XRSTOR");
+	if (s.OSXSAVE) printf(" XSETBV+XGETBV");
+	if (s.FXSR) printf(" FXSAVE+FXRSTOR");
 	if (s.SHA) printf(" SHA");
 	if (opt_future) {
 		if (s.PCONFIG) printf(" PCONFIG");

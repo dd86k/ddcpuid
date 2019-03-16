@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
 
 	fetchInfo(s);
 
-	immutable(char) *cstring = cast(immutable(char) *)s.cpuString;
+	const(char) *cstring = cast(const(char) *)s.cpuString;
 
 	switch (VendorID) {
 	case VENDOR_INTEL: // Common in Intel processor brand strings
@@ -321,7 +321,7 @@ int main(int argc, char **argv) {
 	puts("\n\n[Cache information]");
 
 	/// Return cache type as string
-	extern (C) immutable(char) *_ct(ubyte t) {
+	extern (C) const(char) *_ct(ubyte t) {
 		switch (t) {
 		case 1: return " Data";
 		case 2: return " Instructions";
@@ -356,7 +356,7 @@ int main(int argc, char **argv) {
 
 	// -- Processor detailed features --
 
-	immutable(char) *_pt() { // D call for parent stack frame
+	const(char) *_pt() { // D call for parent stack frame
 		switch (s.ProcessorType) { // 2 bit value
 		case 0: return "Original OEM Processor";
 		case 1: return "Intel OverDrive Processor";
@@ -371,114 +371,114 @@ int main(int argc, char **argv) {
 		"\nHighest Leaf: %Xh | Extended: %Xh\n"~
 		"Processor type: %s\n"~
 		"\n[FPU]\n"~
-		"\tFloating Point Unit [FPU]: %s\n"~
-		"\t16-bit conversion [F16C]: %s\n"~
+		"\tFloating Point Unit [FPU]: %c\n"~
+		"\t16-bit conversion [F16C]: %c\n"~
 		// ACPI
 		"\n[ACPI]\n"~
-		"\tACPI: %s\n"~
-		"\tAPIC: %s (Initial ID: %d, Max: %d)\n"~
-		"\tx2APIC: %s\n"~
-		"\tAlways-Running-APIC-Timer [ARAT]: %s\n"~
-		"\tThermal Monitor: %s\n"~
-		"\tThermal Monitor 2: %s\n"~
+		"\tACPI: %c\n"~
+		"\tAPIC: %c (Initial ID: %d, Max: %d)\n"~
+		"\tx2APIC: %c\n"~
+		"\tAlways-Running-APIC-Timer [ARAT]: %c\n"~
+		"\tThermal Monitor: %c\n"~
+		"\tThermal Monitor 2: %c\n"~
 		// Virtualization + Cache
 		"\n[Virtualization]\n"~
-		"\tVirtual 8086 Mode Enhancements [VME]: %s\n"~
+		"\tVirtual 8086 Mode Enhancements [VME]: %c\n"~
 		"\n[Cache]\n"~
-		"\tL1 Context ID [CNXT-ID]: %s\n"~
-		"\tSelf Snoop [SS]: %s\n"~
+		"\tL1 Context ID [CNXT-ID]: %c\n"~
+		"\tSelf Snoop [SS]: %c\n"~
 		// Memory
 		"\n[Memory]\n"~
-		"\tPhysical Address Extension [PAE]: %s\n"~
-		"\tPage Size Extension [PSE]: %s\n"~
-		"\t36-Bit Page Size Extension [PSE-36]: %s\n"~
-		"\t1 GB Pages support [Page1GB]: %s\n"~
-		"\tDirect Cache Access [DCA]: %s\n"~
-		"\tPage Attribute Table [PAT]: %s\n"~
-		"\tMemory Type Range Registers [MTRR]: %s\n"~
-		"\tPage Global Bit [PGE]: %s\n"~
-		"\tSupervisor Mode Execution Protection [SMEP]: %s\n"~
-		"\tSupervisor Mode Access Protection [SMAP]: %s\n"~
-		"\tProtection Key Units [PKU]: %s\n"~
+		"\tPhysical Address Extension [PAE]: %c\n"~
+		"\tPage Size Extension [PSE]: %c\n"~
+		"\t36-Bit Page Size Extension [PSE-36]: %c\n"~
+		"\t1 GB Pages support [Page1GB]: %c\n"~
+		"\tDirect Cache Access [DCA]: %c\n"~
+		"\tPage Attribute Table [PAT]: %c\n"~
+		"\tMemory Type Range Registers [MTRR]: %c\n"~
+		"\tPage Global Bit [PGE]: %c\n"~
+		"\tSupervisor Mode Execution Protection [SMEP]: %c\n"~
+		"\tSupervisor Mode Access Protection [SMAP]: %c\n"~
+		"\tProtection Key Units [PKU]: %c\n"~
 		"\tMaximum Physical Memory Bits: %d\n"~
 		"\tMaximum Linear Memory Bits: %d\n"~
 		// Debugging
 		"\n[Debugging]\n"~
-		"\tMachine Check Architecture [MCA]: %s\n"~
-		"\tMachine Check Exception [MCE]: %s\n"~
-		"\tDebugging Extensions [DE]: %s\n"~
-		"\tDebug Store [DS]: %s\n"~
-		"\tDebug Store CPL [DS-CPL]: %s\n"~
-		"\t64-bit DS Area [DTES64]: %s\n"~
-		"\tPerfmon and Debug Capability [PDCM]: %s\n"~
-		"\tIA32_DEBUG_INTERFACE MSR [SDBG]: %s\n"~
+		"\tMachine Check Architecture [MCA]: %c\n"~
+		"\tMachine Check Exception [MCE]: %c\n"~
+		"\tDebugging Extensions [DE]: %c\n"~
+		"\tDebug Store [DS]: %c\n"~
+		"\tDebug Store CPL [DS-CPL]: %c\n"~
+		"\t64-bit DS Area [DTES64]: %c\n"~
+		"\tPerfmon and Debug Capability [PDCM]: %c\n"~
+		"\tIA32_DEBUG_INTERFACE MSR [SDBG]: %c\n"~
 		// Security
 		"\n[Security]\n"~
-		"\tIndirect Branch Prediction Barrier [IBPB]: %s\n"~
-		"\tIndirect Branch Restricted Speculation [IBRS]: %s\n"~
-		"\tSingle Thread Indirect Branch Predictor [STIBP]: %s\n"~
-		"\tSpeculative Store Bypass Disable [SSBD]: %s\n"
+		"\tIndirect Branch Prediction Barrier [IBPB]: %c\n"~
+		"\tIndirect Branch Restricted Speculation [IBRS]: %c\n"~
+		"\tSingle Thread Indirect Branch Predictor [STIBP]: %c\n"~
+		"\tSpeculative Store Bypass Disable [SSBD]: %c\n"
 		, // Misc. and FPU
 		s.MaximumLeaf, s.MaximumExtendedLeaf,
 		_pt,
-		B(s.FPU),
-		B(s.F16C),
+		YN(s.FPU),
+		YN(s.F16C),
 		// ACPI
-		B(s.ACPI),
-		B(s.APIC), s.InitialAPICID, s.MaxIDs,
-		B(s.x2APIC),
-		B(s.ARAT),
-		B(s.TM),
-		B(s.TM2),
+		YN(s.ACPI),
+		YN(s.APIC), s.InitialAPICID, s.MaxIDs,
+		YN(s.x2APIC),
+		YN(s.ARAT),
+		YN(s.TM),
+		YN(s.TM2),
 		// Virtualization + Cache
-		B(s.VME),
-		B(s.CNXT_ID),
-		B(s.SS),
+		YN(s.VME),
+		YN(s.CNXT_ID),
+		YN(s.SS),
 		// Memory
-		B(s.PAE),
-		B(s.PSE),
-		B(s.PSE_36),
-		B(s.Page1GB),
-		B(s.DCA),
-		B(s.PAT),
-		B(s.MTRR),
-		B(s.PGE),
-		B(s.SMEP),
-		B(s.SMAP),
-		B(s.PKU),
+		YN(s.PAE),
+		YN(s.PSE),
+		YN(s.PSE_36),
+		YN(s.Page1GB),
+		YN(s.DCA),
+		YN(s.PAT),
+		YN(s.MTRR),
+		YN(s.PGE),
+		YN(s.SMEP),
+		YN(s.SMAP),
+		YN(s.PKU),
 		s.addr_phys_bits,
 		s.addr_line_bits,
 		// Debugging
-		B(s.MCA),
-		B(s.MCE),
-		B(s.DE),
-		B(s.DS),
-		B(s.DS_CPL),
-		B(s.DTES64),
-		B(s.PDCM),
-		B(s.SDBG),
+		YN(s.MCA),
+		YN(s.MCE),
+		YN(s.DE),
+		YN(s.DS),
+		YN(s.DS_CPL),
+		YN(s.DTES64),
+		YN(s.PDCM),
+		YN(s.SDBG),
 		// Security
-		B(s.IBPB),
-		B(s.IBRS),
-		B(s.STIBP),
-		B(s.SSBD)
+		YN(s.IBPB),
+		YN(s.IBRS),
+		YN(s.STIBP),
+		YN(s.SSBD)
 	);
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
 		printf(
-			"\tL1D_FLUSH: %s\n",
-			B(s.L1D_FLUSH)
+			"\tL1D_FLUSH: %c\n",
+			YN(s.L1D_FLUSH)
 		);
 		break;
 	case VENDOR_AMD:
 		printf(
-			"\tIBRS Always On: %s\n"~
-			"\tIBRS Preferred: %s\n"~
-			"\tSTIBP Always On: %s\n",
-			B(s.IBRS_ON),
-			B(s.IBRS_PREF),
-			B(s.STIBP_ON),
+			"\tIBRS Always On: %c\n"~
+			"\tIBRS Preferred: %c\n"~
+			"\tSTIBP Always On: %c\n",
+			YN(s.IBRS_ON),
+			YN(s.IBRS_PREF),
+			YN(s.STIBP_ON),
 		);
 		break;
 	default:
@@ -487,50 +487,48 @@ int main(int argc, char **argv) {
 	printf( // Other features
 		"\n[Miscellaneous]\n"~
 		"\tBrand Index: %d\n"~
-		"\txTPR Update Control [xTPR]: %s\n"~
-		"\tProcess-context identifiers [PCID]: %s\n"~
-		"\tHardware Lock Elision [HLE]: %s\n"~
-		"\tRestricted Transactional Memory [RTM]: %s\n"~
-		"\tProcessor Serial Number [PSN]: %s\n"~
-		"\tPending Break Enable [PBE]: %s\n"~
-		"\tIA32_ARCH_CAPABILITIES MSR: %s\n"~
-		"\tLAHF/SAHF in 64-bit mode: %s\n",
+		"\txTPR Update Control [xTPR]: %c\n"~
+		"\tProcess-context identifiers [PCID]: %c\n"~
+		"\tHardware Lock Elision [HLE]: %c\n"~
+		"\tRestricted Transactional Memory [RTM]: %c\n"~
+		"\tProcessor Serial Number [PSN]: %c\n"~
+		"\tPending Break Enable [PBE]: %c\n"~
+		"\tIA32_ARCH_CAPABILITIES MSR: %c\n"~
+		"\tLAHF/SAHF in 64-bit mode: %c\n",
 		s.BrandIndex,
-		B(s.xTPR),
-		B(s.PCID),
-		B(s.HLE),
-		B(s.RTM),
-		B(s.PSN),
-		B(s.PBE),
-		B(s.IA32_ARCH_CAPABILITIES),
-		B(s.LAHF64),
+		YN(s.xTPR),
+		YN(s.PCID),
+		YN(s.HLE),
+		YN(s.RTM),
+		YN(s.PSN),
+		YN(s.PBE),
+		YN(s.IA32_ARCH_CAPABILITIES),
+		YN(s.LAHF64),
 	);
 	if (opt_future) {
 		printf(
-			"\tFast Short REP MOV [FSREPMOV]: %s\n",
-			B(s.FSREPMOV)
+			"\tFast Short REP MOV [FSREPMOV]: %c\n",
+			YN(s.FSREPMOV)
 		);
 	}
 
 	return 0;
 } // main
 
-pragma(inline, true)
-immutable(char) *B(uint c) pure @nogc nothrow {
-	return c ? "Yes" : "No";
+char YN(ubyte c) pure @nogc nothrow {
+	return c ? 'Y' : 'N';
 }
 
-pragma(inline, true)
 ubyte CHECK(int n, int f) pure @nogc nothrow {
 	return (n & f) != 0;
 }
 
 template BIT(int n) { enum { BIT = 1 << n } }
 
-/*****************************
- * FETCH INFO
- *****************************/
-
+/**
+ * Fetch CPU info
+ * Params: s = CPUINFO structure
+ */
 void fetchInfo(ref CPUINFO s) {
 	// Position Independant Code compliant
 	size_t __A = cast(size_t)&s.vendorString;

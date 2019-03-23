@@ -132,8 +132,7 @@ int main(int argc, char **argv) {
 		} // else if
 	} // while arg
 
-	CPUINFO s = void;
-	s.cache[4].type = 0;
+	CPUINFO s; // init
 
 	if (opt_override) {
 		s.MaximumLeaf = MAX_LEAF;

@@ -360,9 +360,10 @@ int main(int argc, char **argv) {
 		"\tAlways-Running-APIC-Timer [ARAT]: %c\n"~
 		"\tThermal Monitor: %c\n"~
 		"\tThermal Monitor 2: %c\n"~
-		// Virtualization + Cache
+		// Virtualization
 		"\n[Virtualization]\n"~
 		"\tVirtual 8086 Mode Enhancements [VME]: %c\n"~
+		// Cache
 		"\n[Cache]\n"~
 		"\tL1 Context ID [CNXT-ID]: %c\n"~
 		"\tSelf Snoop [SS]: %c\n"~
@@ -379,7 +380,9 @@ int main(int argc, char **argv) {
 		"\tSupervisor Mode Execution Protection [SMEP]: %c\n"~
 		"\tSupervisor Mode Access Protection [SMAP]: %c\n"~
 		"\tProtection Key Units [PKU]: %c\n"~
+		"\tHardware Lock Elision [HLE]: %c\n"~
 		"\tRestricted Transactional Memory [RTM]: %c\n"~
+		"\t5-Level Paging [5LP]: %c\n"~
 		"\tMaximum Physical Memory Bits: %u\n"~
 		"\tMaximum Linear Memory Bits: %u\n"~
 		// Debugging
@@ -421,7 +424,9 @@ int main(int argc, char **argv) {
 		YN(s.SMEP),
 		YN(s.SMAP),
 		YN(s.PKU),
+		YN(s.HLE),
 		YN(s.RTM),
+		YN(s._5PL),
 		s.addr_phys_bits,
 		s.addr_line_bits,
 		// Debugging
@@ -474,7 +479,6 @@ int main(int argc, char **argv) {
 		"\tBrand Index: %u\n"~
 		"\txTPR Update Control [xTPR]: %c\n"~
 		"\tProcess-context identifiers [PCID]: %c\n"~
-		"\tHardware Lock Elision [HLE]: %c\n"~
 		"\tProcessor Serial Number [PSN]: %c\n"~
 		"\tPending Break Enable [PBE]: %c\n"~
 		"\tIA32_ARCH_CAPABILITIES MSR: %c\n"~
@@ -484,7 +488,6 @@ int main(int argc, char **argv) {
 		s.BrandIndex,
 		YN(s.xTPR),
 		YN(s.PCID),
-		YN(s.HLE),
 		YN(s.PSN),
 		YN(s.PBE),
 		YN(s.IA32_ARCH_CAPABILITIES),
@@ -633,12 +636,12 @@ void fetchInfo(ref CPUINFO s) {
 
 	debug printf("VendorID: %X\n", VendorID);
 
-	uint a = void, b = void, c = void, d = void; // EAX to EDX
-
 	uint l; /// Cache level
 	CACHE *ca = cast(CACHE*)s.cache;
 
 	debug puts("--- Cache information ---");
+
+	uint a = void, b = void, c = void, d = void; // EAX to EDX
 
 	switch (VendorID) { // CACHE INFORMATION
 	case VENDOR_INTEL:
@@ -993,6 +996,7 @@ CACHE_AMD_NEWER:
 		s.AVX512_VNNI = CHECK(c, BIT!(11));
 		s.AVX512_BITALG = CHECK(c, BIT!(12));
 		s.AVX512_VPOPCNTDQ = CHECK(c, BIT!(14));
+		s._5PL = CHECK(c, BIT!(16));
 		s.CLDEMOTE    = CHECK(c, BIT!(25));
 		s.MOVDIRI     = CHECK(c, BIT!(27));
 		s.MOVDIR64B   = CHECK(c, BIT!(28));
@@ -1380,6 +1384,7 @@ struct CPUINFO { align(1):
 	ubyte PKU;	// 3
 	ubyte FSREPMOV;	// 4
 	ubyte WAITPKG;	// 5
+	ubyte _5PL;	// 16
 	ubyte RDPID;	// 22
 	ubyte CLDEMOTE;	// 25
 	ubyte MOVDIRI;	// 27

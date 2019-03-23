@@ -1,9 +1,9 @@
-extern (C) {
-	int strcmp(scope const char *s1, scope const char* s2);
-	int printf(scope const char *format, ...);
-	int puts(scope const char *s);
-	int putchar(int c);
-}
+extern (C):
+
+int strcmp(scope const char *s1, scope const char* s2);
+int printf(scope const char *format, ...);
+int puts(scope const char *s);
+int putchar(int c);
 
 enum VERSION = "0.12.0"; /// Program version
 
@@ -33,13 +33,21 @@ version (X86) {
 	static assert(0, "aarch64 support is planned");
 } else {
 	static assert(0,
-		"ddcpuid is strictly a x86/AMD64 tool at the current moment");
+		"ddcpuid is not supported on this platform.");
 }
-
-extern (C):
 
 __gshared uint VendorID; /// Vendor "ID", inits to VENDOR_OTHER
 __gshared ubyte opt_details;	/// Detailed output option (-d)
+
+template BIT(int n) { enum { BIT = 1 << n } }
+
+char YN(ubyte c) pure @nogc nothrow {
+	return c ? 'Y' : 'N';
+}
+
+ubyte CHECK(int n, int f) pure @nogc nothrow {
+	return (n & f) != 0;
+}
 
 void shelp() {
 	puts(
@@ -49,7 +57,7 @@ void shelp() {
 		"\t-d    Advanced information mode\n"~
 	  	"\t-r    Show raw CPUID data in a table\n"~
 		"\t-o    Override leaves to 20h and 8000_0020h\n"~
-		"\t-f    (Intel) Show features not yet in the mainline reference manual\n"~
+		"\t-f    (Intel) Show features not yet in the mainline manuals\n"~
 		"\n"~
 		"\t-v, --version   Print version information screen and quit\n"~
 		"\t-h, --help      Print this help screen and quit"
@@ -60,7 +68,7 @@ void sversion() {
 	import d = std.compiler;
 	printf(
 		"ddcpuid-"~PLATFORM~" v"~VERSION~" ("~__TIMESTAMP__~")\n"~
-		"Copyright (c) dd86k 2016-2018\n"~
+		"Copyright (c) dd86k 2016-2019\n"~
 		"License: MIT License <http://opensource.org/licenses/MIT>\n"~
 		"Project page: <https://github.com/dd86k/ddcpuid>\n"~
 		"Compiler: "~ __VENDOR__ ~" v%d.%03d\n",
@@ -157,7 +165,7 @@ int main(int argc, char **argv) {
 
 	fetchInfo(s);
 
-	const(char) *cstring = cast(const(char) *)s.cpuString;
+	const(char) *cstring = cast(const(char)*)s.cpuString;
 
 	switch (VendorID) {
 	case VENDOR_INTEL: // Common in Intel processor brand strings
@@ -170,26 +178,21 @@ int main(int argc, char **argv) {
 
 	printf(
 		"[Vendor] %.12s\n"~
-		"[String] %.48s\n",
-		cast(char*)s.vendorString, cstring
+		"[String] %.48s\n"~
+		"[Identifier] Family %u (%Xh) [%Xh:%Xh] Model %u (%Xh) [%Xh:%Xh] Stepping %u\n",
+		cast(char*)s.vendorString, cstring,
+		s.Family, s.Family, s.BaseFamily, s.ExtendedFamily,
+		s.Model, s.Model, s.BaseModel, s.ExtendedModel,
+		s.Stepping
 	);
-
-	if (opt_details)
-		printf(
-			"[Identifier] Family %Xh [%Xh:%Xh] Model %Xh [%Xh:%Xh] Stepping %Xh\n",
-			s.Family, s.BaseFamily, s.ExtendedFamily,
-			s.Model, s.BaseModel, s.ExtendedModel,
-			s.Stepping
-		);
-	else
-		printf(
-			"[Identifier] Family %d Model %d Stepping %d\n",
-			s.Family, s.Model, s.Stepping
-		);
 
 	// -- Processor extensions --
 
 	printf("[Extensions]");
+	if (s.FPU) {
+		printf(" x87/FPU");
+		if (s.F16C) printf(" F16C");
+	}
 	if (s.MMX) printf(" MMX");
 	if (s.MMXExt) printf(" Ext.MMX");
 	if (s._3DNow) printf(" 3DNow!");
@@ -319,16 +322,8 @@ int main(int argc, char **argv) {
 	// -- Cache information --
 
 	puts("\n\n[Cache information]");
-
-	/// Return cache type as string
-	extern (C) const(char) *_ct(ubyte t) {
-		switch (t) {
-		case 1: return " Data";
-		case 2: return " Instructions";
-		case 3: return ""; // unified but usually not explcitly shown
-		default: return "*"; // >=4 (new!)
-		}
-	}
+	
+	__gshared char []CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
 
 	CACHE *ca = cast(CACHE*)s.cache; /// Caches
 
@@ -337,10 +332,10 @@ int main(int argc, char **argv) {
 		if (ca.size >= 1024) {
 			ca.size >>= 10; c = 'M';
 		}
-		printf("\tL%d%s: %d %cB", ca.level, _ct(ca.type), ca.size, c);
+		printf("\tL%d-%c: %u %cB", ca.level, CACHE_TYPE[ca.type], ca.size, c);
 		if (opt_details) {
 			printf(
-				", %d ways, %d partitions, %d B, %d sets\n",
+				", %u ways, %u partitions, %u B, %u sets\n",
 				ca.ways, ca.partitions, ca.linesize, ca.sets
 			);
 			if (ca.features & BIT!(0)) puts("\t\tSelf Initializing");
@@ -356,27 +351,11 @@ int main(int argc, char **argv) {
 
 	// -- Processor detailed features --
 
-	const(char) *_pt() { // D call for parent stack frame
-		switch (s.ProcessorType) { // 2 bit value
-		case 0: return "Original OEM Processor";
-		case 1: return "Intel OverDrive Processor";
-		case 2: return "Dual processor";
-		case 3: return "Intel reserved";
-		default: return cast(char*)0; // impossible to reach anyway
-		}
-	}
-
 	printf(
-		// Misc. and FPU
-		"\nHighest Leaf: %Xh | Extended: %Xh\n"~
-		"Processor type: %s\n"~
-		"\n[FPU]\n"~
-		"\tFloating Point Unit [FPU]: %c\n"~
-		"\t16-bit conversion [F16C]: %c\n"~
 		// ACPI
 		"\n[ACPI]\n"~
 		"\tACPI: %c\n"~
-		"\tAPIC: %c (Initial ID: %d, Max: %d)\n"~
+		"\tAPIC: %c (Initial ID: %u, Max: %u)\n"~
 		"\tx2APIC: %c\n"~
 		"\tAlways-Running-APIC-Timer [ARAT]: %c\n"~
 		"\tThermal Monitor: %c\n"~
@@ -400,8 +379,9 @@ int main(int argc, char **argv) {
 		"\tSupervisor Mode Execution Protection [SMEP]: %c\n"~
 		"\tSupervisor Mode Access Protection [SMAP]: %c\n"~
 		"\tProtection Key Units [PKU]: %c\n"~
-		"\tMaximum Physical Memory Bits: %d\n"~
-		"\tMaximum Linear Memory Bits: %d\n"~
+		"\tRestricted Transactional Memory [RTM]: %c\n"~
+		"\tMaximum Physical Memory Bits: %u\n"~
+		"\tMaximum Linear Memory Bits: %u\n"~
 		// Debugging
 		"\n[Debugging]\n"~
 		"\tMachine Check Architecture [MCA]: %c\n"~
@@ -411,18 +391,13 @@ int main(int argc, char **argv) {
 		"\tDebug Store CPL [DS-CPL]: %c\n"~
 		"\t64-bit DS Area [DTES64]: %c\n"~
 		"\tPerfmon and Debug Capability [PDCM]: %c\n"~
-		"\tIA32_DEBUG_INTERFACE MSR [SDBG]: %c\n"~
+		"\tSilicon Debug [SDBG]: %c\n"~
 		// Security
 		"\n[Security]\n"~
 		"\tIndirect Branch Prediction Barrier [IBPB]: %c\n"~
 		"\tIndirect Branch Restricted Speculation [IBRS]: %c\n"~
 		"\tSingle Thread Indirect Branch Predictor [STIBP]: %c\n"~
-		"\tSpeculative Store Bypass Disable [SSBD]: %c\n"
-		, // Misc. and FPU
-		s.MaximumLeaf, s.MaximumExtendedLeaf,
-		_pt,
-		YN(s.FPU),
-		YN(s.F16C),
+		"\tSpeculative Store Bypass Disable [SSBD]: %c\n",
 		// ACPI
 		YN(s.ACPI),
 		YN(s.APIC), s.InitialAPICID, s.MaxIDs,
@@ -446,6 +421,7 @@ int main(int argc, char **argv) {
 		YN(s.SMEP),
 		YN(s.SMAP),
 		YN(s.PKU),
+		YN(s.RTM),
 		s.addr_phys_bits,
 		s.addr_line_bits,
 		// Debugging
@@ -484,22 +460,31 @@ int main(int argc, char **argv) {
 	default:
 	}
 
+	__gshared const(char) *[]PROCESSOR_TYPE = [ // 2-bit value
+		"Original OEM Processor",
+		"Intel OverDrive Processor",
+		"Dual processor",
+		"Intel reserved"
+	];
+
 	printf( // Other features
-		"\n[Miscellaneous]\n"~
-		"\tBrand Index: %d\n"~
+		"\n[Misc.]\n"~
+		"\tHighest Leaf: %Xh | Extended: %Xh\n"~
+		"\tProcessor type: %s\n"~
+		"\tBrand Index: %u\n"~
 		"\txTPR Update Control [xTPR]: %c\n"~
 		"\tProcess-context identifiers [PCID]: %c\n"~
 		"\tHardware Lock Elision [HLE]: %c\n"~
-		"\tRestricted Transactional Memory [RTM]: %c\n"~
 		"\tProcessor Serial Number [PSN]: %c\n"~
 		"\tPending Break Enable [PBE]: %c\n"~
 		"\tIA32_ARCH_CAPABILITIES MSR: %c\n"~
-		"\tLAHF/SAHF in 64-bit mode: %c\n",
+		"\tLAHF/SAHF in 64-bit mode [LAHF64]: %c\n",
+		s.MaximumLeaf, s.MaximumExtendedLeaf,
+		PROCESSOR_TYPE[s.ProcessorType],
 		s.BrandIndex,
 		YN(s.xTPR),
 		YN(s.PCID),
 		YN(s.HLE),
-		YN(s.RTM),
 		YN(s.PSN),
 		YN(s.PBE),
 		YN(s.IA32_ARCH_CAPABILITIES),
@@ -514,16 +499,6 @@ int main(int argc, char **argv) {
 
 	return 0;
 } // main
-
-char YN(ubyte c) pure @nogc nothrow {
-	return c ? 'Y' : 'N';
-}
-
-ubyte CHECK(int n, int f) pure @nogc nothrow {
-	return (n & f) != 0;
-}
-
-template BIT(int n) { enum { BIT = 1 << n } }
 
 /**
  * Fetch CPU info

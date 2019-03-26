@@ -140,6 +140,8 @@ int main(int argc, char **argv) {
 	} else {
 		s.MaximumLeaf = hleaf;
 		s.MaximumExtendedLeaf = heleaf;
+		
+		assert(s.MaximumLeaf > 0); // Mostly due to LDC
 	}
 	debug printf("max leaf: %Xh\nm e leaf: %Xh\n",
 		s.MaximumLeaf, s.MaximumExtendedLeaf);
@@ -682,7 +684,7 @@ void fetchInfo(ref CPUINFO s) {
 			if (d & BIT!(1)) ca.features |= BIT!(3);
 			if (d & BIT!(2)) ca.features |= BIT!(4);
 		}
-		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) / 1024;
+		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
 
 		debug printf("| %8X | %8X | %8X | %8X | %8X |\n", l, a, b, c, d);
 		++l; ++ca;
@@ -801,7 +803,7 @@ CACHE_AMD_NEWER:
 			if (d & BIT!(0)) ca.features |= BIT!(2);
 			if (d & BIT!(1)) ca.features |= BIT!(3);
 		}
-		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) / 1024;
+		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
 
 		debug printf("| %8X | %8X | %8X | %8X | %8X |\n", l, a, b, c, d);
 		++l; ++ca;

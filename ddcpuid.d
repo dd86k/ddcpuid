@@ -359,8 +359,8 @@ int main(int argc, char **argv) {
 		"\tAPIC: %c (Initial ID: %u, Max: %u)\n"~
 		"\tx2APIC: %c\n"~
 		"\tAlways-Running-APIC-Timer [ARAT]: %c\n"~
-		"\tThermal Monitor: %c\n"~
-		"\tThermal Monitor 2: %c\n"~
+		"\tThermal Monitor [TM]: %c\n"~
+		"\tThermal Monitor 2 [TM2]: %c\n"~
 		// Virtualization
 		"\n[Virtualization]\n"~
 		"\tVirtual 8086 Mode Enhancements [VME]: %c\n"~

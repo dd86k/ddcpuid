@@ -5,7 +5,7 @@ int printf(scope const char *format, ...);
 int puts(scope const char *s);
 int putchar(int c);
 
-enum VERSION = "0.12.0"; /// Program version
+enum VERSION = "0.13.0"; /// Program version
 
 enum	MAX_LEAF = 0x20, /// Maximum leaf (-o)
 	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
@@ -37,13 +37,8 @@ version (X86) {
 }
 
 __gshared uint VendorID; /// Vendor "ID", inits to VENDOR_OTHER
-__gshared ubyte opt_details;	/// Detailed output option (-d)
 
 template BIT(int n) { enum { BIT = 1 << n } }
-
-char YN(ubyte c) pure @nogc nothrow {
-	return c ? 'Y' : 'N';
-}
 
 ubyte CHECK(int n, int f) pure @nogc nothrow {
 	return (n & f) != 0;
@@ -54,10 +49,8 @@ void shelp() {
 		"x86 CPUID information tool\n"~
 		"\tUsage: ddcpuid [OPTIONS]\n\n"~
 		"OPTIONS\n"~
-		"\t-d    Advanced information mode\n"~
 	  	"\t-r    Show raw CPUID data in a table\n"~
 		"\t-o    Override leaves to 20h and 8000_0020h\n"~
-		"\t-f    (Intel) Show features not yet in the mainline manuals\n"~
 		"\n"~
 		"\t-v, --version   Print version information screen and quit\n"~
 		"\t-h, --help      Print this help screen and quit"
@@ -99,10 +92,9 @@ void printc(uint leaf) {
 // GAS reminder: asm { "asm" : output : input : clobber }
 
 int main(int argc, char **argv) {
-	bool opt_raw;	/// Raw option (-r)
+	bool opt_raw;	/// Raw option (-r), table option
 	// See Intel(R) Architecture Instruction Set Extensions and Future
 	// Features Programming Reference
-	bool opt_future;	/// Enable showing future features
 	bool opt_override;	/// opt_override max leaf option (-o)
 
 	while (--argc >= 1) { // CLI
@@ -119,12 +111,9 @@ int main(int argc, char **argv) {
 		} else if (argv[argc][0] == '-') { // Short arguments
 			char* a = argv[argc];
 			while (*++a != 0) switch (*a) {
-			case 'o': opt_override = 1; break;
-			case 'd': opt_details = 1; break;
-			case 'r': opt_raw = 1; break;
-			case 'f': opt_future = 1; break;
+			case 'o': opt_override = true; break;
+			case 'r': opt_raw = true; break;
 			case 'h', '?': shelp; return 0;
-			case 'v': sversion; return 0;
 			default:
 				printf("Unknown parameter: %c\n", *a);
 				return 1;
@@ -132,7 +121,7 @@ int main(int argc, char **argv) {
 		} // else if
 	} // while arg
 
-	CPUINFO s; // init
+	CPUINFO s; // zero'd
 
 	if (opt_override) {
 		s.MaximumLeaf = MAX_LEAF;
@@ -140,11 +129,9 @@ int main(int argc, char **argv) {
 	} else {
 		s.MaximumLeaf = hleaf;
 		s.MaximumExtendedLeaf = heleaf;
-		
+
 		assert(s.MaximumLeaf > 0); // Mostly due to LDC
 	}
-	debug printf("max leaf: %Xh\nm e leaf: %Xh\n",
-		s.MaximumLeaf, s.MaximumExtendedLeaf);
 
 	if (opt_raw) { // -r
 		puts(
@@ -162,8 +149,6 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 
-	debug printf("[L%04d] Fetching info...\n", __LINE__);
-
 	fetchInfo(s);
 
 	const(char) *cstring = cast(const(char)*)s.cpuString;
@@ -180,16 +165,14 @@ int main(int argc, char **argv) {
 	printf(
 		"[Vendor] %.12s\n"~
 		"[String] %.48s\n"~
-		"[Identifier] Family %u (%Xh) [%Xh:%Xh] Model %u (%Xh) [%Xh:%Xh] Stepping %u\n",
+		"[Identifier] Family %u (%Xh) [%Xh:%Xh] Model %u (%Xh) [%Xh:%Xh] Stepping %u\n"~
+		"[Extensions]",
 		cast(char*)s.vendorString, cstring,
 		s.Family, s.Family, s.BaseFamily, s.ExtendedFamily,
 		s.Model, s.Model, s.BaseModel, s.ExtendedModel,
 		s.Stepping
 	);
 
-	// -- Processor extensions --
-
-	printf("[Extensions]");
 	if (s.FPU) {
 		printf(" x87/FPU");
 		if (s.F16C) printf(" F16C");
@@ -215,7 +198,7 @@ int main(int argc, char **argv) {
 		switch (VendorID) {
 		case VENDOR_INTEL: printf(" VT-x/VMX"); break; // VMX
 		case VENDOR_AMD: // SVM
-			printf(" AMD-V/VMXv%d\n", s.VirtVersion);
+			printf(" AMD-V/VMX:v%d\n", s.VirtVersion);
 			break;
 		//case VENDOR_VIA: printf(" VIA-VT/VMX"); break; <- Uncomment when VIA
 		default: printf(" VMX"); break;
@@ -242,21 +225,17 @@ int main(int argc, char **argv) {
 		if (s.AVX512_VBMI) printf(" AVX512_VBMI");
 		if (s.AVX512_4VNNIW) printf(" AVX512_4VNNIW");
 		if (s.AVX512_4FMAPS) printf(" AVX512_4FMAPS");
-		if (opt_future) {
-			if (s.AVX512_VBMI2) printf(" AVX512_VBMI2");
-			if (s.AVX512_GFNI) printf(" AVX512_GFNI");
-			if (s.AVX512_VAES) printf(" AVX512_VAES");
-			if (s.AVX512_VNNI) printf(" AVX512_VNNI");
-			if (s.AVX512_BITALG) printf(" AVX512_BITALG");
-		}
+		if (s.AVX512_VBMI2) printf(" AVX512_VBMI2");
+		if (s.AVX512_GFNI) printf(" AVX512_GFNI");
+		if (s.AVX512_VAES) printf(" AVX512_VAES");
+		if (s.AVX512_VNNI) printf(" AVX512_VNNI");
+		if (s.AVX512_BITALG) printf(" AVX512_BITALG");
 	}
 	if (s.FMA) printf(" FMA3");
 	if (s.FMA4) printf(" FMA4");
 	if (s.BMI1) printf(" BMI1");
 	if (s.BMI2) printf(" BMI2");
-	if (opt_future) {
-		if (s.WAITPKG) printf(" WAITPKG");
-	}
+	if (s.WAITPKG) printf(" WAITPKG");
 
 	// -- Other instructions --
 
@@ -291,14 +270,12 @@ int main(int argc, char **argv) {
 	if (s.OSXSAVE) printf(" XSETBV+XGETBV");
 	if (s.FXSR) printf(" FXSAVE+FXRSTOR");
 	if (s.SHA) printf(" SHA");
-	if (opt_future) {
 		if (s.PCONFIG) printf(" PCONFIG");
 		if (s.WBNOINVD) printf(" WBNOINVD");
 		if (s.CLDEMOTE) printf(" CLDEMOTE");
 		if (s.MOVDIRI) printf(" MOVDIRI");
 		if (s.MOVDIR64B) printf(" MOVDIR64B");
 		if (s.AVX512_VPOPCNTDQ) printf(" VPOPCNTDQ");
-	}
 
 	// -- Vendor specific technologies ---
 
@@ -307,8 +284,7 @@ int main(int argc, char **argv) {
 	switch (VendorID) {
 	case VENDOR_INTEL:
 		if (s.EIST) printf(" Enhanced-SpeedStep");
-		if (s.TurboBoost) {
-			//TODO: Make Turboboost high bit set if 3.0 instead of byte
+		if (s.TurboBoost) { //TODO: Make Turboboost high bit set if 3.0 instead of byte
 			printf(" TurboBoost");
 			if (s.TurboBoost3) printf("-3.0");
 		}
@@ -322,7 +298,10 @@ int main(int argc, char **argv) {
 
 	// -- Cache information --
 
-	puts("\n\n[Cache information]");
+	printf("\n[Cache]");
+	if (s.CNXT_ID) printf(" CNXT_ID");
+	if (s.SS) printf(" SS");
+	putchar('\n');
 	
 	__gshared char []CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
 
@@ -333,173 +312,92 @@ int main(int argc, char **argv) {
 		if (ca.size >= 1024) {
 			ca.size >>= 10; c = 'M';
 		}
-		printf("\tL%d-%c: %u %cB", ca.level, CACHE_TYPE[ca.type], ca.size, c);
-		if (opt_details) {
-			printf(
-				", %u ways, %u partitions, %u B, %u sets\n",
-				ca.ways, ca.partitions, ca.linesize, ca.sets
-			);
-			if (ca.features & BIT!(0)) puts("\t\tSelf Initializing");
-			if (ca.features & BIT!(1)) puts("\t\tFully Associative");
-			if (ca.features & BIT!(2)) puts("\t\tNo Write-Back Validation");
-			if (ca.features & BIT!(3)) puts("\t\tCache Inclusive");
-			if (ca.features & BIT!(4)) puts("\t\tComplex Cache Indexing");
-		} else putchar('\n');
+		printf("L%d-%c: %u %cB, %u ways, %u partitions, %u B, %u sets\n",
+			ca.level, CACHE_TYPE[ca.type], ca.size, c,
+			ca.ways, ca.partitions, ca.linesize, ca.sets
+		);
+		if (ca.features & BIT!(0)) puts("\tSelf Initializing");
+		if (ca.features & BIT!(1)) puts("\tFully Associative");
+		if (ca.features & BIT!(2)) puts("\tNo Write-Back Validation");
+		if (ca.features & BIT!(3)) puts("\tCache Inclusive");
+		if (ca.features & BIT!(4)) puts("\tComplex Cache Indexing");
 		++ca;
 	}
 
-	if (opt_details == 0) return 0;
+	printf("[ACPI]");
+	if (s.ACPI) printf(" ACPI");
+	if (s.APIC) printf(" APIC");
+	if (s.x2APIC) printf(" x2APIC");
+	if (s.ARAT) printf(" ARAT");
+	if (s.TM) printf(" TM");
+	if (s.TM2) printf(" TM2");
+	if (s.InitialAPICID) printf(" APIC-ID:%u", s.InitialAPICID);
+	if (s.MaxIDs) printf(" MAX-ID:%u", s.MaxIDs);
 
-	// -- Processor detailed features --
+	printf("\n[Virtualization]");
+	if (s.VME) printf(" VME");
 
-	printf(
-		// ACPI
-		"\n[ACPI]\n"~
-		"\tACPI: %c\n"~
-		"\tAPIC: %c (Initial ID: %u, Max: %u)\n"~
-		"\tx2APIC: %c\n"~
-		"\tAlways-Running-APIC-Timer [ARAT]: %c\n"~
-		"\tThermal Monitor [TM]: %c\n"~
-		"\tThermal Monitor 2 [TM2]: %c\n"~
-		// Virtualization
-		"\n[Virtualization]\n"~
-		"\tVirtual 8086 Mode Enhancements [VME]: %c\n"~
-		// Cache
-		"\n[Cache]\n"~
-		"\tL1 Context ID [CNXT-ID]: %c\n"~
-		"\tSelf Snoop [SS]: %c\n"~
-		// Memory
-		"\n[Memory]\n"~
-		"\tPhysical Address Extension [PAE]: %c\n"~
-		"\tPage Size Extension [PSE]: %c\n"~
-		"\t36-Bit Page Size Extension [PSE-36]: %c\n"~
-		"\t1 GB Pages support [Page1GB]: %c\n"~
-		"\tDirect Cache Access [DCA]: %c\n"~
-		"\tPage Attribute Table [PAT]: %c\n"~
-		"\tMemory Type Range Registers [MTRR]: %c\n"~
-		"\tPage Global Bit [PGE]: %c\n"~
-		"\tSupervisor Mode Execution Protection [SMEP]: %c\n"~
-		"\tSupervisor Mode Access Protection [SMAP]: %c\n"~
-		"\tProtection Key Units [PKU]: %c\n"~
-		"\tHardware Lock Elision [HLE]: %c\n"~
-		"\tRestricted Transactional Memory [RTM]: %c\n"~
-		"\t5-Level Paging [5LP]: %c\n"~
-		"\tMaximum Physical Memory Bits: %u\n"~
-		"\tMaximum Linear Memory Bits: %u\n"~
-		// Debugging
-		"\n[Debugging]\n"~
-		"\tMachine Check Architecture [MCA]: %c\n"~
-		"\tMachine Check Exception [MCE]: %c\n"~
-		"\tDebugging Extensions [DE]: %c\n"~
-		"\tDebug Store [DS]: %c\n"~
-		"\tDebug Store CPL [DS-CPL]: %c\n"~
-		"\t64-bit DS Area [DTES64]: %c\n"~
-		"\tPerfmon and Debug Capability [PDCM]: %c\n"~
-		"\tSilicon Debug [SDBG]: %c\n"~
-		// Security
-		"\n[Security]\n"~
-		"\tIndirect Branch Prediction Barrier [IBPB]: %c\n"~
-		"\tIndirect Branch Restricted Speculation [IBRS]: %c\n"~
-		"\tSingle Thread Indirect Branch Predictor [STIBP]: %c\n"~
-		"\tSpeculative Store Bypass Disable [SSBD]: %c\n",
-		// ACPI
-		YN(s.ACPI),
-		YN(s.APIC), s.InitialAPICID, s.MaxIDs,
-		YN(s.x2APIC),
-		YN(s.ARAT),
-		YN(s.TM),
-		YN(s.TM2),
-		// Virtualization + Cache
-		YN(s.VME),
-		YN(s.CNXT_ID),
-		YN(s.SS),
-		// Memory
-		YN(s.PAE),
-		YN(s.PSE),
-		YN(s.PSE_36),
-		YN(s.Page1GB),
-		YN(s.DCA),
-		YN(s.PAT),
-		YN(s.MTRR),
-		YN(s.PGE),
-		YN(s.SMEP),
-		YN(s.SMAP),
-		YN(s.PKU),
-		YN(s.HLE),
-		YN(s.RTM),
-		YN(s._5PL),
-		s.addr_phys_bits,
-		s.addr_line_bits,
-		// Debugging
-		YN(s.MCA),
-		YN(s.MCE),
-		YN(s.DE),
-		YN(s.DS),
-		YN(s.DS_CPL),
-		YN(s.DTES64),
-		YN(s.PDCM),
-		YN(s.SDBG),
-		// Security
-		YN(s.IBPB),
-		YN(s.IBRS),
-		YN(s.STIBP),
-		YN(s.SSBD)
-	);
+	printf("\n[Memory]");
+	if (s.PAE) printf(" PAE");
+	if (s.PSE) printf(" PSE");
+	if (s.PSE_36) printf(" PSE_36");
+	if (s.Page1GB) printf(" Page1GB");
+	if (s.DCA) printf(" DCA");
+	if (s.PAT) printf(" PAT");
+	if (s.MTRR) printf(" MTRR");
+	if (s.PGE) printf(" PGE");
+	if (s.SMEP) printf(" SMEP");
+	if (s.SMAP) printf(" SMAP");
+	if (s.PKU) printf(" PKU");
+	if (s.HLE) printf(" HLE");
+	if (s.RTM) printf(" RTM");
+	if (s._5PL) printf(" 5PL");
+	if (s.addr_phys_bits) printf(" Phys-Bits:%u", s.addr_phys_bits);
+	if (s.addr_line_bits) printf(" Line-Bits:%u", s.addr_line_bits);
+
+	printf("\n[Debugging]");
+	if (s.MCA) printf(" MCA");
+	if (s.MCE) printf(" MCE");
+	if (s.DE) printf(" DE");
+	if (s.DS) printf(" DS");
+	if (s.DS_CPL) printf(" DS_CPL");
+	if (s.DTES64) printf(" DTES64");
+	if (s.PDCM) printf(" PDCM");
+	if (s.SDBG) printf(" SDBG");
+
+	printf("\n[Security]");
+	if (s.IBPB) printf(" IBPB");
+	if (s.IBRS) printf(" IBRS");
+	if (s.STIBP) printf(" STIBP");
+	if (s.SSBD) printf(" SSBD");
 
 	switch (VendorID) {
 	case VENDOR_INTEL:
-		printf(
-			"\tL1D_FLUSH: %c\n",
-			YN(s.L1D_FLUSH)
-		);
+		if (s.L1D_FLUSH) printf(" L1D_FLUSH");
 		break;
 	case VENDOR_AMD:
-		printf(
-			"\tIBRS Always On: %c\n"~
-			"\tIBRS Preferred: %c\n"~
-			"\tSTIBP Always On: %c\n",
-			YN(s.IBRS_ON),
-			YN(s.IBRS_PREF),
-			YN(s.STIBP_ON),
-		);
+		if (s.IBRS_ON) printf(" IBRS_ON");
+		if (s.IBRS_PREF) printf(" IBRS_PREF");
+		if (s.STIBP_ON) printf(" STIBP_ON");
 		break;
 	default:
 	}
 
-	__gshared const(char) *[]PROCESSOR_TYPE = [ // 2-bit value
-		"Original OEM Processor",
-		"Intel OverDrive Processor",
-		"Dual processor",
-		"Intel reserved"
+	__gshared const(char) *[]PROCESSOR_TYPE = [
+		"Original", "OverDrive", "Dual", "Reserved"
 	];
 
-	printf( // Other features
-		"\n[Misc.]\n"~
-		"\tHighest Leaf: %Xh | Extended: %Xh\n"~
-		"\tProcessor type: %s\n"~
-		"\tBrand Index: %u\n"~
-		"\txTPR Update Control [xTPR]: %c\n"~
-		"\tProcess-context identifiers [PCID]: %c\n"~
-		"\tProcessor Serial Number [PSN]: %c\n"~
-		"\tPending Break Enable [PBE]: %c\n"~
-		"\tIA32_ARCH_CAPABILITIES MSR: %c\n"~
-		"\tLAHF/SAHF in 64-bit mode [LAHF64]: %c\n",
+	printf("\n[Misc.] HLeaf:%Xh HELeaf:%Xh Type:%s Index:%u",
 		s.MaximumLeaf, s.MaximumExtendedLeaf,
-		PROCESSOR_TYPE[s.ProcessorType],
-		s.BrandIndex,
-		YN(s.xTPR),
-		YN(s.PCID),
-		YN(s.PSN),
-		YN(s.PBE),
-		YN(s.IA32_ARCH_CAPABILITIES),
-		YN(s.LAHF64),
+		PROCESSOR_TYPE[s.ProcessorType], s.BrandIndex
 	);
-	if (opt_future) {
-		printf(
-			"\tFast Short REP MOV [FSREPMOV]: %c\n",
-			YN(s.FSREPMOV)
-		);
-	}
+	if (s.xTPR) printf(" xTPR");
+	if (s.PCID) printf(" PCID");
+	if (s.PSN) printf(" PSN");
+	if (s.PBE) printf(" PBE");
+	if (s.IA32_ARCH_CAPABILITIES) printf(" IA32_ARCH_CAPABILITIES");
+	if (s.LAHF64) printf(" LAHF64+SAHF64");
+	if (s.FSREPMOV) printf(" FSREPMOV");
 
 	return 0;
 } // main
@@ -677,13 +575,11 @@ void fetchInfo(ref CPUINFO s) {
 		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
 		ca.ways = cast(ubyte)((b >> 22) + 1);
 		ca.sets = cast(ushort)(c + 1);
-		if (opt_details) {
-			if (a & BIT!(8)) ca.features = 1;
-			if (a & BIT!(9)) ca.features |= BIT!(1);
-			if (d & BIT!(0)) ca.features |= BIT!(2);
-			if (d & BIT!(1)) ca.features |= BIT!(3);
-			if (d & BIT!(2)) ca.features |= BIT!(4);
-		}
+		if (a & BIT!(8)) ca.features = 1;
+		if (a & BIT!(9)) ca.features |= BIT!(1);
+		if (d & BIT!(0)) ca.features |= BIT!(2);
+		if (d & BIT!(1)) ca.features |= BIT!(3);
+		if (d & BIT!(2)) ca.features |= BIT!(4);
 		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
 
 		debug printf("| %8X | %8X | %8X | %8X | %8X |\n", l, a, b, c, d);
@@ -797,12 +693,10 @@ CACHE_AMD_NEWER:
 		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
 		ca.ways = cast(ubyte)((b >> 22) + 1);
 		ca.sets = cast(ushort)(c + 1);
-		if (opt_details) {
-			if (a & BIT!(8)) ca.features = 1;
-			if (a & BIT!(9)) ca.features |= BIT!(1);
-			if (d & BIT!(0)) ca.features |= BIT!(2);
-			if (d & BIT!(1)) ca.features |= BIT!(3);
-		}
+		if (a & BIT!(8)) ca.features = 1;
+		if (a & BIT!(9)) ca.features |= BIT!(1);
+		if (d & BIT!(0)) ca.features |= BIT!(2);
+		if (d & BIT!(1)) ca.features |= BIT!(3);
 		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
 
 		debug printf("| %8X | %8X | %8X | %8X | %8X |\n", l, a, b, c, d);

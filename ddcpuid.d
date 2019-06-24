@@ -1,42 +1,40 @@
 extern (C):
 
-int strcmp(scope const char *s1, scope const char* s2);
-int printf(scope const char *format, ...);
-int puts(scope const char *s);
+int strcmp(scope const char*, scope const char*);
+int printf(scope const char*, ...);
+int puts(scope const char*);
 int putchar(int c);
+void* memset(void *, int, size_t);
+
+//TODO: Rely on bitflags instead of bytes, which could increase memset runtime
+// Solution 1: u32 per sections (memory, acpi, etc.)
 
 enum VERSION = "0.13.0"; /// Program version
 
-enum	MAX_LEAF = 0x20, /// Maximum leaf (-o)
+enum	MAX_LEAF  = 0x20, /// Maximum leaf (-o)
 	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
 
 /*
  * Self-made vendor "IDs" for faster look-ups, LSB-based.
- * These are the first four bytes of the vendor. If even the four first bytes
- * re-appear in another vendor, get the next four bytes.
+ *
+ * NOTE:
+ * If another vendor starts with the same 4 first characters, check with the
+ * last 4 characters, then 4 middle characters (as, e.g. VENDOR_INTEL3 and
+ * then VENDOR_INTEL2).
  */
-enum // LSB
-	VENDOR_OTHER	= 0,	// Or unknown
-	VENDOR_INTEL	= 0x756e6547,	// "Genu"
-	VENDOR_AMD	= 0x68747541,	// "Auth"
-	VENDOR_VIA	= 0x20414956;	// "VIA "
+enum VENDOR_OTHER = 0;	/// Other/unknown
+enum VENDOR_INTEL = 0x756e6547;	/// Intel: "Genu"
+enum VENDOR_AMD   = 0x68747541;	/// AMD: "Auth"
+enum VENDOR_VIA   = 0x20414956;	/// VIA: "VIA "
 
 version (X86) {
 	enum PLATFORM = "x86";
-} else version (X86_64) {
+} else
+version (X86_64) {
 	enum PLATFORM = "amd64";
-} else version (ARM) {
-	enum PLATFORM = "aarch32";
-	static assert(0, "aarch32 support is planned");
-} else version (AArch64) {
-	enum PLATFORM = "aarch64";
-	static assert(0, "aarch64 support is planned");
-} else {
+} else
 	static assert(0,
-		"ddcpuid is not supported on this platform.");
-}
-
-__gshared uint VendorID; /// Vendor "ID", inits to VENDOR_OTHER
+		"ddcpuid is only supported on x86 and amd64 platforms.");
 
 template BIT(int n) { enum { BIT = 1 << n } }
 
@@ -44,28 +42,31 @@ ubyte CHECK(int n, int f) pure @nogc nothrow {
 	return (n & f) != 0;
 }
 
+__gshared uint VendorID; /// Vendor "ID", inits to VENDOR_OTHER
+
 void shelp() {
 	puts(
-		"x86 CPUID information tool\n"~
-		"\tUsage: ddcpuid [OPTIONS]\n\n"~
-		"OPTIONS\n"~
-	  	"\t-r    Show raw CPUID data in a table\n"~
-		"\t-o    Override leaves to 20h and 8000_0020h\n"~
-		"\n"~
-		"\t-v, --version   Print version information screen and quit\n"~
-		"\t-h, --help      Print this help screen and quit"
+	"x86/AMD64 CPUID information tool\n"~
+	"  Usage: ddcpuid [OPTIONS]\n"~
+	"\n"~
+	"OPTIONS\n"~
+	"  -r    Show raw CPUID data in a table\n"~
+	"  -o    Override leaves to 20h and 8000_0020h\n"~
+	"\n"~
+	"  --version    Print version information screen and quit\n"~
+	"  -h, --help   Print this help screen and quit"
 	);
 }
 
 void sversion() {
 	import d = std.compiler;
 	printf(
-		"ddcpuid-"~PLATFORM~" v"~VERSION~" ("~__TIMESTAMP__~")\n"~
-		"Copyright (c) dd86k 2016-2019\n"~
-		"License: MIT License <http://opensource.org/licenses/MIT>\n"~
-		"Project page: <https://github.com/dd86k/ddcpuid>\n"~
-		"Compiler: "~ __VENDOR__ ~" v%d.%03d\n",
-		d.version_major, d.version_minor
+	"ddcpuid-"~PLATFORM~" v"~VERSION~" ("~__TIMESTAMP__~")\n"~
+	"Copyright (c) dd86k 2016-2019\n"~
+	"License: MIT License <http://opensource.org/licenses/MIT>\n"~
+	"Project page: <https://github.com/dd86k/ddcpuid>\n"~
+	"Compiler: "~ __VENDOR__ ~" v%u.%03u\n",
+	d.version_major, d.version_minor
 	);
 }
 
@@ -121,7 +122,8 @@ int main(int argc, char **argv) {
 		} // else if
 	} // while arg
 
-	CPUINFO s; // zero'd
+	CPUINFO s = void;
+	memset(&s, 0, s.sizeof);
 
 	if (opt_override) {
 		s.MaximumLeaf = MAX_LEAF;
@@ -129,14 +131,13 @@ int main(int argc, char **argv) {
 	} else {
 		s.MaximumLeaf = hleaf;
 		s.MaximumExtendedLeaf = heleaf;
-
 		assert(s.MaximumLeaf > 0); // Mostly due to LDC
 	}
 
 	if (opt_raw) { // -r
 		puts(
-			"| Leaf     | EAX      | EBX      | ECX      | EDX      |\n"~
-			"|----------|----------|----------|----------|----------|"
+		"| Leaf     | EAX      | EBX      | ECX      | EDX      |\n"~
+		"|----------|----------|----------|----------|----------|"
 		);
 		uint l;
 		do {
@@ -163,14 +164,14 @@ int main(int argc, char **argv) {
 	// -- Processor basic information --
 
 	printf(
-		"[Vendor] %.12s\n"~
-		"[String] %.48s\n"~
-		"[Identifier] Family %u (%Xh) [%Xh:%Xh] Model %u (%Xh) [%Xh:%Xh] Stepping %u\n"~
-		"[Extensions]",
-		cast(char*)s.vendorString, cstring,
-		s.Family, s.Family, s.BaseFamily, s.ExtendedFamily,
-		s.Model, s.Model, s.BaseModel, s.ExtendedModel,
-		s.Stepping
+	"[Vendor] %.12s\n"~
+	"[String] %.48s\n"~
+	"[Identifier] Family %u (%Xh) [%Xh:%Xh] Model %u (%Xh) [%Xh:%Xh] Stepping %u\n"~
+	"[Extensions]",
+	cast(char*)s.vendorString, cstring,
+	s.Family, s.Family, s.BaseFamily, s.ExtendedFamily,
+	s.Model, s.Model, s.BaseModel, s.ExtendedModel,
+	s.Stepping
 	);
 
 	if (s.FPU) {
@@ -198,7 +199,7 @@ int main(int argc, char **argv) {
 		switch (VendorID) {
 		case VENDOR_INTEL: printf(" VT-x/VMX"); break; // VMX
 		case VENDOR_AMD: // SVM
-			printf(" AMD-V/VMX:v%d\n", s.VirtVersion);
+			printf(" AMD-V/VMX:v%u\n", s.VirtVersion);
 			break;
 		//case VENDOR_VIA: printf(" VIA-VT/VMX"); break; <- Uncomment when VIA
 		default: printf(" VMX"); break;
@@ -262,7 +263,7 @@ int main(int argc, char **argv) {
 		printf(" CMOV");
 		if (s.FPU) printf(" FCOMI+FCMOV");
 	}
-	if (s.CLFSH) printf(" CLFLUSH:%dB", s.CLFLUSHLineSize * 8);
+	if (s.CLFSH) printf(" CLFLUSH:%uB", s.CLFLUSHLineSize * 8);
 	if (s.PREFETCHW) printf(" PREFETCHW");
 	if (s.LZCNT) printf(" LZCNT");
 	if (s.POPCNT) printf(" POPCNT");
@@ -312,15 +313,15 @@ int main(int argc, char **argv) {
 		if (ca.size >= 1024) {
 			ca.size >>= 10; c = 'M';
 		}
-		printf("L%d-%c: %u %cB, %u ways, %u partitions, %u B, %u sets\n",
+		printf("- L%u-%c: %u %cB, %u ways, %u partitions, %u B, %u sets\n",
 			ca.level, CACHE_TYPE[ca.type], ca.size, c,
 			ca.ways, ca.partitions, ca.linesize, ca.sets
 		);
-		if (ca.features & BIT!(0)) puts("\tSelf Initializing");
-		if (ca.features & BIT!(1)) puts("\tFully Associative");
-		if (ca.features & BIT!(2)) puts("\tNo Write-Back Validation");
-		if (ca.features & BIT!(3)) puts("\tCache Inclusive");
-		if (ca.features & BIT!(4)) puts("\tComplex Cache Indexing");
+		if (ca.features & BIT!(0)) puts("\t- Self Initializing");
+		if (ca.features & BIT!(1)) puts("\t- Fully Associative");
+		if (ca.features & BIT!(2)) puts("\t- No Write-Back Validation");
+		if (ca.features & BIT!(3)) puts("\t- Cache Inclusive");
+		if (ca.features & BIT!(4)) puts("\t- Complex Cache Indexing");
 		++ca;
 	}
 
@@ -352,8 +353,8 @@ int main(int argc, char **argv) {
 	if (s.HLE) printf(" HLE");
 	if (s.RTM) printf(" RTM");
 	if (s._5PL) printf(" 5PL");
-	if (s.addr_phys_bits) printf(" Phys-Bits:%u", s.addr_phys_bits);
-	if (s.addr_line_bits) printf(" Line-Bits:%u", s.addr_line_bits);
+	if (s.addr_phys_bits) printf(" P-Bits:%u", s.addr_phys_bits);
+	if (s.addr_line_bits) printf(" L-Bits:%u", s.addr_line_bits);
 
 	printf("\n[Debugging]");
 	if (s.MCA) printf(" MCA");
@@ -398,6 +399,8 @@ int main(int argc, char **argv) {
 	if (s.IA32_ARCH_CAPABILITIES) printf(" IA32_ARCH_CAPABILITIES");
 	if (s.LAHF64) printf(" LAHF64+SAHF64");
 	if (s.FSREPMOV) printf(" FSREPMOV");
+
+	putchar('\n');
 
 	return 0;
 } // main

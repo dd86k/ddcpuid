@@ -70,7 +70,7 @@ void sversion() {
 }
 
 /// Print cpuid info
-void printc(uint leaf) {
+void printc(ref uint leaf) {
 	uint a = void, b = void, c = void, d = void;
 	version (GNU) asm {
 		"cpuid\n"

@@ -10,7 +10,6 @@ void* memset(void *, int, size_t);
 // Solution 1: u32 per sections (memory, acpi, etc.)
 
 enum VERSION = "0.13.0"; /// Program version
-
 enum	MAX_LEAF  = 0x20, /// Maximum leaf (-o)
 	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
 
@@ -176,7 +175,7 @@ int main(int argc, char **argv) {
 
 	if (s.FPU) {
 		printf(" x87/FPU");
-		if (s.F16C) printf(" F16C");
+		if (s.F16C) printf(" +F16C");
 	}
 	if (s.MMX) printf(" MMX");
 	if (s.MMXExt) printf(" Ext.MMX");
@@ -193,7 +192,7 @@ int main(int argc, char **argv) {
 		switch (VendorID) {
 		case VENDOR_INTEL: printf(" Intel64/x86-64"); break;
 		case VENDOR_AMD: printf(" AMD64/x86-64"); break;
-		default: printf(" x86-64"); break;
+		default: printf(" x86-64");
 		}
 	if (s.Virt)
 		switch (VendorID) {
@@ -202,13 +201,13 @@ int main(int argc, char **argv) {
 			printf(" AMD-V/VMX:v%u\n", s.VirtVersion);
 			break;
 		//case VENDOR_VIA: printf(" VIA-VT/VMX"); break; <- Uncomment when VIA
-		default: printf(" VMX"); break;
+		default: printf(" VMX");
 		}
 	if (s.NX)
 		switch (VendorID) {
 		case VENDOR_INTEL: printf(" Intel-XD/NX"); break;
 		case VENDOR_AMD: printf(" AMD-EVP/NX"); break;
-		default: printf(" NX"); break;
+		default: printf(" NX");
 		}
 	if (s.SMX) printf(" Intel-TXT/SMX");
 	if (s.AES) printf(" AES-NI");
@@ -271,12 +270,12 @@ int main(int argc, char **argv) {
 	if (s.OSXSAVE) printf(" XSETBV+XGETBV");
 	if (s.FXSR) printf(" FXSAVE+FXRSTOR");
 	if (s.SHA) printf(" SHA");
-		if (s.PCONFIG) printf(" PCONFIG");
-		if (s.WBNOINVD) printf(" WBNOINVD");
-		if (s.CLDEMOTE) printf(" CLDEMOTE");
-		if (s.MOVDIRI) printf(" MOVDIRI");
-		if (s.MOVDIR64B) printf(" MOVDIR64B");
-		if (s.AVX512_VPOPCNTDQ) printf(" VPOPCNTDQ");
+	if (s.PCONFIG) printf(" PCONFIG");
+	if (s.WBNOINVD) printf(" WBNOINVD");
+	if (s.CLDEMOTE) printf(" CLDEMOTE");
+	if (s.MOVDIRI) printf(" MOVDIRI");
+	if (s.MOVDIR64B) printf(" MOVDIR64B");
+	if (s.AVX512_VPOPCNTDQ) printf(" VPOPCNTDQ");
 
 	// -- Vendor specific technologies ---
 
@@ -285,10 +284,11 @@ int main(int argc, char **argv) {
 	switch (VendorID) {
 	case VENDOR_INTEL:
 		if (s.EIST) printf(" Enhanced-SpeedStep");
-		if (s.TurboBoost) { //TODO: Make Turboboost high bit set if 3.0 instead of byte
+		if (s.TurboBoost) {
 			printf(" TurboBoost");
 			if (s.TurboBoost3) printf("-3.0");
 		}
+		if (s.HLE || s.RTM) printf(" Intel-TSX");
 		if (s.SGX) printf(" Intel-SGX");
 		break;
 	case VENDOR_AMD:
@@ -302,8 +302,7 @@ int main(int argc, char **argv) {
 	printf("\n[Cache]");
 	if (s.CNXT_ID) printf(" CNXT_ID");
 	if (s.SS) printf(" SS");
-	putchar('\n');
-	
+
 	__gshared char []CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
 
 	CACHE *ca = cast(CACHE*)s.cache; /// Caches
@@ -313,19 +312,19 @@ int main(int argc, char **argv) {
 		if (ca.size >= 1024) {
 			ca.size >>= 10; c = 'M';
 		}
-		printf("- L%u-%c: %u %cB, %u ways, %u partitions, %u B, %u sets\n",
+		printf("\n- L%u-%c: %u %cB, %u ways, %u partitions, %u B, %u sets",
 			ca.level, CACHE_TYPE[ca.type], ca.size, c,
 			ca.ways, ca.partitions, ca.linesize, ca.sets
 		);
-		if (ca.features & BIT!(0)) puts("\t- Self Initializing");
-		if (ca.features & BIT!(1)) puts("\t- Fully Associative");
-		if (ca.features & BIT!(2)) puts("\t- No Write-Back Validation");
-		if (ca.features & BIT!(3)) puts("\t- Cache Inclusive");
-		if (ca.features & BIT!(4)) puts("\t- Complex Cache Indexing");
+		if (ca.features & BIT!(0)) printf("\n\t- Self Initializing");
+		if (ca.features & BIT!(1)) printf("\n\t- Fully Associative");
+		if (ca.features & BIT!(2)) printf("\n\t- No Write-Back Validation");
+		if (ca.features & BIT!(3)) printf("\n\t- Cache Inclusive");
+		if (ca.features & BIT!(4)) printf("\n\t- Complex Cache Indexing");
 		++ca;
 	}
 
-	printf("[ACPI]");
+	printf("\n[ACPI]");
 	if (s.ACPI) printf(" ACPI");
 	if (s.APIC) printf(" APIC");
 	if (s.x2APIC) printf(" x2APIC");
@@ -341,7 +340,7 @@ int main(int argc, char **argv) {
 	printf("\n[Memory]");
 	if (s.PAE) printf(" PAE");
 	if (s.PSE) printf(" PSE");
-	if (s.PSE_36) printf(" PSE_36");
+	if (s.PSE_36) printf(" PSE-36");
 	if (s.Page1GB) printf(" Page1GB");
 	if (s.DCA) printf(" DCA");
 	if (s.PAT) printf(" PAT");
@@ -533,7 +532,6 @@ void fetchInfo(ref CPUINFO s) {
 		}
 	}
 
-	// Why compare strings when you can just compare numbers?
 	VendorID = *cast(uint*)s.vendorString;
 
 	debug printf("VendorID: %X\n", VendorID);
@@ -920,9 +918,9 @@ CACHE_AMD_NEWER:
 
 	//if (s.MaximumLeaf < ...) goto EXTENDED_LEAVES;
 
-	/*
-	 * Extended CPUID leaves
-	 */
+	//
+	// Extended CPUID leaves
+	//
 
 EXTENDED_LEAVES:
 
@@ -1125,16 +1123,11 @@ struct CACHE {
 	}
 	uint size; // Size in KB
 	ushort sets;
-	// Intel
-	// -- ebx
 	// bit 0, Self Initializing cache level
 	// bit 1, Fully Associative cache
-	// -- edx
 	// bit 2, Write-Back Invalidate/Invalidate (toggle)
 	// bit 3, Cache Inclusiveness (toggle)
 	// bit 4, Complex Cache Indexing (toggle)
-	// AMD
-	// See Intel, except Complex Cache Indexing is absent
 	ubyte features;
 }
 
@@ -1241,7 +1234,7 @@ struct CPUINFO { align(1):
 	ubyte MCE;
 	ubyte CX8;
 	ubyte APIC;
-	ubyte SEP;	// sysenter/sysexit
+	ubyte SEP;	/// sysenter/sysexit
 	ubyte MTRR;
 	ubyte PGE;
 	ubyte MCA;
@@ -1253,7 +1246,7 @@ struct CPUINFO { align(1):
 	ubyte DS;
 	ubyte ACPI;
 	ubyte FXSR;
-	ubyte SS;	// self-snoop
+	ubyte SS;	/// self-snoop
 	ubyte HTT;
 	ubyte TM;
 	ubyte PBE;	// 31

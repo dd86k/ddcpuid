@@ -13,7 +13,7 @@ The ddcpuid User Manual is available
 
 It is highly recommended to use the `-betterC` switch when compiling.
 
-DMD, GDC, and LDC compilers are supported.
+DMD, GDC, and LDC compilers are supported. Best support being DMD.
 
 ## GDC Notes
 

@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
 			return 1;
 		} else if (argv[argc][0] == '-') { // Short arguments
 			char* a = argv[argc];
-			while (*++a != 0) switch (*a) {
+			while (*++a) switch (*a) {
 			case 'o': opt_override = true; break;
 			case 'r': opt_raw = true; break;
 			case 'h', '?': shelp; return 0;

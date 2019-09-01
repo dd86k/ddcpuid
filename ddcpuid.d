@@ -9,7 +9,7 @@ void* memset(void *, int, size_t);
 //TODO: Rely on bitflags instead of bytes, which could increase memset runtime
 // Solution 1: u32 per sections (memory, acpi, etc.)
 
-enum VERSION = "0.13.0"; /// Program version
+enum VERSION = "0.13.1"; /// Program version
 enum	MAX_LEAF  = 0x20, /// Maximum leaf (-o)
 	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
 
@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
 	} else {
 		s.MaximumLeaf = hleaf;
 		s.MaximumExtendedLeaf = heleaf;
-		assert(s.MaximumLeaf > 0); // Mostly due to LDC
+		assert(s.MaximumLeaf > 0); // LDC optimization bug
 	}
 
 	if (opt_raw) { // -r

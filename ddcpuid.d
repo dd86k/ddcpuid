@@ -230,6 +230,8 @@ int main(int argc, char **argv) {
 		if (s.AVX512_VAES) printf(" AVX512_VAES");
 		if (s.AVX512_VNNI) printf(" AVX512_VNNI");
 		if (s.AVX512_BITALG) printf(" AVX512_BITALG");
+		if (s.AVX512_BF16) printf(" AVX512_BF16");
+		if (s.AVX512_VP2INTERSECT) printf(" AVX512_VP2INTERSECT");
 	}
 	if (s.FMA) printf(" FMA3");
 	if (s.FMA4) printf(" FMA4");
@@ -276,6 +278,7 @@ int main(int argc, char **argv) {
 	if (s.MOVDIRI) printf(" MOVDIRI");
 	if (s.MOVDIR64B) printf(" MOVDIR64B");
 	if (s.AVX512_VPOPCNTDQ) printf(" VPOPCNTDQ");
+	if (s.ENQCMD) printf(" ENQCMD");
 
 	// -- Vendor specific technologies ---
 
@@ -896,9 +899,11 @@ CACHE_AMD_NEWER:
 		s.CLDEMOTE    = CHECK(c, BIT!(25));
 		s.MOVDIRI     = CHECK(c, BIT!(27));
 		s.MOVDIR64B   = CHECK(c, BIT!(28));
+		s.ENQCMD = CHECK(c, BIT!(29));
 		// d
 		s.AVX512_4VNNIW   = CHECK(d, BIT!(2));
 		s.AVX512_4FMAPS   = CHECK(d, BIT!(3));
+		s.AVX512_VP2INTERSECT = CHECK(d, BIT!(8));
 		s.PCONFIG     = CHECK(d, BIT!(18));
 		s.IBRS        = s.IBPB = CHECK(d, BIT!(26));
 		s.STIBP       = CHECK(d, BIT!(27));
@@ -915,6 +920,29 @@ CACHE_AMD_NEWER:
 	s.BMI2   = CHECK(b, BIT!(8));
 	s.RDSEED = CHECK(b, BIT!(18));
 	s.RDPID  = CHECK(c, BIT!(22));
+
+	switch (VendorID) {
+	case VENDOR_INTEL:
+		version (GNU) asm {
+			"mov $7, %%eax\n"~
+			"mov $1, %%ecx\n"~
+			"cpuid\n"~
+			"mov %%ebx, %0\n"~
+			"mov %%ecx, %1\n"~
+			"mov %%edx, %2\n"
+			: "=b" b, "=c" c, "=d" d;
+		} else asm {
+			mov EAX, 7;
+			mov ECX, 1;
+			cpuid;
+			mov b, EBX;
+			mov c, ECX;
+			mov d, EDX;
+		} // ----- 7H ECX=1h
+		// a
+		s.AVX512_BF16 = CHECK(a, BIT!(5));
+	default:
+	}
 
 	//if (s.MaximumLeaf < ...) goto EXTENDED_LEAVES;
 
@@ -1179,6 +1207,9 @@ struct CPUINFO { align(1):
 	ubyte AVX512_4VNNIW;
 	ubyte AVX512_4FMAPS;
 	ubyte AVX512VL;
+	ubyte AVX512_BF16;
+	ubyte AVX512_VP2INTERSECT;
+	ubyte ENQCMD;
 	ubyte SHA;
 
 	ubyte _3DNow;

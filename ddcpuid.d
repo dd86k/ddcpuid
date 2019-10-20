@@ -70,7 +70,7 @@ void sversion() {
 }
 
 /// Print cpuid info
-void printc(ref uint leaf) {
+void printc(uint leaf) {
 	uint a = void, b = void, c = void, d = void;
 	version (GNU) asm {
 		"cpuid\n"
@@ -941,6 +941,7 @@ CACHE_AMD_NEWER:
 		} // ----- 7H ECX=1h
 		// a
 		s.AVX512_BF16 = CHECK(a, BIT!(5));
+		break;
 	default:
 	}
 

@@ -377,6 +377,7 @@ int main(int argc, char **argv) {
 	switch (VendorID) {
 	case VENDOR_INTEL:
 		if (s.L1D_FLUSH) printf(" L1D_FLUSH");
+		if (s.MD_CLEAR) printf(" MD_CLEAR");
 		break;
 	case VENDOR_AMD:
 		if (s.IBRS_ON) printf(" IBRS_ON");
@@ -904,6 +905,7 @@ CACHE_AMD_NEWER:
 		s.AVX512_4VNNIW   = CHECK(d, BIT!(2));
 		s.AVX512_4FMAPS   = CHECK(d, BIT!(3));
 		s.AVX512_VP2INTERSECT = CHECK(d, BIT!(8));
+		s.MD_CLEAR    = CHECK(d, BIT!(10));
 		s.PCONFIG     = CHECK(d, BIT!(18));
 		s.IBRS        = s.IBPB = CHECK(d, BIT!(26));
 		s.STIBP       = CHECK(d, BIT!(27));
@@ -1313,6 +1315,7 @@ struct CPUINFO { align(1):
 	ubyte MOVDIRI;	// 27
 	ubyte MOVDIR64B;	// 28
 	// -- EDX --
+	ubyte MD_CLEAR;	// 10, MDS
 	ubyte PCONFIG;	// 18
 	ubyte IBPB;	// 26
 	ubyte IBRS;	// 26

@@ -128,9 +128,8 @@ int main(int argc, char **argv) {
 		s.MaximumLeaf = MAX_LEAF;
 		s.MaximumExtendedLeaf = MAX_ELEAF;
 	} else {
-		s.MaximumLeaf = hleaf;
-		s.MaximumExtendedLeaf = heleaf;
-		assert(s.MaximumLeaf > 0); // LDC optimization bug
+		leafs(s);
+		assert(s.MaximumLeaf > 0, "LEAF == 0"); // LDC optimization bug
 	}
 
 	if (opt_raw) { // -r
@@ -1069,44 +1068,64 @@ EXTENDED_LEAVES:
 	//if (s.MaximumExtendedLeaf < ...) return;
 }
 
-version (GNU) {
-	/// Get the maximum leaf.
-	/// Returns: Maximum leaf
-	uint hleaf() {
-		uint r = void;
+/// Get maximum leaf and maximum extended leaf into CPUINFO
+void leafs(ref CPUINFO cpu) {
+	version (GNU) { // GDC
+		uint l = void, le = void;
 		asm {
 			"mov $0, %%eax\n"~
-			"cpuid" : "=a" r;
+			"cpuid" : "=a" l;
 		}
-		return r;
-	}
-	/// Get the maximum extended leaf.
-	/// Returns: Maximum extended leaf
-	uint heleaf() {
-		uint r = void;
 		asm {
 			"mov $0x80000000, %%eax\n"~
-			"cpuid" : "=a" r;
+			"cpuid" : "=a" le;
 		}
-		return r;
-	}
-} else {
-	/// Get the maximum leaf.
-	/// Returns: Maximum leaf
-	uint hleaf() {
-		asm {	naked;
+		cpu.MaximumLeaf = l;
+		cpu.MaximumExtendedLeaf = le;
+	} else
+	version (LDC) { // LDC2
+		version (X86)
+		asm {
+			lea ESI, cpu;
 			mov EAX, 0;
 			cpuid;
-			ret;
-		}
-	}
-	/// Get the maximum extended leaf.
-	/// Returns: Maximum extended leaf
-	uint heleaf() {
-		asm {	naked;
+			mov [ESI + cpu.MaximumLeaf.offsetof], EAX;
 			mov EAX, 0x8000_0000;
 			cpuid;
-			ret;
+			mov [ESI + cpu.MaximumExtendedLeaf.offsetof], EAX;
+		}
+		else
+		version (X86_64)
+		asm {
+			lea RSI, cpu;
+			mov EAX, 0;
+			cpuid;
+			mov [RSI + cpu.MaximumLeaf.offsetof], EAX;
+			mov EAX, 0x8000_0000;
+			cpuid;
+			mov [RSI + cpu.MaximumExtendedLeaf.offsetof], EAX;
+		}
+	} else { // DMD
+		version (X86)
+		asm {
+			mov ESI, cpu;
+			mov EAX, 0;
+			cpuid;
+			mov [ESI + cpu.MaximumLeaf.offsetof], EAX;
+			mov EAX, 0x8000_0000;
+			cpuid;
+			mov [ESI + cpu.MaximumExtendedLeaf.offsetof], EAX;
+		}
+		else
+		version (X86_64)
+		asm {
+			mov RSI, cpu;
+			mov EAX, 0;
+			cpuid;
+			mov [RSI + cpu.MaximumLeaf.offsetof], EAX;
+			mov EAX, 0x8000_0000;
+			cpuid;
+			mov [RSI + cpu.MaximumExtendedLeaf.offsetof], EAX;
 		}
 	}
 }

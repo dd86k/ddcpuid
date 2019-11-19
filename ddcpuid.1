@@ -2,13 +2,15 @@
 ." Please read man-pages(7) and groff_man(7) about the manual page format.
 ." Don't forget to respect the format of this document!
 ."
-.TH ddcpuid 1 "July 2019" dd86k "User manual"
+.TH ddcpuid 1 "November 2019" dd86k "User manual"
 .SH NAME
 ddcpuid - Simple x86/AMD64 CPUID tool
 
 .SH SYNOPSIS
 .SY ddcpuid
-.OP \-rodfvh
+.OP \-ro
+.OP \--help
+.OP \--version
 .YS
 
 .SH DESCRIPTION
@@ -18,13 +20,14 @@ is a simple x86/AMD64 CPUID information tool.
 Processor technologies are reported per processor vendor, depending if
 available in documentation. Only Intel and AMD processors are supported.
 
-The following is reported.
+The following is reported:
 
 .EX
-- Vendor and brand strings
+- Vendor and Brand strings
 - Identification numbers
-- Detailed cache information
-- FPU features
+- x86 extensions (e.g. MMX, AVX, etc.)
+- Stand-alone instructions (e.g. RDRAND)
+- Cache information
 - ACPI features
 - Virtualization features
 - Memory features
@@ -34,6 +37,9 @@ The following is reported.
   - CPUID Leaves
   - Type
   - Index
+  - xTPR
+  - PBE
+  - LAHF64+SAHF64
 .EE
 
 .SH OPTIONS
@@ -67,8 +73,6 @@ Best supported compiler is DMD.
 
 .SH BUGS
 Compiling with GDC/GCC, compiling above -O1 segfaults at run-time.
-
-Compiling with LDC, LDC may optimize out the hleaf function.
 
 .SH AUTHOR
 Written by dd86k.

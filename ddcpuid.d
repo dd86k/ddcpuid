@@ -33,7 +33,6 @@ version (X86_64) {
 		"ddcpuid is only supported on x86 and amd64 platforms.");
 
 __gshared char []CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
-__gshared uint VendorID; /// Vendor "ID", inits to VENDOR_OTHER
 
 template BIT(int n) { enum { BIT = 1 << n } }
 
@@ -117,7 +116,6 @@ int main(int argc, char **argv) {
 	} // while arg
 
 	CPUINFO s = void;
-	memset(&s, 0, s.sizeof);
 
 	if (opt_override) {
 		s.MaximumLeaf = MAX_LEAF;
@@ -147,7 +145,7 @@ int main(int argc, char **argv) {
 
 	const(char) *cstring = cast(const(char)*)s.cpuString;
 
-	switch (VendorID) {
+	switch (s.VendorID) {
 	case VENDOR_INTEL: // Common in Intel processor brand strings
 		while (*cstring == ' ') ++cstring; // left trim cpu string
 		break;
@@ -183,13 +181,13 @@ int main(int argc, char **argv) {
 	if (s.SSE42) printf(" SSE4.2");
 	if (s.SSE4a) printf(" SSE4a");
 	if (s.LongMode)
-		switch (VendorID) {
+		switch (s.VendorID) {
 		case VENDOR_INTEL: printf(" Intel64/x86-64"); break;
 		case VENDOR_AMD: printf(" AMD64/x86-64"); break;
 		default: printf(" x86-64");
 		}
 	if (s.Virt)
-		switch (VendorID) {
+		switch (s.VendorID) {
 		case VENDOR_INTEL: printf(" VT-x/VMX"); break; // VMX
 		case VENDOR_AMD: // SVM
 			printf(" AMD-V/VMX:v%u\n", s.VirtVersion);
@@ -198,7 +196,7 @@ int main(int argc, char **argv) {
 		default: printf(" VMX");
 		}
 	if (s.NX)
-		switch (VendorID) {
+		switch (s.VendorID) {
 		case VENDOR_INTEL: printf(" Intel-XD/NX"); break;
 		case VENDOR_AMD: printf(" AMD-EVP/NX"); break;
 		default: printf(" NX");
@@ -278,7 +276,7 @@ int main(int argc, char **argv) {
 
 	printf("\n[Technologies]");
 
-	switch (VendorID) {
+	switch (s.VendorID) {
 	case VENDOR_INTEL:
 		if (s.EIST) printf(" Enhanced-SpeedStep");
 		if (s.TurboBoost) {
@@ -366,7 +364,7 @@ int main(int argc, char **argv) {
 	if (s.STIBP) printf(" STIBP");
 	if (s.SSBD) printf(" SSBD");
 
-	switch (VendorID) {
+	switch (s.VendorID) {
 	case VENDOR_INTEL:
 		if (s.L1D_FLUSH) printf(" L1D_FLUSH");
 		if (s.MD_CLEAR) printf(" MD_CLEAR");
@@ -405,6 +403,8 @@ int main(int argc, char **argv) {
  * Params: s = CPUINFO structure
  */
 void fetchInfo(ref CPUINFO s) {
+	memset(&s, 0, CPUINFO.sizeof);
+
 	// Position Independant Code compliant
 	size_t __A = cast(size_t)&s.vendorString;
 	size_t __B = cast(size_t)&s.cpuString;
@@ -528,8 +528,6 @@ void fetchInfo(ref CPUINFO s) {
 		}
 	}
 
-	VendorID = *cast(uint*)s.vendorString;
-
 	debug printf("VendorID: %X\n", VendorID);
 
 	uint l; /// Cache level
@@ -539,7 +537,7 @@ void fetchInfo(ref CPUINFO s) {
 
 	uint a = void, b = void, c = void, d = void; // EAX to EDX
 
-	switch (VendorID) { // CACHE INFORMATION
+	switch (s.VendorID) { // CACHE INFORMATION
 	case VENDOR_INTEL:
 		version (GNU) asm {
 			"mov $4, %%eax\n"~
@@ -726,7 +724,7 @@ CACHE_AMD_NEWER:
 	s.ExtendedModel  = a >> 16 &  0xF; // EAX[19:16]
 	s.ExtendedFamily = cast(ubyte)(a >> 20); // EAX[27:20]
 
-	switch (VendorID) {
+	switch (s.VendorID) {
 	case VENDOR_INTEL:
 		if (s.BaseFamily != 0)
 			s.Family = s.BaseFamily;
@@ -832,7 +830,7 @@ CACHE_AMD_NEWER:
 		mov a, EAX;
 	} // ----- 6H
 
-	switch (VendorID) {
+	switch (s.VendorID) {
 	case VENDOR_INTEL:
 		s.TurboBoost = CHECK(a, BIT!(1));
 		s.TurboBoost3 = CHECK(a, BIT!(14));
@@ -861,7 +859,7 @@ CACHE_AMD_NEWER:
 		mov d, EDX;
 	} // ----- 7H
 
-	switch (VendorID) {
+	switch (s.VendorID) {
 	case VENDOR_INTEL:
 		// b
 		s.SGX         = CHECK(b, BIT!(2));
@@ -915,7 +913,7 @@ CACHE_AMD_NEWER:
 	s.RDSEED = CHECK(b, BIT!(18));
 	s.RDPID  = CHECK(c, BIT!(22));
 
-	switch (VendorID) {
+	switch (s.VendorID) {
 	case VENDOR_INTEL:
 		version (GNU) asm {
 			"mov $7, %%eax\n"~
@@ -959,7 +957,7 @@ EXTENDED_LEAVES:
 		mov d, EDX;
 	} // EXTENDED 8000_0001H
 
-	switch (VendorID) {
+	switch (s.VendorID) {
 	case VENDOR_AMD:
 		s.Virt      = CHECK(c, BIT!(2)); // SVM
 		s.SSE4a     = CHECK(c, BIT!(6));
@@ -993,7 +991,7 @@ EXTENDED_LEAVES:
 		mov d, EDX;
 	} // EXTENDED 8000_0007H
 
-	switch (VendorID) {
+	switch (s.VendorID) {
 	case VENDOR_INTEL:
 		s.RDSEED = CHECK(b, BIT!(28));
 		break;
@@ -1021,7 +1019,7 @@ EXTENDED_LEAVES:
 		mov b, EBX;
 	} // EXTENDED 8000_0008H
 
-	switch (VendorID) {
+	switch (s.VendorID) {
 	case VENDOR_INTEL:
 		s.WBNOINVD = CHECK(b, BIT!(9));
 		break;
@@ -1051,7 +1049,7 @@ EXTENDED_LEAVES:
 		mov a, EAX;
 	} // EXTENDED 8000_000AH
 
-	switch (VendorID) {
+	switch (s.VendorID) {
 	case VENDOR_AMD:
 		s.VirtVersion = cast(ubyte)a; // EAX[7:0]
 		break;
@@ -1124,11 +1122,9 @@ void leafs(ref CPUINFO cpu) {
 }
 
 struct CACHE {
-	/*
-	 * Cache Size in Bytes
-	 * (Ways + 1) * (Partitions + 1) * (Line_Size + 1) * (Sets + 1)
-	 * (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
-	 */
+	/// Cache Size in Bytes
+	/// (Ways + 1) * (Partitions + 1) * (Line_Size + 1) * (Sets + 1)
+	/// (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
 	ubyte type; // data=1, instructions=2, unified=3
 	ubyte level; // L1, L2, etc.
 	union {
@@ -1151,7 +1147,10 @@ struct CACHE {
 }
 
 struct CPUINFO { align(1):
-	ubyte [12]vendorString;	// inits to 0
+	union {
+		uint VendorID;
+		ubyte [12]vendorString;	// inits to 0
+	}
 	ubyte [48]cpuString;	// inits to 0
 
 	uint MaximumLeaf;

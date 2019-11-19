@@ -6,9 +6,6 @@ int puts(scope const char*);
 int putchar(int c);
 void* memset(void *, int, size_t);
 
-//TODO: Rely on bitflags instead of bytes, which could increase memset runtime
-// Solution 1: u32 per sections (memory, acpi, etc.)
-
 enum VERSION = "0.13.1"; /// Program version
 enum	MAX_LEAF  = 0x20, /// Maximum leaf (-o)
 	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
@@ -35,13 +32,14 @@ version (X86_64) {
 	static assert(0,
 		"ddcpuid is only supported on x86 and amd64 platforms.");
 
+__gshared char []CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
+__gshared uint VendorID; /// Vendor "ID", inits to VENDOR_OTHER
+
 template BIT(int n) { enum { BIT = 1 << n } }
 
 ubyte CHECK(int n, int f) pure @nogc nothrow {
 	return (n & f) != 0;
 }
-
-__gshared uint VendorID; /// Vendor "ID", inits to VENDOR_OTHER
 
 void shelp() {
 	puts(
@@ -88,13 +86,10 @@ void printc(uint leaf) {
 	printf("| %8X | %8X | %8X | %8X | %8X |\n", leaf, a, b, c, d);
 }
 
-//TODO: (AMD) APICv (AVIC) Fn8000_000A_EDX[13], Intel has no bit for APICv
 // GAS reminder: asm { "asm" : output : input : clobber }
 
 int main(int argc, char **argv) {
 	bool opt_raw;	/// Raw option (-r), table option
-	// See Intel(R) Architecture Instruction Set Extensions and Future
-	// Features Programming Reference
 	bool opt_override;	/// opt_override max leaf option (-o)
 
 	while (--argc >= 1) { // CLI
@@ -113,7 +108,7 @@ int main(int argc, char **argv) {
 			while (*++a) switch (*a) {
 			case 'o': opt_override = true; break;
 			case 'r': opt_raw = true; break;
-			case 'h', '?': shelp; return 0;
+			case 'h': shelp; return 0;
 			default:
 				printf("Unknown parameter: %c\n", *a);
 				return 1;
@@ -304,8 +299,6 @@ int main(int argc, char **argv) {
 	printf("\n[Cache]");
 	if (s.CNXT_ID) printf(" CNXT_ID");
 	if (s.SS) printf(" SS");
-
-	__gshared char []CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
 
 	CACHE *ca = cast(CACHE*)s.cache; /// Caches
 
@@ -1130,30 +1123,6 @@ void leafs(ref CPUINFO cpu) {
 	}
 }
 
-/**
- * Get the number of logical cores for an Intel processor.
- * Returns:
- *   The number of logical cores.
- * Errorcodes:
- *   -1 = Feature not supported.
- */
-/*extern (C) short getCoresIntel() {
-	asm { naked;
-		mov EAX, 0;
-		cpuid;
-		cmp EAX, 0xB;
-		jge INTEL_A;
-		mov AX, -1;
-		ret;
-INTEL_A:
-		mov EAX, 0xB;
-		mov ECX, 1;
-		cpuid;
-		mov AX, BX;
-		ret;
-	}
-}*/
-
 struct CACHE {
 	/*
 	 * Cache Size in Bytes
@@ -1178,7 +1147,7 @@ struct CACHE {
 	// bit 2, Write-Back Invalidate/Invalidate (toggle)
 	// bit 3, Cache Inclusiveness (toggle)
 	// bit 4, Complex Cache Indexing (toggle)
-	ubyte features;
+	ushort features;
 }
 
 struct CPUINFO { align(1):
@@ -1187,9 +1156,6 @@ struct CPUINFO { align(1):
 
 	uint MaximumLeaf;
 	uint MaximumExtendedLeaf;
-
-	//ushort NumberOfCores;
-	//ushort NumberOfThreads;
 
 	ubyte Family;
 	ubyte BaseFamily;

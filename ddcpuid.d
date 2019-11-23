@@ -6,18 +6,11 @@ int puts(scope const char*);
 int putchar(int c);
 void* memset(void *, int, size_t);
 
-enum VERSION = "0.13.1"; /// Program version
+enum VERSION = "0.14.0"; /// Program version
 enum	MAX_LEAF  = 0x20, /// Maximum leaf (-o)
 	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
 
-/*
- * Self-made vendor "IDs" for faster look-ups, LSB-based.
- *
- * NOTE:
- * If another vendor starts with the same 4 first characters, check with the
- * last 4 characters, then 4 middle characters (as, e.g. VENDOR_INTEL3 and
- * then VENDOR_INTEL2).
- */
+// Self-made vendor "IDs" for faster look-ups, LSB-based.
 enum VENDOR_OTHER = 0;	/// Other/unknown
 enum VENDOR_INTEL = 0x756e6547;	/// Intel: "Genu"
 enum VENDOR_AMD   = 0x68747541;	/// AMD: "Auth"
@@ -201,10 +194,6 @@ __gshared char []CACHE_TYPE = [
 __gshared const(char) *[]PROCESSOR_TYPE = [
 	"Original", "OverDrive", "Dual", "Reserved"
 ];
-
-ubyte CHECK(int n, int f) pure @nogc nothrow {
-	return (n & f) != 0;
-}
 
 void shelp() {
 	puts(
@@ -702,8 +691,6 @@ void fetchInfo(ref CPUINFO s) {
 	uint l; /// Cache level
 	CACHEINFO *ca = cast(CACHEINFO*)s.caches;
 
-	debug puts("--- Cache information ---");
-
 	uint a = void, b = void, c = void, d = void; // EAX to EDX
 
 	switch (s.VendorID) { // CACHE INFORMATION
@@ -895,15 +882,13 @@ CACHE_AMD_NEWER:
 
 	switch (s.VendorID) {
 	case VENDOR_INTEL:
-		if (s.BaseFamily != 0)
-			s.Family = s.BaseFamily;
-		else
-			s.Family = cast(ubyte)(s.ExtendedFamily + s.BaseFamily);
+		s.Family = s.BaseFamily != 0 ?
+			s.BaseFamily :
+			cast(ubyte)(s.ExtendedFamily + s.BaseFamily);
 
-		if (s.BaseFamily == 6 || s.BaseFamily == 0)
-			s.Model = cast(ubyte)((s.ExtendedModel << 4) + s.BaseModel);
-		else // DisplayModel = Model_ID;
-			s.Model = s.BaseModel;
+		s.Model = s.BaseFamily == 6 || s.BaseFamily == 0 ?
+			cast(ubyte)((s.ExtendedModel << 4) + s.BaseModel) :
+			s.BaseModel; // DisplayModel = Model_ID;
 
 		// ECX
 		if (c & BIT!(2)) s.DEBUG  |= F_DEBUG_DTES64;
@@ -1565,5 +1550,5 @@ struct CPUINFO { align(1):
 	uint MISC;
 }
 
-debug pragma(msg, "* sizeof CPUINFO: ", CPUINFO.sizeof);
-debug pragma(msg, "* sizeof CACHE: ", CACHEINFO.sizeof);
+pragma(msg, "* sizeof CPUINFO: ", CPUINFO.sizeof);
+pragma(msg, "* sizeof CACHE: ", CACHEINFO.sizeof);

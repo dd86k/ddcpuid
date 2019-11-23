@@ -23,18 +23,184 @@ enum VENDOR_INTEL = 0x756e6547;	/// Intel: "Genu"
 enum VENDOR_AMD   = 0x68747541;	/// AMD: "Auth"
 enum VENDOR_VIA   = 0x20414956;	/// VIA: "VIA "
 
-version (X86) {
+version (X86)
 	enum PLATFORM = "x86";
-} else
-version (X86_64) {
+else
+version (X86_64)
 	enum PLATFORM = "amd64";
-} else
-	static assert(0,
-		"ddcpuid is only supported on x86 and amd64 platforms.");
-
-__gshared char []CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
+else static assert(0,
+		"ddcpuid is only supported on x86 platforms");
 
 template BIT(int n) { enum { BIT = 1 << n } }
+
+enum {
+	//
+	// Extension bits
+	//
+	F_EXTEN_FPU	= BIT!(0),
+	F_EXTEN_F16C	= BIT!(1),
+	F_EXTEN_MMX	= BIT!(2),
+	F_EXTEN_MMXEXT	= BIT!(3),
+	F_EXTEN_3DNOW	= BIT!(4),
+	F_EXTEN_3DNOWEXT	= BIT!(5),
+	F_EXTEN_SSE	= BIT!(6),
+	F_EXTEN_SSE2	= BIT!(7),
+	F_EXTEN_SSE3	= BIT!(8),
+	F_EXTEN_SSSE3	= BIT!(9),
+	F_EXTEN_SSE41	= BIT!(10),
+	F_EXTEN_SSE42	= BIT!(11),
+	F_EXTEN_SSE4a	= BIT!(12),
+	F_EXTEN_AES_NI	= BIT!(15),
+	F_EXTEN_SHA	= BIT!(16),
+	F_EXTEN_FMA	= BIT!(17),
+	F_EXTEN_FMA4	= BIT!(18),
+	F_EXTEN_BMI1	= BIT!(19),
+	F_EXTEN_BMI2	= BIT!(20),
+	F_EXTEN_x86_64	= BIT!(21),
+	F_EXTEN_LAHF64	= BIT!(22),
+	F_EXTEN_WAITPKG	= BIT!(23),
+	//
+	// AVX
+	//
+	F_AVX_AVX	= BIT!(0),
+	F_AVX_AVX2	= BIT!(1),
+	F_AVX_AVX512F	= BIT!(2),
+	F_AVX_AVX512ER	= BIT!(3),
+	F_AVX_AVX512PF	= BIT!(4),
+	F_AVX_AVX512CD	= BIT!(5),
+	F_AVX_AVX512DQ	= BIT!(6),
+	F_AVX_AVX512BW	= BIT!(7),
+	F_AVX_AVX512VL	= BIT!(8),
+	F_AVX_AVX512_IFMA	= BIT!(9),
+	F_AVX_AVX512_VBMI	= BIT!(10),
+	F_AVX_AVX512_VBMI2	= BIT!(11),
+	F_AVX_AVX512_GFNI	= BIT!(12),
+	F_AVX_AVX512_VAES	= BIT!(13),
+	F_AVX_AVX512_VNNI	= BIT!(14),
+	F_AVX_AVX512_BITALG	= BIT!(15),
+	F_AVX_AVX512_VPOPCNTDQ	= BIT!(16),
+	F_AVX_AVX512_4VNNIW	= BIT!(17),
+	F_AVX_AVX512_4FMAPS	= BIT!(18),
+	F_AVX_AVX512_BF16	= BIT!(19),
+	F_AVX_AVX512_VP2INTERSECT	= BIT!(20),
+	//
+	// Extras
+	//
+	F_EXTRA_MONITOR	= BIT!(0),
+	F_EXTRA_PCLMULQDQ	= BIT!(1),
+	F_EXTRA_CMPXCHG8B	= BIT!(2),
+	F_EXTRA_CMPXCHG16B	= BIT!(3),
+	F_EXTRA_MOVBE	= BIT!(4),
+	F_EXTRA_RDRAND	= BIT!(5),
+	F_EXTRA_RDSEED	= BIT!(6),
+	F_EXTRA_RDMSR	= BIT!(7),
+	F_EXTRA_SYSENTER	= BIT!(8),
+	F_EXTRA_TSC	= BIT!(9),
+	F_EXTRA_TSC_DEADLINE	= BIT!(10),
+	F_EXTRA_TSC_INVARIANT	= BIT!(11),
+	F_EXTRA_RDTSCP	= BIT!(12),
+	F_EXTRA_RDPID	= BIT!(13),
+	F_EXTRA_CMOV	= BIT!(14),
+	F_EXTRA_LZCNT	= BIT!(15),
+	F_EXTRA_POPCNT	= BIT!(16),
+	F_EXTRA_XSAVE	= BIT!(17),
+	F_EXTRA_OSXSAVE	= BIT!(18),
+	F_EXTRA_FXSR	= BIT!(19),
+	F_EXTRA_PCONFIG	= BIT!(20),
+	F_EXTRA_CLDEMOTE	= BIT!(22),
+	F_EXTRA_MOVDIRI	= BIT!(23),
+	F_EXTRA_MOVDIR64B	= BIT!(24),
+	F_EXTRA_ENQCMD	= BIT!(25),
+	//
+	// Technology bits
+	//
+	F_TECH_EIST	= BIT!(0),
+	F_TECH_TURBOBOOST	= BIT!(1),
+	F_TECH_TURBOBOOST30	= BIT!(2),
+	F_TECH_SMX	= BIT!(3),
+	F_TECH_SGX	= BIT!(4),
+	F_TECH_HTT	= BIT!(24),
+	//
+	// Cache bits
+	//
+	F_CACHE_CLFLUSH	= BIT!(8),
+	F_CACHE_CNXT_ID	= BIT!(9),
+	F_CACHE_SS	= BIT!(10),
+	F_CACHE_PREFETCHW	= BIT!(11),
+	F_CACHE_PCID	= BIT!(12),
+	F_CACHE_WBNOINVD	= BIT!(13),
+	//
+	// ACPI bits
+	//
+	F_ACPI_ACPI	= BIT!(0),
+	F_ACPI_APIC	= BIT!(0),
+	F_ACPI_x2APIC	= BIT!(0),
+	F_ACPI_ARAT	= BIT!(0),
+	F_ACPI_TM	= BIT!(0),
+	F_ACPI_TM2	= BIT!(0),
+	//
+	// Virt bits
+	//
+	F_VIRT_VIRT	= BIT!(8),
+	F_VIRT_VME	= BIT!(9),
+	//
+	// Memory bits
+	//
+	F_MEM_PAE	= BIT!(0),
+	F_MEM_PSE	= BIT!(1),
+	F_MEM_PSE_36	= BIT!(2),
+	F_MEM_PAGE1GB	= BIT!(3),
+	F_MEM_MTRR	= BIT!(4),
+	F_MEM_PAT	= BIT!(5),
+	F_MEM_PGE	= BIT!(6),
+	F_MEM_DCA	= BIT!(7),
+	F_MEM_NX	= BIT!(8),
+	F_MEM_HLE	= BIT!(9),
+	F_MEM_RTM	= BIT!(10),
+	F_MEM_SMEP	= BIT!(11),
+	F_MEM_SMAP	= BIT!(12),
+	F_MEM_PKU	= BIT!(13),
+	F_MEM_5PL	= BIT!(14),
+	F_MEM_FSREPMOV	= BIT!(15),
+	//
+	// Debug bits
+	//
+	F_DEBUG_MCA	= BIT!(0),
+	F_DEBUG_MCE	= BIT!(1),
+	F_DEBUG_DE	= BIT!(2),
+	F_DEBUG_DS	= BIT!(3),
+	F_DEBUG_DS_CPL	= BIT!(4),
+	F_DEBUG_DTES64	= BIT!(5),
+	F_DEBUG_PDCM	= BIT!(6),
+	F_DEBUG_SDBG	= BIT!(7),
+	F_DEBUG_PBE	= BIT!(8),
+	//
+	// Security bits
+	//
+	F_SEC_IBPB	= BIT!(0),
+	F_SEC_IBRS	= BIT!(1),
+	F_SEC_IBRS_ON	= BIT!(2),
+	F_SEC_IBRS_PREF	= BIT!(3),
+	F_SEC_STIBP	= BIT!(4),
+	F_SEC_STIBP_ON	= BIT!(5),
+	F_SEC_SSBD	= BIT!(6),
+	F_SEC_L1D_FLUSH	= BIT!(7),
+	F_SEC_MD_CLEAR	= BIT!(8),
+	//
+	// Misc. bits
+	//
+	F_MISC_PSN	= BIT!(8),
+	F_MISC_xTPR	= BIT!(9),
+	F_MISC_IA32_ARCH_CAPABILITIES	= BIT!(10),
+}
+
+__gshared char []CACHE_TYPE = [
+	'?', 'D', 'I', 'U', '?', '?', '?', '?'
+];
+
+__gshared const(char) *[]PROCESSOR_TYPE = [
+	"Original", "OverDrive", "Dual", "Reserved"
+];
 
 ubyte CHECK(int n, int f) pure @nogc nothrow {
 	return (n & f) != 0;
@@ -116,6 +282,7 @@ int main(int argc, char **argv) {
 	} // while arg
 
 	CPUINFO s = void;
+	memset(&s, 0, CPUINFO.sizeof);
 
 	if (opt_override) {
 		s.MaximumLeaf = MAX_LEAF;
@@ -165,112 +332,107 @@ int main(int argc, char **argv) {
 	s.Stepping
 	);
 
-	if (s.FPU) {
+	if (s.EXTEN & F_EXTEN_FPU) {
 		printf(" x87/FPU");
-		if (s.F16C) printf(" +F16C");
+		if (s.EXTEN & F_EXTEN_F16C) printf(" +F16C");
 	}
-	if (s.MMX) printf(" MMX");
-	if (s.MMXExt) printf(" Ext.MMX");
-	if (s._3DNow) printf(" 3DNow!");
-	if (s._3DNowExt) printf(" Ext.3DNow!");
-	if (s.SSE) printf(" SSE");
-	if (s.SSE2) printf(" SSE2");
-	if (s.SSE3) printf(" SSE3");
-	if (s.SSSE3) printf(" SSSE3");
-	if (s.SSE41) printf(" SSE4.1");
-	if (s.SSE42) printf(" SSE4.2");
-	if (s.SSE4a) printf(" SSE4a");
-	if (s.LongMode)
+	if (s.EXTEN & F_EXTEN_MMX) printf(" MMX");
+	if (s.EXTEN & F_EXTEN_MMXEXT) printf(" Ext.MMX");
+	if (s.EXTEN & F_EXTEN_3DNOW) printf(" 3DNow!");
+	if (s.EXTEN & F_EXTEN_3DNOWEXT) printf(" Ext.3DNow!");
+	if (s.EXTEN & F_EXTEN_SSE) printf(" SSE");
+	if (s.EXTEN & F_EXTEN_SSE2) printf(" SSE2");
+	if (s.EXTEN & F_EXTEN_SSE3) printf(" SSE3");
+	if (s.EXTEN & F_EXTEN_SSSE3) printf(" SSSE3");
+	if (s.EXTEN & F_EXTEN_SSE41) printf(" SSE4.1");
+	if (s.EXTEN & F_EXTEN_SSE42) printf(" SSE4.2");
+	if (s.EXTEN & F_EXTEN_SSE4a) printf(" SSE4a");
+	if (s.EXTEN & F_EXTEN_x86_64) {
 		switch (s.VendorID) {
 		case VENDOR_INTEL: printf(" Intel64/x86-64"); break;
 		case VENDOR_AMD: printf(" AMD64/x86-64"); break;
 		default: printf(" x86-64");
 		}
-	if (s.Virt)
+		if (s.EXTEN & F_EXTEN_LAHF64)
+			printf(" +LAHF64");
+	}
+	if (s.VIRT & F_VIRT_VIRT)
 		switch (s.VendorID) {
-		case VENDOR_INTEL: printf(" VT-x/VMX"); break; // VMX
+		case VENDOR_INTEL: printf(" VT-x/VMX"); break;
 		case VENDOR_AMD: // SVM
-			printf(" AMD-V/VMX:v%u\n", s.VirtVersion);
+			printf(" AMD-V/VMX");
+			if (s.VirtVersion)
+				printf(":v%u", s.VirtVersion);
 			break;
-		//case VENDOR_VIA: printf(" VIA-VT/VMX"); break; <- Uncomment when VIA
+		case VENDOR_VIA: printf(" VIA-VT/VMX"); break;
 		default: printf(" VMX");
 		}
-	if (s.NX)
-		switch (s.VendorID) {
-		case VENDOR_INTEL: printf(" Intel-XD/NX"); break;
-		case VENDOR_AMD: printf(" AMD-EVP/NX"); break;
-		default: printf(" NX");
-		}
-	if (s.SMX) printf(" Intel-TXT/SMX");
-	if (s.AES) printf(" AES-NI");
-	if (s.AVX) printf(" AVX");
-	if (s.AVX2) printf(" AVX2");
-	if (s.AVX512F) {
+	if (s.TECH & F_TECH_SMX) printf(" Intel-TXT/SMX");
+	if (s.EXTEN & F_EXTEN_AES_NI) printf(" AES-NI");
+	if (s.AVX & F_AVX_AVX) printf(" AVX");
+	if (s.AVX & F_AVX_AVX2) printf(" AVX2");
+	if (s.AVX & F_AVX_AVX512F) {
 		printf(" AVX512F");
-		if (s.AVX512ER) printf(" AVX512ER");
-		if (s.AVX512PF) printf(" AVX512PF");
-		if (s.AVX512CD) printf(" AVX512CD");
-		if (s.AVX512DQ) printf(" AVX512DQ");
-		if (s.AVX512BW) printf(" AVX512BW");
-		if (s.AVX512VL) printf(" AVX512VL");
-		if (s.AVX512_IFMA) printf(" AVX512_IFMA");
-		if (s.AVX512_VBMI) printf(" AVX512_VBMI");
-		if (s.AVX512_4VNNIW) printf(" AVX512_4VNNIW");
-		if (s.AVX512_4FMAPS) printf(" AVX512_4FMAPS");
-		if (s.AVX512_VBMI2) printf(" AVX512_VBMI2");
-		if (s.AVX512_GFNI) printf(" AVX512_GFNI");
-		if (s.AVX512_VAES) printf(" AVX512_VAES");
-		if (s.AVX512_VNNI) printf(" AVX512_VNNI");
-		if (s.AVX512_BITALG) printf(" AVX512_BITALG");
-		if (s.AVX512_BF16) printf(" AVX512_BF16");
-		if (s.AVX512_VP2INTERSECT) printf(" AVX512_VP2INTERSECT");
+		if (s.AVX & F_AVX_AVX512ER) printf(" AVX512ER");
+		if (s.AVX & F_AVX_AVX512PF) printf(" AVX512PF");
+		if (s.AVX & F_AVX_AVX512CD) printf(" AVX512CD");
+		if (s.AVX & F_AVX_AVX512DQ) printf(" AVX512DQ");
+		if (s.AVX & F_AVX_AVX512BW) printf(" AVX512BW");
+		if (s.AVX & F_AVX_AVX512VL) printf(" AVX512VL");
+		if (s.AVX & F_AVX_AVX512_IFMA) printf(" AVX512_IFMA");
+		if (s.AVX & F_AVX_AVX512_VBMI) printf(" AVX512_VBMI");
+		if (s.AVX & F_AVX_AVX512_4VNNIW) printf(" AVX512_4VNNIW");
+		if (s.AVX & F_AVX_AVX512_4FMAPS) printf(" AVX512_4FMAPS");
+		if (s.AVX & F_AVX_AVX512_VBMI2) printf(" AVX512_VBMI2");
+		if (s.AVX & F_AVX_AVX512_GFNI) printf(" AVX512_GFNI");
+		if (s.AVX & F_AVX_AVX512_VAES) printf(" AVX512_VAES");
+		if (s.AVX & F_AVX_AVX512_VNNI) printf(" AVX512_VNNI");
+		if (s.AVX & F_AVX_AVX512_BITALG) printf(" AVX512_BITALG");
+		if (s.AVX & F_AVX_AVX512_BF16) printf(" AVX512_BF16");
+		if (s.AVX & F_AVX_AVX512_VP2INTERSECT) printf(" AVX512_VP2INTERSECT");
 	}
-	if (s.FMA) printf(" FMA3");
-	if (s.FMA4) printf(" FMA4");
-	if (s.BMI1) printf(" BMI1");
-	if (s.BMI2) printf(" BMI2");
-	if (s.WAITPKG) printf(" WAITPKG");
+	if (s.EXTEN & F_EXTEN_SHA) printf(" SHA");
+	if (s.EXTEN & F_EXTEN_FMA) printf(" FMA3");
+	if (s.EXTEN & F_EXTEN_FMA4) printf(" FMA4");
+	if (s.EXTEN & F_EXTEN_BMI1) printf(" BMI1");
+	if (s.EXTEN & F_EXTEN_BMI2) printf(" BMI2");
+	if (s.EXTEN & F_EXTEN_WAITPKG) printf(" WAITPKG");
 
 	// -- Other instructions --
 
 	printf("\n[Extra]");
-	if (s.MONITOR) printf(" MONITOR+MWAIT");
-	if (s.PCLMULQDQ) printf(" PCLMULQDQ");
-	if (s.CX8) printf(" CMPXCHG8B");
-	if (s.CMPXCHG16B) printf(" CMPXCHG16B");
-	if (s.MOVBE) printf(" MOVBE"); // Intel Atom and quite a few AMD processors.
-	if (s.RDRAND) printf(" RDRAND");
-	if (s.RDSEED) printf(" RDSEED");
-	if (s.MSR) printf(" RDMSR+WRMSR");
-	if (s.SEP) printf(" SYSENTER+SYSEXIT");
-	if (s.TSC) {
+	if (s.EXTRA & F_EXTRA_MONITOR) printf(" MONITOR+MWAIT");
+	if (s.EXTRA & F_EXTRA_PCLMULQDQ) printf(" PCLMULQDQ");
+	if (s.EXTRA & F_EXTRA_CMPXCHG8B) printf(" CMPXCHG8B");
+	if (s.EXTRA & F_EXTRA_CMPXCHG16B) printf(" CMPXCHG16B");
+	if (s.EXTRA & F_EXTRA_MOVBE) printf(" MOVBE");
+	if (s.EXTRA & F_EXTRA_RDRAND) printf(" RDRAND");
+	if (s.EXTRA & F_EXTRA_RDSEED) printf(" RDSEED");
+	if (s.EXTRA & F_EXTRA_RDMSR) printf(" RDMSR+WRMSR");
+	if (s.EXTRA & F_EXTRA_SYSENTER) printf(" SYSENTER+SYSEXIT");
+	if (s.EXTRA & F_EXTRA_TSC) {
 		printf(" RDTSC");
-		if (s.TscDeadline)
+		if (s.EXTRA & F_EXTRA_TSC_DEADLINE)
 			printf(" +TSC-Deadline");
-		if (s.TscInvariant)
+		if (s.EXTRA & F_EXTRA_TSC_INVARIANT)
 			printf(" +TSC-Invariant");
 	}
-	if (s.RDTSCP) printf(" RDTSCP");
-	if (s.RDPID) printf(" RDPID");
-	if (s.CMOV) {
+	if (s.EXTRA & F_EXTRA_RDTSCP) printf(" RDTSCP");
+	if (s.EXTRA & F_EXTRA_RDPID) printf(" RDPID");
+	if (s.EXTRA & F_EXTRA_CMOV) {
 		printf(" CMOV");
-		if (s.FPU) printf(" FCOMI+FCMOV");
+		if (s.EXTEN & F_EXTEN_FPU) printf(" FCOMI+FCMOV");
 	}
-	if (s.CLFSH) printf(" CLFLUSH:%uB", s.CLFLUSHLineSize * 8);
-	if (s.PREFETCHW) printf(" PREFETCHW");
-	if (s.LZCNT) printf(" LZCNT");
-	if (s.POPCNT) printf(" POPCNT");
-	if (s.XSAVE) printf(" XSAVE+XRSTOR");
-	if (s.OSXSAVE) printf(" XSETBV+XGETBV");
-	if (s.FXSR) printf(" FXSAVE+FXRSTOR");
-	if (s.SHA) printf(" SHA");
-	if (s.PCONFIG) printf(" PCONFIG");
-	if (s.WBNOINVD) printf(" WBNOINVD");
-	if (s.CLDEMOTE) printf(" CLDEMOTE");
-	if (s.MOVDIRI) printf(" MOVDIRI");
-	if (s.MOVDIR64B) printf(" MOVDIR64B");
-	if (s.AVX512_VPOPCNTDQ) printf(" VPOPCNTDQ");
-	if (s.ENQCMD) printf(" ENQCMD");
+	if (s.EXTRA & F_EXTRA_LZCNT) printf(" LZCNT");
+	if (s.EXTRA & F_EXTRA_POPCNT) printf(" POPCNT");
+	if (s.EXTRA & F_EXTRA_XSAVE) printf(" XSAVE+XRSTOR");
+	if (s.EXTRA & F_EXTRA_OSXSAVE) printf(" XSETBV+XGETBV");
+	if (s.EXTRA & F_EXTRA_FXSR) printf(" FXSAVE+FXRSTOR");
+	if (s.EXTRA & F_EXTRA_PCONFIG) printf(" PCONFIG");
+	if (s.EXTRA & F_EXTRA_CLDEMOTE) printf(" CLDEMOTE");
+	if (s.EXTRA & F_EXTRA_MOVDIRI) printf(" MOVDIRI");
+	if (s.EXTRA & F_EXTRA_MOVDIR64B) printf(" MOVDIR64B");
+	if (s.EXTRA & F_EXTRA_ENQCMD) printf(" ENQCMD");
 
 	// -- Vendor specific technologies ---
 
@@ -278,34 +440,41 @@ int main(int argc, char **argv) {
 
 	switch (s.VendorID) {
 	case VENDOR_INTEL:
-		if (s.EIST) printf(" Enhanced-SpeedStep");
-		if (s.TurboBoost) {
-			printf(" TurboBoost");
-			if (s.TurboBoost3) printf("-3.0");
-		}
-		if (s.HLE || s.RTM) printf(" Intel-TSX");
-		if (s.SGX) printf(" Intel-SGX");
+		if (s.TECH & F_TECH_EIST) printf(" Enhanced-SpeedStep");
+		if (s.TECH & F_TECH_TURBOBOOST)
+			printf(s.TECH & F_TECH_TURBOBOOST30 ?
+				" TurboBoot-3.0" : " TurboBoost");
+		if (s.TECH & F_MEM_HLE || s.TECH & F_MEM_RTM)
+			printf(" Intel-TSX");
+		if (s.TECH & F_TECH_SMX) printf(" Intel-TXT/SMX");
+		if (s.TECH & F_TECH_SGX) printf(" Intel-SGX");
 		break;
 	case VENDOR_AMD:
-		if (s.TurboBoost) printf(" Core-Performance-Boost");
+		if (s.TECH & F_TECH_TURBOBOOST) printf(" Core-Performance-Boost");
 		break;
 	default:
 	}
+	if (s.TECH & F_TECH_HTT) printf(" HTT");
 
 	// -- Cache information --
 
 	printf("\n[Cache]");
-	if (s.CNXT_ID) printf(" CNXT_ID");
-	if (s.SS) printf(" SS");
+	if (s.CACHE & F_CACHE_CLFLUSH) printf(" CLFLUSH:%uB", s.CLFLUSHLineSize << 3);
+	if (s.CACHE & F_CACHE_CNXT_ID) printf(" CNXT_ID");
+	if (s.CACHE & F_CACHE_SS) printf(" SS");
+	if (s.CACHE & F_CACHE_PREFETCHW) printf(" PREFETCHW");
+	if (s.CACHE & F_CACHE_PCID) printf(" PCID");
+	if (s.CACHE & F_CACHE_WBNOINVD) printf(" WBNOINVD");
 
-	CACHE *ca = cast(CACHE*)s.cache; /// Caches
+	CACHEINFO *ca = cast(CACHEINFO*)s.caches; /// Caches
 
 	while (ca.type) {
 		char c = 'K';
 		if (ca.size >= 1024) {
-			ca.size >>= 10; c = 'M';
+			ca.size >>= 10;
+			c = 'M';
 		}
-		printf("\n- L%u-%c: %u %cB, %u ways, %u partitions, %u B, %u sets",
+		printf("\n- L%u-%c: %u %ciB, %u ways, %u partitions, %u B, %u sets",
 			ca.level, CACHE_TYPE[ca.type], ca.size, c,
 			ca.ways, ca.partitions, ca.linesize, ca.sets
 		);
@@ -318,80 +487,82 @@ int main(int argc, char **argv) {
 	}
 
 	printf("\n[ACPI]");
-	if (s.ACPI) printf(" ACPI");
-	if (s.APIC) printf(" APIC");
-	if (s.x2APIC) printf(" x2APIC");
-	if (s.ARAT) printf(" ARAT");
-	if (s.TM) printf(" TM");
-	if (s.TM2) printf(" TM2");
-	if (s.InitialAPICID) printf(" APIC-ID:%u", s.InitialAPICID);
-	if (s.MaxIDs) printf(" MAX-ID:%u", s.MaxIDs);
+	if (s.ACPI & F_ACPI_ACPI) {
+		printf(" ACPI");
+		if (s.ACPI & F_ACPI_APIC) printf(" APIC");
+		if (s.ACPI & F_ACPI_x2APIC) printf(" x2APIC");
+		if (s.ACPI & F_ACPI_ARAT) printf(" ARAT");
+		if (s.ACPI & F_ACPI_TM) printf(" TM");
+		if (s.ACPI & F_ACPI_TM2) printf(" TM2");
+		if (s.InitialAPICID) printf(" APIC-ID:%u", s.InitialAPICID);
+		if (s.MaxIDs) printf(" MAX-ID:%u", s.MaxIDs);
+	}
 
 	printf("\n[Virtualization]");
-	if (s.VME) printf(" VME");
+	if (s.VIRT & F_VIRT_VME) printf(" VME");
 
 	printf("\n[Memory]");
-	if (s.PAE) printf(" PAE");
-	if (s.PSE) printf(" PSE");
-	if (s.PSE_36) printf(" PSE-36");
-	if (s.Page1GB) printf(" Page1GB");
-	if (s.DCA) printf(" DCA");
-	if (s.PAT) printf(" PAT");
-	if (s.MTRR) printf(" MTRR");
-	if (s.PGE) printf(" PGE");
-	if (s.SMEP) printf(" SMEP");
-	if (s.SMAP) printf(" SMAP");
-	if (s.PKU) printf(" PKU");
-	if (s.HLE) printf(" HLE");
-	if (s.RTM) printf(" RTM");
-	if (s._5PL) printf(" 5PL");
-	if (s.addr_phys_bits) printf(" P-Bits:%u", s.addr_phys_bits);
-	if (s.addr_line_bits) printf(" L-Bits:%u", s.addr_line_bits);
+	if (s.phys_bits) printf(" P-Bits:%u", s.phys_bits);
+	if (s.line_bits) printf(" L-Bits:%u", s.line_bits);
+	if (s.MEM & F_MEM_PAE) printf(" PAE");
+	if (s.MEM & F_MEM_PSE) printf(" PSE");
+	if (s.MEM & F_MEM_PSE_36) printf(" PSE-36");
+	if (s.MEM & F_MEM_NX)
+		switch (s.VendorID) {
+		case VENDOR_INTEL: printf(" Intel-XD/NX"); break;
+		case VENDOR_AMD: printf(" AMD-EVP/NX"); break;
+		default: printf(" NX");
+		}
+	if (s.MEM & F_MEM_PAGE1GB) printf(" Page1GB");
+	if (s.MEM & F_MEM_DCA) printf(" DCA");
+	if (s.MEM & F_MEM_PAT) printf(" PAT");
+	if (s.MEM & F_MEM_MTRR) printf(" MTRR");
+	if (s.MEM & F_MEM_PGE) printf(" PGE");
+	if (s.MEM & F_MEM_SMEP) printf(" SMEP");
+	if (s.MEM & F_MEM_SMAP) printf(" SMAP");
+	if (s.MEM & F_MEM_PKU) printf(" PKU");
+	if (s.MEM & F_MEM_HLE) printf(" HLE");
+	if (s.MEM & F_MEM_RTM) printf(" RTM");
+	if (s.MEM & F_MEM_5PL) printf(" 5PL");
+	if (s.MEM & F_MEM_FSREPMOV) printf(" FSREPMOV");
 
 	printf("\n[Debugging]");
-	if (s.MCA) printf(" MCA");
-	if (s.MCE) printf(" MCE");
-	if (s.DE) printf(" DE");
-	if (s.DS) printf(" DS");
-	if (s.DS_CPL) printf(" DS_CPL");
-	if (s.DTES64) printf(" DTES64");
-	if (s.PDCM) printf(" PDCM");
-	if (s.SDBG) printf(" SDBG");
+	if (s.DEBUG & F_DEBUG_MCA) printf(" MCA");
+	if (s.DEBUG & F_DEBUG_MCE) printf(" MCE");
+	if (s.DEBUG & F_DEBUG_DE) printf(" DE");
+	if (s.DEBUG & F_DEBUG_DS) printf(" DS");
+	if (s.DEBUG & F_DEBUG_DS_CPL) printf(" DS_CPL");
+	if (s.DEBUG & F_DEBUG_DTES64) printf(" DTES64");
+	if (s.DEBUG & F_DEBUG_PDCM) printf(" PDCM");
+	if (s.DEBUG & F_DEBUG_SDBG) printf(" SDBG");
+	if (s.DEBUG & F_DEBUG_PBE) printf(" PBE");
 
 	printf("\n[Security]");
-	if (s.IBPB) printf(" IBPB");
-	if (s.IBRS) printf(" IBRS");
-	if (s.STIBP) printf(" STIBP");
-	if (s.SSBD) printf(" SSBD");
+	if (s.SEC & F_SEC_IBPB) printf(" IBPB");
+	if (s.SEC & F_SEC_IBRS) printf(" IBRS");
+	if (s.SEC & F_SEC_STIBP) printf(" STIBP");
+	if (s.SEC & F_SEC_SSBD) printf(" SSBD");
 
 	switch (s.VendorID) {
 	case VENDOR_INTEL:
-		if (s.L1D_FLUSH) printf(" L1D_FLUSH");
-		if (s.MD_CLEAR) printf(" MD_CLEAR");
+		if (s.SEC & F_SEC_L1D_FLUSH) printf(" L1D_FLUSH");
+		if (s.SEC & F_SEC_MD_CLEAR) printf(" MD_CLEAR");
 		break;
 	case VENDOR_AMD:
-		if (s.IBRS_ON) printf(" IBRS_ON");
-		if (s.IBRS_PREF) printf(" IBRS_PREF");
-		if (s.STIBP_ON) printf(" STIBP_ON");
+		if (s.SEC & F_SEC_IBRS_ON) printf(" IBRS_ON");
+		if (s.SEC & F_SEC_IBRS_PREF) printf(" IBRS_PREF");
+		if (s.SEC & F_SEC_STIBP_ON) printf(" STIBP_ON");
 		break;
 	default:
 	}
-
-	__gshared const(char) *[]PROCESSOR_TYPE = [
-		"Original", "OverDrive", "Dual", "Reserved"
-	];
 
 	printf("\n[Misc.] HLeaf:%Xh HELeaf:%Xh Type:%s Index:%u",
 		s.MaximumLeaf, s.MaximumExtendedLeaf,
 		PROCESSOR_TYPE[s.ProcessorType], s.BrandIndex
 	);
-	if (s.xTPR) printf(" xTPR");
-	if (s.PCID) printf(" PCID");
-	if (s.PSN) printf(" PSN");
-	if (s.PBE) printf(" PBE");
-	if (s.IA32_ARCH_CAPABILITIES) printf(" IA32_ARCH_CAPABILITIES");
-	if (s.LAHF64) printf(" LAHF64+SAHF64");
-	if (s.FSREPMOV) printf(" FSREPMOV");
+	if (s.MISC & F_MISC_xTPR) printf(" xTPR");
+	if (s.MISC & F_MISC_PSN) printf(" PSN");
+	if (s.MISC & F_MISC_IA32_ARCH_CAPABILITIES) printf(" IA32_ARCH_CAPABILITIES");
 
 	putchar('\n');
 
@@ -403,8 +574,6 @@ int main(int argc, char **argv) {
  * Params: s = CPUINFO structure
  */
 void fetchInfo(ref CPUINFO s) {
-	memset(&s, 0, CPUINFO.sizeof);
-
 	// Position Independant Code compliant
 	size_t __A = cast(size_t)&s.vendorString;
 	size_t __B = cast(size_t)&s.cpuString;
@@ -531,7 +700,7 @@ void fetchInfo(ref CPUINFO s) {
 	debug printf("VendorID: %X\n", VendorID);
 
 	uint l; /// Cache level
-	CACHE *ca = cast(CACHE*)s.cache;
+	CACHEINFO *ca = cast(CACHEINFO*)s.caches;
 
 	debug puts("--- Cache information ---");
 
@@ -597,12 +766,12 @@ void fetchInfo(ref CPUINFO s) {
 			mov c, ECX;
 			mov d, EDX;
 		}
-		s.cache[0].level = s.cache[1].level = 1; // L1
-		s.cache[0].type = 1; // data
-		s.cache[0].__bundle1 = c;
-		s.cache[0].size = s.cache[0]._amdsize;
-		s.cache[1].__bundle1 = d;
-		s.cache[1].size = s.cache[1]._amdsize;
+		s.caches[0].level = s.caches[1].level = 1; // L1
+		s.caches[0].type = 1; // data
+		s.caches[0].__bundle1 = c;
+		s.caches[0].size = s.caches[0]._amdsize;
+		s.caches[1].__bundle1 = d;
+		s.caches[1].size = s.caches[1]._amdsize;
 
 		if (s.MaximumExtendedLeaf < 0x8000_0006) break; // No L2/L3
 
@@ -640,21 +809,21 @@ void fetchInfo(ref CPUINFO s) {
 
 		_amd_ways_l2 = (c >> 12) & 7;
 		if (_amd_ways_l2) {
-			s.cache[2].level = 2; // L2
-			s.cache[2].type = 3; // unified
-			s.cache[2].ways = _amd_ways(_amd_ways_l2);
-			s.cache[2].size = c >> 16;
-			s.cache[2].sets = (c >> 8) & 7;
-			s.cache[2].linesize = cast(ubyte)c;
+			s.caches[2].level = 2; // L2
+			s.caches[2].type = 3; // unified
+			s.caches[2].ways = _amd_ways(_amd_ways_l2);
+			s.caches[2].size = c >> 16;
+			s.caches[2].sets = (c >> 8) & 7;
+			s.caches[2].linesize = cast(ubyte)c;
 
 			ubyte _amd_ways_l3 = (d >> 12) & 0b111;
 			if (_amd_ways_l3) {
-				s.cache[3].level = 3; // L2
-				s.cache[3].type = 3; // unified
-				s.cache[3].ways = _amd_ways(_amd_ways_l3);
-				s.cache[3].size = ((d >> 18) + 1) * 512;
-				s.cache[3].sets = (d >> 8) & 7;
-				s.cache[3].linesize = cast(ubyte)(d & 0x7F);
+				s.caches[3].level = 3; // L2
+				s.caches[3].type = 3; // unified
+				s.caches[3].ways = _amd_ways(_amd_ways_l3);
+				s.caches[3].size = ((d >> 18) + 1) * 512;
+				s.caches[3].sets = (d >> 8) & 7;
+				s.caches[3].linesize = cast(ubyte)(d & 0x7F);
 			}
 		}
 
@@ -737,28 +906,28 @@ CACHE_AMD_NEWER:
 			s.Model = s.BaseModel;
 
 		// ECX
-		s.DTES64      = CHECK(c, BIT!(2));
-		s.DS_CPL      = CHECK(c, BIT!(4));
-		s.Virt        = CHECK(c, BIT!(5));
-		s.SMX         = CHECK(c, BIT!(6));
-		s.EIST        = CHECK(c, BIT!(7));
-		s.TM2         = CHECK(c, BIT!(8));
-		s.CNXT_ID     = CHECK(c, BIT!(10));
-		s.SDBG        = CHECK(c, BIT!(11));
-		s.xTPR        = CHECK(c, BIT!(14));
-		s.PDCM        = CHECK(c, BIT!(15));
-		s.PCID        = CHECK(c, BIT!(17));
-		s.DCA         = CHECK(c, BIT!(18));
-		s.x2APIC      = CHECK(c, BIT!(21));
-		s.TscDeadline = CHECK(c, BIT!(24));
+		if (c & BIT!(2)) s.DEBUG  |= F_DEBUG_DTES64;
+		if (c & BIT!(4)) s.DEBUG  |= F_DEBUG_DS_CPL;
+		if (c & BIT!(5)) s.VIRT   |= F_VIRT_VIRT;
+		if (c & BIT!(6)) s.TECH   |= F_TECH_SMX;
+		if (c & BIT!(7)) s.TECH   |= F_TECH_EIST;
+		if (c & BIT!(8)) s.ACPI   |= F_ACPI_TM2;
+		if (c & BIT!(10)) s.CACHE |= F_CACHE_CNXT_ID;
+		if (c & BIT!(11)) s.DEBUG |= F_DEBUG_SDBG;
+		if (c & BIT!(14)) s.MISC  |= F_MISC_xTPR;
+		if (c & BIT!(15)) s.DEBUG |= F_DEBUG_PDCM;
+		if (c & BIT!(17)) s.CACHE |= F_CACHE_PCID;
+		if (c & BIT!(18)) s.DEBUG |= F_DEBUG_MCA;
+		if (c & BIT!(21)) s.ACPI  |= F_ACPI_x2APIC;
+		if (c & BIT!(24)) s.EXTRA |= F_EXTRA_TSC_DEADLINE;
 
 		// EDX
-		s.PSN  = CHECK(d, BIT!(18));
-		s.DS   = CHECK(d, BIT!(21));
-		s.ACPI = CHECK(d, BIT!(22));
-		s.SS   = CHECK(d, BIT!(27));
-		s.TM   = CHECK(d, BIT!(29));
-		s.PBE  = CHECK(d, BIT!(31));
+		if (d & BIT!(18)) s.MISC  |= F_MISC_PSN;
+		if (d & BIT!(21)) s.DEBUG |= F_DEBUG_DS;
+		if (d & BIT!(22)) s.ACPI  |= F_ACPI_ACPI;
+		if (d & BIT!(27)) s.CACHE |= F_CACHE_SS;
+		if (d & BIT!(29)) s.ACPI  |= F_ACPI_TM;
+		if (d & BIT!(31)) s.DEBUG |= F_DEBUG_PBE;
 		break;
 	case VENDOR_AMD:
 		if (s.BaseFamily < 0xF) {
@@ -773,50 +942,50 @@ CACHE_AMD_NEWER:
 	}
 
 	// EBX
-	s.__bundle1 = b; // BrandIndex, CLFLUSHLineSize, MaxIDs, InitialAPICID
+	s.b_01_ebx = b; // BrandIndex, CLFLUSHLineSize, MaxIDs, InitialAPICID
 
 	// ECX
-	s.SSE3       = CHECK(c, BIT!(0));
-	s.PCLMULQDQ  = CHECK(c, BIT!(1));
-	s.MONITOR    = CHECK(c, BIT!(3));
-	s.SSSE3      = CHECK(c, BIT!(9));
-	s.FMA        = CHECK(c, BIT!(12));
-	s.CMPXCHG16B = CHECK(c, BIT!(13));
-	s.SSE41      = CHECK(c, BIT!(15));
-	s.SSE42      = CHECK(c, BIT!(20));
-	s.MOVBE      = CHECK(c, BIT!(22));
-	s.POPCNT     = CHECK(c, BIT!(23));
-	s.AES        = CHECK(c, BIT!(25));
-	s.XSAVE      = CHECK(c, BIT!(26));
-	s.OSXSAVE    = CHECK(c, BIT!(27));
-	s.AVX        = CHECK(c, BIT!(28));
-	s.F16C       = CHECK(c, BIT!(29));
-	s.RDRAND     = CHECK(c, BIT!(30));
+	if (c & BIT!(0)) s.EXTEN  |= F_EXTEN_SSE3;
+	if (c & BIT!(1)) s.EXTRA  |= F_EXTRA_PCLMULQDQ;
+	if (c & BIT!(3)) s.EXTRA  |= F_EXTRA_MONITOR;
+	if (c & BIT!(9)) s.EXTEN  |= F_EXTEN_SSSE3;
+	if (c & BIT!(12)) s.EXTEN |= F_EXTEN_FMA;
+	if (c & BIT!(13)) s.EXTRA |= F_EXTRA_CMPXCHG16B;
+	if (c & BIT!(15)) s.EXTEN |= F_EXTEN_SSE41;
+	if (c & BIT!(20)) s.EXTEN |= F_EXTEN_SSE42;
+	if (c & BIT!(22)) s.EXTRA |= F_EXTRA_MOVBE;
+	if (c & BIT!(23)) s.EXTRA |= F_EXTRA_POPCNT;
+	if (c & BIT!(25)) s.EXTEN |= F_EXTEN_AES_NI;
+	if (c & BIT!(26)) s.EXTEN |= F_EXTRA_XSAVE;
+	if (c & BIT!(27)) s.EXTRA |= F_EXTRA_OSXSAVE;
+	if (c & BIT!(28)) s.AVX   |= F_AVX_AVX;
+	if (c & BIT!(29)) s.EXTEN |= F_EXTEN_F16C;
+	if (c & BIT!(30)) s.EXTRA |= F_EXTRA_RDRAND;
 
 	// EDX
-	s.FPU    = CHECK(d, BIT!(0));
-	s.VME    = CHECK(d, BIT!(1));
-	s.DE     = CHECK(d, BIT!(2));
-	s.PSE    = CHECK(d, BIT!(3));
-	s.TSC    = CHECK(d, BIT!(4));
-	s.MSR    = CHECK(d, BIT!(5));
-	s.PAE    = CHECK(d, BIT!(6));
-	s.MCE    = CHECK(d, BIT!(7));
-	s.CX8    = CHECK(d, BIT!(8));
-	s.APIC   = CHECK(d, BIT!(9));
-	s.SEP    = CHECK(d, BIT!(11));
-	s.MTRR   = CHECK(d, BIT!(12));
-	s.PGE    = CHECK(d, BIT!(13));
-	s.MCA    = CHECK(d, BIT!(14));
-	s.CMOV   = CHECK(d, BIT!(15));
-	s.PAT    = CHECK(d, BIT!(16));
-	s.PSE_36 = CHECK(d, BIT!(17));
-	s.CLFSH  = CHECK(d, BIT!(19));
-	s.MMX    = CHECK(d, BIT!(23));
-	s.FXSR   = CHECK(d, BIT!(24));
-	s.SSE    = CHECK(d, BIT!(25));
-	s.SSE2   = CHECK(d, BIT!(26));
-	s.HTT    = CHECK(d, BIT!(28));
+	if (d & BIT!(0)) s.EXTEN  |= F_EXTEN_FPU;
+	if (d & BIT!(1)) s.VIRT   |= F_VIRT_VME;
+	if (d & BIT!(2)) s.DEBUG  |= F_DEBUG_DE;
+	if (d & BIT!(3)) s.MEM    |= F_MEM_PSE;
+	if (d & BIT!(4)) s.EXTRA  |= F_EXTRA_TSC;
+	if (d & BIT!(5)) s.EXTRA  |= F_EXTRA_RDMSR;
+	if (d & BIT!(6)) s.MEM    |= F_MEM_PAE;
+	if (d & BIT!(7)) s.DEBUG  |= F_DEBUG_MCE;
+	if (d & BIT!(8)) s.EXTRA  |= F_EXTRA_CMPXCHG8B;
+	if (d & BIT!(9)) s.ACPI   |= F_ACPI_APIC;
+	if (d & BIT!(11)) s.EXTRA |= F_EXTRA_SYSENTER;
+	if (d & BIT!(12)) s.MEM   |= F_MEM_MTRR;
+	if (d & BIT!(13)) s.MEM   |= F_MEM_PGE;
+	if (d & BIT!(14)) s.DEBUG |= F_DEBUG_MCA;
+	if (d & BIT!(15)) s.EXTRA |= F_EXTRA_CMOV;
+	if (d & BIT!(16)) s.MEM   |= F_MEM_PAT;
+	if (d & BIT!(17)) s.MEM   |= F_MEM_PSE_36;
+	if (d & BIT!(19)) s.CACHE |= F_CACHE_CLFLUSH;
+	if (d & BIT!(23)) s.EXTEN |= F_EXTEN_MMX;
+	if (d & BIT!(24)) s.EXTRA |= F_EXTRA_FXSR;
+	if (d & BIT!(25)) s.EXTEN |= F_EXTEN_SSE;
+	if (d & BIT!(26)) s.EXTEN |= F_EXTEN_SSE2;
+	if (d & BIT!(28)) s.TECH  |= F_TECH_HTT;
 
 	if (s.MaximumLeaf < 6) goto EXTENDED_LEAVES;
 
@@ -832,13 +1001,13 @@ CACHE_AMD_NEWER:
 
 	switch (s.VendorID) {
 	case VENDOR_INTEL:
-		s.TurboBoost = CHECK(a, BIT!(1));
-		s.TurboBoost3 = CHECK(a, BIT!(14));
+		if (a & BIT!(1))  s.TECH |= F_TECH_TURBOBOOST;
+		if (a & BIT!(14)) s.TECH |= F_TECH_TURBOBOOST30;
 		break;
 	default:
 	}
 
-	s.ARAT = CHECK(a, BIT!(2));
+	if (a & BIT!(2)) s.ACPI |= F_ACPI_ARAT;
 
 	if (s.MaximumLeaf < 7) goto EXTENDED_LEAVES;
 
@@ -861,57 +1030,57 @@ CACHE_AMD_NEWER:
 
 	switch (s.VendorID) {
 	case VENDOR_INTEL:
-		// b
-		s.SGX         = CHECK(b, BIT!(2));
-		s.HLE         = CHECK(b, BIT!(4));
-		s.RTM         = CHECK(b, BIT!(11));
-		s.AVX512F     = CHECK(b, BIT!(16));
-		s.SMAP        = CHECK(b, BIT!(20));
-		s.AVX512ER    = CHECK(b, BIT!(27));
-		s.AVX512PF    = CHECK(b, BIT!(26));
-		s.AVX512CD    = CHECK(b, BIT!(28));
-		s.AVX512DQ    = CHECK(b, BIT!(17));
-		s.AVX512BW    = CHECK(b, BIT!(30));
-		s.AVX512_IFMA = CHECK(b, BIT!(21));
-		s.SHA         = CHECK(b, BIT!(29));
-		s.AVX512_VBMI = CHECK(b, BIT!(31));
-		// c
-		s.AVX512VL    = CHECK(c, BIT!(1));
-		s.PKU    = CHECK(c, BIT!(3));
-		s.FSREPMOV    = CHECK(c, BIT!(4));
-		s.WAITPKG     = CHECK(c, BIT!(5));
-		s.AVX512_VBMI2 = CHECK(c, BIT!(6));
-		s.AVX512_GFNI = CHECK(c, BIT!(8));
-		s.AVX512_VAES = CHECK(c, BIT!(9));
-		s.AVX512_VNNI = CHECK(c, BIT!(11));
-		s.AVX512_BITALG = CHECK(c, BIT!(12));
-		s.AVX512_VPOPCNTDQ = CHECK(c, BIT!(14));
-		s._5PL = CHECK(c, BIT!(16));
-		s.CLDEMOTE    = CHECK(c, BIT!(25));
-		s.MOVDIRI     = CHECK(c, BIT!(27));
-		s.MOVDIR64B   = CHECK(c, BIT!(28));
-		s.ENQCMD = CHECK(c, BIT!(29));
-		// d
-		s.AVX512_4VNNIW   = CHECK(d, BIT!(2));
-		s.AVX512_4FMAPS   = CHECK(d, BIT!(3));
-		s.AVX512_VP2INTERSECT = CHECK(d, BIT!(8));
-		s.MD_CLEAR    = CHECK(d, BIT!(10));
-		s.PCONFIG     = CHECK(d, BIT!(18));
-		s.IBRS        = s.IBPB = CHECK(d, BIT!(26));
-		s.STIBP       = CHECK(d, BIT!(27));
-		s.L1D_FLUSH   = CHECK(d, BIT!(28));
-		s.IA32_ARCH_CAPABILITIES = CHECK(d, BIT!(29));
-		s.SSBD        = CHECK(d, BIT!(31));
+		// EBX
+		if (b & BIT!(2)) s.TECH   |= F_TECH_SGX;
+		if (b & BIT!(4)) s.MEM    |= F_MEM_HLE;
+		if (b & BIT!(11)) s.MEM   |= F_MEM_RTM;
+		if (b & BIT!(16)) s.AVX   |= F_AVX_AVX512F;
+		if (b & BIT!(20)) s.MEM   |= F_MEM_SMAP;
+		if (b & BIT!(27)) s.AVX   |= F_AVX_AVX512ER;
+		if (b & BIT!(26)) s.AVX   |= F_AVX_AVX512PF;
+		if (b & BIT!(28)) s.AVX   |= F_AVX_AVX512CD;
+		if (b & BIT!(17)) s.AVX   |= F_AVX_AVX512DQ;
+		if (b & BIT!(30)) s.AVX   |= F_AVX_AVX512BW;
+		if (b & BIT!(21)) s.AVX   |= F_AVX_AVX512_IFMA;
+		if (b & BIT!(29)) s.EXTEN |= F_EXTEN_SHA;
+		if (b & BIT!(31)) s.AVX   |= F_AVX_AVX512_VBMI;
+		// ECX
+		if (c & BIT!(1)) s.AVX    |= F_AVX_AVX512VL;
+		if (c & BIT!(3)) s.MEM    |= F_MEM_PKU;
+		if (c & BIT!(4)) s.MEM    |= F_MEM_FSREPMOV;
+		if (c & BIT!(5)) s.EXTEN  |= F_EXTEN_WAITPKG;
+		if (c & BIT!(6)) s.AVX    |= F_AVX_AVX512_VBMI2;
+		if (c & BIT!(8)) s.AVX    |= F_AVX_AVX512_GFNI;
+		if (c & BIT!(9)) s.AVX    |= F_AVX_AVX512_VAES;
+		if (c & BIT!(11)) s.AVX   |= F_AVX_AVX512_VNNI;
+		if (c & BIT!(12)) s.AVX   |= F_AVX_AVX512_BITALG;
+		if (c & BIT!(14)) s.AVX   |= F_AVX_AVX512_VPOPCNTDQ;
+		if (c & BIT!(16)) s.MEM   |= F_MEM_5PL;
+		if (c & BIT!(25)) s.EXTRA |= F_EXTRA_CLDEMOTE;
+		if (c & BIT!(27)) s.EXTRA |= F_EXTRA_MOVDIRI;
+		if (c & BIT!(28)) s.EXTRA |= F_EXTRA_MOVDIR64B;
+		if (c & BIT!(29)) s.EXTRA |= F_EXTRA_ENQCMD;
+		// EDX
+		if (d & BIT!(2)) s.AVX    |= F_AVX_AVX512_4VNNIW;
+		if (d & BIT!(3)) s.AVX    |= F_AVX_AVX512_4FMAPS;
+		if (d & BIT!(8)) s.AVX    |= F_AVX_AVX512_VP2INTERSECT;
+		if (d & BIT!(10)) s.SEC   |= F_SEC_MD_CLEAR;
+		if (d & BIT!(18)) s.EXTRA |= F_EXTRA_PCONFIG;
+		if (d & BIT!(26)) s.SEC   |= (F_SEC_IBRS | F_SEC_IBPB);
+		if (d & BIT!(27)) s.SEC   |= F_SEC_STIBP;
+		if (d & BIT!(28)) s.SEC   |= F_SEC_L1D_FLUSH;
+		if (d & BIT!(29)) s.MISC  |= F_MISC_IA32_ARCH_CAPABILITIES;
+		if (d & BIT!(31)) s.SEC   |= F_SEC_SSBD;
 		break;
 	default:
 	}
 
-	s.BMI1   = CHECK(b, BIT!(4));
-	s.AVX2   = CHECK(b, BIT!(5));
-	s.SMEP   = CHECK(b, BIT!(7));
-	s.BMI2   = CHECK(b, BIT!(8));
-	s.RDSEED = CHECK(b, BIT!(18));
-	s.RDPID  = CHECK(c, BIT!(22));
+	if (b & BIT!(4)) s.EXTEN  |= F_EXTEN_BMI1;
+	if (b & BIT!(5)) s.AVX    |= F_AVX_AVX2;
+	if (b & BIT!(7)) s.MEM    |= F_MEM_SMEP;
+	if (b & BIT!(8)) s.EXTEN  |= F_EXTEN_BMI2;
+	if (b & BIT!(18)) s.EXTRA |= F_EXTRA_RDSEED;
+	if (c & BIT!(22)) s.EXTRA |= F_EXTRA_RDPID;
 
 	switch (s.VendorID) {
 	case VENDOR_INTEL:
@@ -932,7 +1101,7 @@ CACHE_AMD_NEWER:
 			mov d, EDX;
 		} // ----- 7H ECX=1h
 		// a
-		s.AVX512_BF16 = CHECK(a, BIT!(5));
+		if(a & BIT!(5)) s.AVX |= F_AVX_AVX512_BF16;
 		break;
 	default:
 	}
@@ -959,23 +1128,23 @@ EXTENDED_LEAVES:
 
 	switch (s.VendorID) {
 	case VENDOR_AMD:
-		s.Virt      = CHECK(c, BIT!(2)); // SVM
-		s.SSE4a     = CHECK(c, BIT!(6));
-		s.FMA4      = CHECK(c, BIT!(16));
-		s.MMXExt    = CHECK(d, BIT!(22));
-		s._3DNowExt = CHECK(d, BIT!(30));
-		s._3DNow    = CHECK(d, BIT!(31));
+		if (c & BIT!(2)) s.VIRT   |= F_VIRT_VIRT;
+		if (c & BIT!(6)) s.EXTEN  |= F_EXTEN_SSE4a;
+		if (c & BIT!(16)) s.EXTEN |= F_EXTEN_FMA4;
+		if (d & BIT!(22)) s.EXTEN |= F_EXTEN_MMXEXT;
+		if (d & BIT!(30)) s.EXTEN |= F_EXTEN_3DNOWEXT;
+		if (d & BIT!(31)) s.EXTEN |= F_EXTEN_3DNOW;
 		break;
 	default:
 	}
 
-	s.LAHF64    = CHECK(c, BIT!(0));
-	s.LZCNT     = CHECK(c, BIT!(5));
-	s.PREFETCHW = CHECK(c, BIT!(8));
-	s.NX        = CHECK(d, BIT!(20));
-	s.Page1GB   = CHECK(d, BIT!(26));
-	s.RDTSCP    = CHECK(d, BIT!(27));
-	s.LongMode  = CHECK(d, BIT!(29));
+	if (c & BIT!(0)) s.EXTEN  |= F_EXTEN_LAHF64;
+	if (c & BIT!(5)) s.EXTRA  |= F_EXTRA_LZCNT;
+	if (c & BIT!(8)) s.CACHE  |= F_CACHE_PREFETCHW;
+	if (d & BIT!(20)) s.MEM   |= F_MEM_NX;
+	if (d & BIT!(26)) s.MEM   |= F_MEM_PAGE1GB;
+	if (d & BIT!(27)) s.EXTRA |= F_EXTRA_RDTSCP;
+	if (d & BIT!(29)) s.EXTEN |= F_EXTEN_x86_64;
 
 	if (s.MaximumExtendedLeaf < 0x8000_0007) return;
 
@@ -993,16 +1162,16 @@ EXTENDED_LEAVES:
 
 	switch (s.VendorID) {
 	case VENDOR_INTEL:
-		s.RDSEED = CHECK(b, BIT!(28));
+		if (b & BIT!(28)) s.EXTRA |= F_EXTRA_RDSEED;
 		break;
 	case VENDOR_AMD:
-		s.TM = CHECK(d, BIT!(4));
-		s.TurboBoost = CHECK(d, BIT!(9));
+		if (d & BIT!(4)) s.ACPI |= F_ACPI_TM;
+		if (d & BIT!(9)) s.TECH |= F_TECH_TURBOBOOST;
 		break;
 	default:
 	}
 
-	s.TscInvariant = CHECK(d, BIT!(8));
+	if (d & BIT!(8)) s.EXTRA |= F_EXTRA_TSC_INVARIANT;
 
 	if (s.MaximumExtendedLeaf < 0x8000_0008) return;
 
@@ -1021,21 +1190,21 @@ EXTENDED_LEAVES:
 
 	switch (s.VendorID) {
 	case VENDOR_INTEL:
-		s.WBNOINVD = CHECK(b, BIT!(9));
+		if (b & BIT!(9)) s.CACHE |= F_CACHE_WBNOINVD;
 		break;
 	case VENDOR_AMD:
-		s.IBPB      = CHECK(b, BIT!(12));
-		s.IBRS      = CHECK(b, BIT!(14));
-		s.STIBP     = CHECK(b, BIT!(15));
-		s.IBRS_ON   = CHECK(b, BIT!(16));
-		s.STIBP_ON  = CHECK(b, BIT!(17));
-		s.IBRS_PREF = CHECK(b, BIT!(18));
-		s.SSBD      = CHECK(b, BIT!(24));
+		if (b & BIT!(12)) s.SEC |= F_SEC_IBPB;
+		if (b & BIT!(14)) s.SEC |= F_SEC_IBRS;
+		if (b & BIT!(15)) s.SEC |= F_SEC_STIBP;
+		if (b & BIT!(16)) s.SEC |= F_SEC_IBRS_ON;
+		if (b & BIT!(17)) s.SEC |= F_SEC_STIBP_ON;
+		if (b & BIT!(18)) s.SEC |= F_SEC_IBRS_PREF;
+		if (b & BIT!(24)) s.SEC |= F_SEC_SSBD;
 		break;
 	default:
 	}
 
-	s.__bundle3 = cast(ushort)a; // s.addr_phys_bits, s.addr_line_bits
+	s.b_8000_0008_ax = cast(ushort)a; // s.addr_phys_bits, s.addr_line_bits
 
 	if (s.MaximumExtendedLeaf < 0x8000_000A) return;
 
@@ -1121,12 +1290,7 @@ void leafs(ref CPUINFO cpu) {
 	}
 }
 
-struct CACHE {
-	/// Cache Size in Bytes
-	/// (Ways + 1) * (Partitions + 1) * (Line_Size + 1) * (Sets + 1)
-	/// (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
-	ubyte type; // data=1, instructions=2, unified=3
-	ubyte level; // L1, L2, etc.
+struct CACHEINFO {
 	union {
 		uint __bundle1;
 		struct {
@@ -1136,6 +1300,9 @@ struct CACHE {
 			ubyte _amdsize; // (old AMD) Size in KB
 		}
 	}
+	/// Cache Size in Bytes
+	/// (Ways + 1) * (Partitions + 1) * (Line_Size + 1) * (Sets + 1)
+	/// (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
 	uint size; // Size in KB
 	ushort sets;
 	// bit 0, Self Initializing cache level
@@ -1144,17 +1311,23 @@ struct CACHE {
 	// bit 3, Cache Inclusiveness (toggle)
 	// bit 4, Complex Cache Indexing (toggle)
 	ushort features;
+	ubyte type; // data=1, instructions=2, unified=3
+	ubyte level; // L1, L2, etc.
 }
 
 struct CPUINFO { align(1):
 	union {
-		uint VendorID;
 		ubyte [12]vendorString;	// inits to 0
+		uint VendorID;
 	}
 	ubyte [48]cpuString;	// inits to 0
 
 	uint MaximumLeaf;
 	uint MaximumExtendedLeaf;
+
+	//
+	// Identifier
+	//
 
 	ubyte Family;
 	ubyte BaseFamily;
@@ -1165,47 +1338,138 @@ struct CPUINFO { align(1):
 	ubyte Stepping;
 	ubyte ProcessorType;
 
-	ubyte MMX;
-	ubyte MMXExt;
-	ubyte SSE;
-	ubyte SSE2;
-	ubyte SSE3;
-	ubyte SSSE3;
-	ubyte SSE41;
-	ubyte SSE42;
-	ubyte SSE4a;
-	ubyte AES;
-	ubyte AVX;
-	ubyte AVX2;
-	ubyte AVX512F;
-	ubyte AVX512ER;
-	ubyte AVX512PF;
-	ubyte AVX512CD;
-	ubyte AVX512DQ;
-	ubyte AVX512BW;
-	ubyte AVX512_IFMA;
-	ubyte AVX512_VBMI;
-	ubyte AVX512_VBMI2;
-	ubyte AVX512_GFNI;
-	ubyte AVX512_VAES;
-	ubyte AVX512_VNNI;
-	ubyte AVX512_BITALG;
-	ubyte AVX512_VPOPCNTDQ;
-	ubyte AVX512_4VNNIW;
-	ubyte AVX512_4FMAPS;
-	ubyte AVX512VL;
-	ubyte AVX512_BF16;
-	ubyte AVX512_VP2INTERSECT;
-	ubyte ENQCMD;
-	ubyte SHA;
+	//
+	// Extensions
+	//
 
-	ubyte _3DNow;
-	ubyte _3DNowExt;
+	/// Processor extensions$(BR)
+	/// Bit 0: FPU/x87$(BR)
+	/// Bit 1: F16C$(BR)
+	/// Bit 2: MMX$(BR)
+	/// Bit 3: MMXExt$(BR)
+	/// Bit 4: 3DNow!$(BR)
+	/// Bit 5: 3DNow!Ext$(BR)
+	/// Bit 6: SSE$(BR)
+	/// Bit 7: SSE2$(BR)
+	/// Bit 8: SSE3$(BR)
+	/// Bit 9: SSSE3$(BR)
+	/// Bit 10: SSE4.1$(BR)
+	/// Bit 11: SSE4.2$(BR)
+	/// Bit 12: SSE4a$(BR)
+	/// Bit 13: $(BR)
+	/// Bit 14: $(BR)
+	/// Bit 15: AES-NI$(BR)
+	/// Bit 16: SHA 1/256$(BR)
+	/// Bit 17: FMA$(BR)
+	/// Bit 18: FMA4$(BR)
+	/// Bit 19: BMI1$(BR)
+	/// Bit 20: BMI2$(BR)
+	/// Bit 21: x86_64 (long mode, EM64T/Intel64)$(BR)
+	/// Bit 22: +LAHF/SAHF in long mode$(BR)
+	/// Bit 23: WAITPKG$(BR)
+	uint EXTEN;
 
-	// ---- 01h ----
-	// -- EBX --
-	union {
-		uint __bundle1;
+	/// All AVX extensions$(BR)
+	/// Bit 0: AVX$(BR)
+	/// Bit 1: AVX2$(BR)
+	/// Bit 2: AVX512F$(BR)
+	/// Bit 3: AVX512ER$(BR)
+	/// Bit 4: AVX512PF$(BR)
+	/// Bit 5: AVX512CD$(BR)
+	/// Bit 6: AVX512DQ$(BR)
+	/// Bit 7: AVX512BW$(BR)
+	/// Bit 8: AVX512VL$(BR)
+	/// Bit 9: AVX512_IFMA$(BR)
+	/// Bit 10: AVX512_VBMI$(BR)
+	/// Bit 11: AVX512_VBMI2$(BR)
+	/// Bit 12: AVX512_GFNI$(BR)
+	/// Bit 13: AVX512_VAES$(BR)
+	/// Bit 14: AVX512_VNNI$(BR)
+	/// Bit 15: AVX512_BITALG$(BR)
+	/// Bit 16: AVX512_VPOPCNTDQ$(BR)
+	/// Bit 17: AVX512_4VNNIW$(BR)
+	/// Bit 18: AVX512_4FMAPS$(BR)
+	/// Bit 19: AVX512_BF16$(BR)
+	/// Bit 20: AVX512_VP2INTERSECT$(BR)
+	uint AVX;
+
+	//
+	// Extras
+	//
+
+	/// Processor extra instructions$(BR)
+	/// Bit 0: MONITOR+WAIT$(BR)
+	/// Bit 1: PCLMULQDQ$(BR)
+	/// Bit 2: CMPXCHG8B$(BR)
+	/// Bit 3: CMPXCHG16B$(BR)
+	/// Bit 4: MOVBE$(BR)
+	/// Bit 5: RDRAND$(BR)
+	/// Bit 6: RDSEED$(BR)
+	/// Bit 7: RDMSR+WRMSR, MSR bit$(BR)
+	/// Bit 8: SYSENTER+SYSEXIT$(BR)
+	/// Bit 9: RDTSC, TSC CPUID bit$(BR)
+	/// Bit 10: +TSC-Deadline$(BR)
+	/// Bit 11: +TSC-Invariant$(BR)
+	/// Bit 12: RDTSCP$(BR)
+	/// Bit 13: RDPID$(BR)
+	/// Bit 14: CMOV (+ if FPU: FCOMI+FCMOV)$(BR)
+	/// Bit 15: LZCNT$(BR)
+	/// Bit 16: POPCNT$(BR)
+	/// Bit 17: XSAVE+XRSTOR$(BR)
+	/// Bit 18: XSETBV+XGETBV (OSXSAVE)$(BR)
+	/// Bit 19: FXSAVE+FXRSTOR (FXSR)$(BR)
+	/// Bit 20: PCONFIG$(BR)
+	/// Bit 22: CLDEMOTE$(BR)
+	/// Bit 23: MOVDIRI$(BR)
+	/// Bit 24: MOVDIR64B$(BR)
+	/// Bit 25: ENQCMD$(BR)
+	uint EXTRA;
+
+	//
+	// Technologies
+	//
+
+	/// Processor technologies$(BR)
+	/// Bit 0: (Intel) EIST: Ehanced SpeedStep$(BR)
+	/// Bit 1: (Intel) TurboBoost (AMD) Core Performance Boost$(BR)
+	/// Bit 2: (Intel) TurboBoost 3.0$(BR)
+	/// Bit 3: (Intel) SMX: TPM/TXT$(BR)
+	/// Bit 4: (Intel) SGX: Software Guard Extensions$(BR)
+	/// Bit 24: HTT, Hyper-Threading Technology$(BR)
+	uint TECH;
+	
+	//
+	// Cache
+	//
+
+	// 6 levels should be enough (L1-D, L1-I, L2, L3, 0, 0)
+	/// Caches
+	CACHEINFO [6]caches;
+	/// Cache features$(BR)
+	/// Bit 0-7: CLFLUSH line size (bytes: * 8)$(BR)
+	/// Bit 8: CLFLUSH available$(BR)
+	/// Bit 9: CNXT-ID: L1 Context ID$(BR)
+	/// Bit 10: SS: Self Snoop$(BR)
+	/// Bit 11: PREFETCHW$(BR)
+	/// Bit 12: PCID (INVPCID)$(BR)
+	/// Bit 13: WBNOINVD$(BR)
+	ushort CACHE;
+
+	//
+	// ACPI
+	//
+
+	/// ACPI features$(BR)
+	// Initial APIC ID and Maximum APIC IDs on dedicated fields$(BR)
+	/// Bit 0: ACPI$(BR)
+	/// Bit 1: APIC$(BR)
+	/// Bit 2: x2APIC$(BR)
+	/// Bit 3: ARAT: Always-Running-APIC-Timer feature$(BR)
+	/// Bit 4: TM$(BR)
+	/// Bit 5: TM2$(BR)
+	uint ACPI;
+	union { // 01h.EBX
+		uint b_01_ebx;
 		struct {
 			ubyte BrandIndex;
 			ubyte CLFLUSHLineSize;
@@ -1214,142 +1478,92 @@ struct CPUINFO { align(1):
 		}
 	}
 
-	// -- ECX --
-	ubyte PCLMULQDQ;	// 1
-	ubyte DTES64;
-	ubyte MONITOR;
-	ubyte DS_CPL;
-	ubyte Virt;	// VMX (intel) / SVM (AMD)
-	ubyte SMX;	// intel txt/tpm
-	ubyte EIST;	// intel speedstep
-	ubyte TM2;
-	ubyte CNXT_ID;	// l1 context id
-	ubyte SDBG;	// IA32_DEBUG_INTERFACE silicon debug
-	ubyte FMA;
-	ubyte FMA4;
-	ubyte CMPXCHG16B;
-	ubyte xTPR;
-	ubyte PDCM;
-	ubyte PCID;	// Process-context identifiers
-	ubyte DCA;
-	ubyte x2APIC;
-	ubyte MOVBE;
-	ubyte POPCNT;
-	ubyte TscDeadline;
-	ubyte XSAVE;
-	ubyte OSXSAVE;
-	ubyte F16C;
-	ubyte RDRAND;	// 30
+	//
+	// Virtualization
+	//
 
-	// -- EDX --
-	ubyte FPU;	// 0
-	ubyte VME;
-	ubyte DE;
-	ubyte PSE;
-	ubyte TSC;
-	ubyte MSR;
-	ubyte PAE;
-	ubyte MCE;
-	ubyte CX8;
-	ubyte APIC;
-	ubyte SEP;	/// sysenter/sysexit
-	ubyte MTRR;
-	ubyte PGE;
-	ubyte MCA;
-	ubyte CMOV;
-	ubyte PAT;
-	ubyte PSE_36;
-	ubyte PSN;
-	ubyte CLFSH;
-	ubyte DS;
-	ubyte ACPI;
-	ubyte FXSR;
-	ubyte SS;	/// self-snoop
-	ubyte HTT;
-	ubyte TM;
-	ubyte PBE;	// 31
-
-	// ---- 06h ----
-	/// eq. to AMD's Core Performance Boost
-	ubyte TurboBoost;	// 1
-	ubyte ARAT;	/// Always-Running-APIC-Timer feature
-	ubyte TurboBoost3;	// 14
-
-	// ---- 07h ----
-	// -- EBX --
-	ubyte SGX;	// 2 Intel SGX (Software Guard Extensions)
-	ubyte HLE;	// 4 hardware lock elision
-	ubyte SMEP;	// 7
+	/// Virtualization features$(BR)
+	/// Bit 0-7: (AMD: EAX[7:0]) SVM version$(BR)
+	/// Bit 8: VMX/SVM capable$(BR)
+	/// Bit 9: VME$(BR)
 	union {
-		ushort __bundle2;
+		ubyte VirtVersion;
+		uint VIRT;
+	}
+
+	//
+	// Memory
+	//
+
+	/// Memory features$(BR)
+	/// Bit 0: PAE$(BR)
+	/// Bit 1: PSE$(BR)
+	/// Bit 2: PSE-36$(BR)
+	/// Bit 3: Page1GB$(BR)
+	/// Bit 4: MTRR$(BR)
+	/// Bit 5: PAT$(BR)
+	/// Bit 6: PGE$(BR)
+	/// Bit 7: DCA$(BR)
+	/// Bit 8: NX (no execute)$(BR)
+	/// Bit 9: HLE$(BR)
+	/// Bit 10: RTM$(BR)
+	/// Bit 11: SMEP$(BR)
+	/// Bit 12: SMAP$(BR)
+	/// Bit 13: PKU$(BR)
+	/// Bit 14: 5PL (5-level paging)$(BR)
+	/// Bit 15: FSREPMOV (fast rep mov)$(BR)
+	uint MEM;
+	union {
+		ushort b_8000_0008_ax;
 		struct {
-			ubyte BMI1;	// 3
-			ubyte BMI2;	// 8
+			ubyte phys_bits;	// EAX[7 :0]
+			ubyte line_bits;	// EAX[15:8]
 		}
 	}
-	ubyte RTM;	// 11 restricted transactional memory
-	ubyte SMAP;	// 22
-	// -- ECX --
-	ubyte PKU;	// 3
-	ubyte FSREPMOV;	// 4
-	ubyte WAITPKG;	// 5
-	ubyte _5PL;	// 16
-	ubyte RDPID;	// 22
-	ubyte CLDEMOTE;	// 25
-	ubyte MOVDIRI;	// 27
-	ubyte MOVDIR64B;	// 28
-	// -- EDX --
-	ubyte MD_CLEAR;	// 10, MDS
-	ubyte PCONFIG;	// 18
-	ubyte IBPB;	// 26
-	ubyte IBRS;	// 26
-	ubyte STIBP;	// 27
-	ubyte L1D_FLUSH;	// 28
-	ubyte IA32_ARCH_CAPABILITIES;	// 29
-	ubyte SSBD;	// 31
+			
 
-	// ---- 8000_0001 ----
-	// ECX
-	ubyte LAHF64;	/// LAHF/SAHF in LONG mode
-	ubyte LZCNT;	/// Counts leading zero bits, SSE4 SIMD
-	ubyte PREFETCHW;	// 8, Prefetch
+	//
+	// Debugging
+	//
 
-	ubyte RDSEED;	// RDSEED instruction
-	// EDX
-	ubyte NX;	// 20, No execute
-	ubyte Page1GB;	// 26, 1 GB pages
-	ubyte LongMode;	// 29, Intel64/AMD64
+	/// Debugging features$(BR)
+	/// Bit 0: MCA$(BR)
+	/// Bit 1: MCE$(BR)
+	/// Bit 2: DE (Debugging Extensions)$(BR)
+	/// Bit 3: DS (Debug Store)$(BR)
+	/// Bit 4: DS-CPL (Debug Store CPL branching)$(BR)
+	/// Bit 5: DTES64 (64-bit DS area)$(BR)
+	/// Bit 6: PDCM$(BR)
+	/// Bit 7: SDBG (IA32_DEBUG_INTERFACE silicon debug)$(BR)
+	/// Bit 8: PBE (Pending Break Enable)$(BR)
+	uint DEBUG;
 
-	// EDX
-	ubyte RDTSCP;	// 27
+	//
+	// Security
+	//
 
-	// ---- 8000_0007 ----
-	ubyte TscInvariant;	// 8
+	/// Security patches$(BR)
+	/// Bit 0: IBPB$(BR)
+	/// Bit 1: IBRS$(BR)
+	/// Bit 2: IBRS_ON$(BR)
+	/// Bit 3: IBRS_PREF$(BR)
+	/// Bit 4: STIBP$(BR)
+	/// Bit 5: STIBP_ON$(BR)
+	/// Bit 6: SSBD$(BR)
+	/// Bit 7: L1D_FLUSH$(BR)
+	/// Bit 8: MD_CLEAR$(BR)
+	uint SEC;
 
-	// ---- 8000_0008 ----
-	union {
-		ushort __bundle3;
-		struct {
-			ubyte addr_phys_bits;	// EAX[7 :0]
-			ubyte addr_line_bits;	// EAX[15:8]
-		}
-	}
-	// EBX
-	ubyte WBNOINVD;	// 9
-	ubyte IBRS_ON;	// AMD, 16
-	ubyte STIBP_ON;	// AMD, 17
-	ubyte IBRS_PREF;	// AMD, 18
+	//
+	// Misc.
+	//
 
-	// ---- 8000_000A ----
-	ubyte VirtVersion;	// (AMD) EAX[7:0]
-
-	// 6 levels should be enough (L1-D, L1-I, L2, L3, 0, 0)
-	CACHE [6]cache;	// all inits to 0
+	/// Miscellaneous$(BR)
+	/// Bit 8: PSN, serial number$(BR)
+	/// Bit 9: xTPR$(BR)
+	/// Bit 10: IA32_ARCH_CAPABILITIES$(BR)
+	uint MISC;
 }
 
-pragma(msg, "-- sizeof CPUINFO: ", CPUINFO.sizeof);
-pragma(msg, "-- sizeof CACHE: ", CACHE.sizeof);
-static assert(CPUINFO.__bundle1.sizeof == 4);
-static assert(CPUINFO.__bundle2.sizeof == 2);
-static assert(CPUINFO.__bundle3.sizeof == 2);
-static assert(CACHE.__bundle1.sizeof == 4);
+debug pragma(msg, "* sizeof CPUINFO: ", CPUINFO.sizeof);
+debug pragma(msg, "* sizeof CACHE: ", CACHEINFO.sizeof);

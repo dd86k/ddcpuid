@@ -325,17 +325,23 @@ int main(int argc, char **argv) {
 		printf(" x87/FPU");
 		if (s.EXTEN & F_EXTEN_F16C) printf(" +F16C");
 	}
-	if (s.EXTEN & F_EXTEN_MMX) printf(" MMX");
-	if (s.EXTEN & F_EXTEN_MMXEXT) printf(" Ext.MMX");
-	if (s.EXTEN & F_EXTEN_3DNOW) printf(" 3DNow!");
-	if (s.EXTEN & F_EXTEN_3DNOWEXT) printf(" Ext.3DNow!");
-	if (s.EXTEN & F_EXTEN_SSE) printf(" SSE");
-	if (s.EXTEN & F_EXTEN_SSE2) printf(" SSE2");
-	if (s.EXTEN & F_EXTEN_SSE3) printf(" SSE3");
-	if (s.EXTEN & F_EXTEN_SSSE3) printf(" SSSE3");
-	if (s.EXTEN & F_EXTEN_SSE41) printf(" SSE4.1");
-	if (s.EXTEN & F_EXTEN_SSE42) printf(" SSE4.2");
-	if (s.EXTEN & F_EXTEN_SSE4a) printf(" SSE4a");
+	if (s.EXTEN & F_EXTEN_MMX) {
+		printf(" MMX");
+		if (s.EXTEN & F_EXTEN_MMXEXT) printf(" Ext.MMX");
+	}
+	if (s.EXTEN & F_EXTEN_3DNOW) {
+		printf(" 3DNow!");
+		if (s.EXTEN & F_EXTEN_3DNOWEXT) printf(" Ext.3DNow!");
+	}
+	if (s.EXTEN & F_EXTEN_SSE) {
+		printf(" SSE");
+		if (s.EXTEN & F_EXTEN_SSE2) printf(" SSE2");
+		if (s.EXTEN & F_EXTEN_SSE3) printf(" SSE3");
+		if (s.EXTEN & F_EXTEN_SSSE3) printf(" SSSE3");
+		if (s.EXTEN & F_EXTEN_SSE41) printf(" SSE4.1");
+		if (s.EXTEN & F_EXTEN_SSE42) printf(" SSE4.2");
+		if (s.EXTEN & F_EXTEN_SSE4a) printf(" SSE4a");
+	}
 	if (s.EXTEN & F_EXTEN_x86_64) {
 		switch (s.VendorID) {
 		case VENDOR_INTEL: printf(" Intel64/x86-64"); break;

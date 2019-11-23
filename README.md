@@ -3,7 +3,7 @@
 ddcpuid is a x86 processor information tool. Currently supports Intel and AMD
 processors.
 
-_Currently featuring 126 CPUID bits documented and counting!_
+_Currently featuring 139 CPUID bits documented and counting!_
 
 The ddcpuid Technical Manual is available here:
 [dd86k.space](https://dd86k.space/docs/ddcpuid-manual.pdf) (PDF).
@@ -26,7 +26,7 @@ GDC support is still experimental. **Compiling above -O1 segfaults at run-time.*
 
 Since LDC 1.13.0 includes lld-link on Windows platforms, the project may fail
 to link. Using the older linker from Microsoft will likely fail as well. No 
-work-arounds has been found up to this date other than using LDC 1.12.x.
+workarounds has been found up to this date other than using LDC 1.12.x.
 
 **UPDATE**: This has been fixed in 1.15. Linker now includes
 `legacy_stdio_definitions.lib`.

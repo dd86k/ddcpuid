@@ -520,7 +520,7 @@ int main(int argc, char **argv) {
 	if (s.DEBUG & F_DEBUG_MCE) printf(" MCE");
 	if (s.DEBUG & F_DEBUG_DE) printf(" DE");
 	if (s.DEBUG & F_DEBUG_DS) printf(" DS");
-	if (s.DEBUG & F_DEBUG_DS_CPL) printf(" DS_CPL");
+	if (s.DEBUG & F_DEBUG_DS_CPL) printf(" DS-CPL");
 	if (s.DEBUG & F_DEBUG_DTES64) printf(" DTES64");
 	if (s.DEBUG & F_DEBUG_PDCM) printf(" PDCM");
 	if (s.DEBUG & F_DEBUG_SDBG) printf(" SDBG");

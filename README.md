@@ -1,9 +1,9 @@
 # ddcpuid, CPUID tool
 
-ddcpuid is a simple and fast x86 processor information tool, works best
-with Intel and AMD processors where features are documentated.
+ddcpuid is a x86 processor information tool. Currently supports Intel and AMD
+processors.
 
-_Currently featuring 126 CPUID bits and counting!_
+_Currently featuring 126 CPUID bits documented and counting!_
 
 The ddcpuid Technical Manual is available here:
 [dd86k.space](https://dd86k.space/docs/ddcpuid-manual.pdf) (PDF).

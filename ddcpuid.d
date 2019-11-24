@@ -434,7 +434,7 @@ int main(int argc, char **argv) {
 
 	switch (s.VendorID) {
 	case VENDOR_INTEL:
-		if (s.TECH & F_TECH_EIST) printf(" Enhanced-SpeedStep");
+		if (s.TECH & F_TECH_EIST) printf(" EIST");
 		if (s.TECH & F_TECH_TURBOBOOST)
 			printf(s.TECH & F_TECH_TURBOBOOST30 ?
 				" TurboBoot-3.0" : " TurboBoost");

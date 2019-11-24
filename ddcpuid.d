@@ -120,7 +120,7 @@ enum {
 	F_CACHE_CNXT_ID	= BIT!(9),
 	F_CACHE_SS	= BIT!(10),
 	F_CACHE_PREFETCHW	= BIT!(11),
-	F_CACHE_PCID	= BIT!(12),
+	F_CACHE_INVPCID	= BIT!(12),
 	F_CACHE_WBNOINVD	= BIT!(13),
 	//
 	// ACPI bits
@@ -183,8 +183,9 @@ enum {
 	// Misc. bits
 	//
 	F_MISC_PSN	= BIT!(8),
-	F_MISC_xTPR	= BIT!(9),
-	F_MISC_IA32_ARCH_CAPABILITIES	= BIT!(10),
+	F_MISC_PCID	= BIT!(9),
+	F_MISC_xTPR	= BIT!(10),
+	F_MISC_IA32_ARCH_CAPABILITIES	= BIT!(11),
 }
 
 __gshared char []CACHE_TYPE = [
@@ -456,7 +457,7 @@ int main(int argc, char **argv) {
 	if (s.CACHE & F_CACHE_CNXT_ID) printf(" CNXT_ID");
 	if (s.CACHE & F_CACHE_SS) printf(" SS");
 	if (s.CACHE & F_CACHE_PREFETCHW) printf(" PREFETCHW");
-	if (s.CACHE & F_CACHE_PCID) printf(" PCID");
+	if (s.CACHE & F_CACHE_INVPCID) printf(" INVPCID");
 	if (s.CACHE & F_CACHE_WBNOINVD) printf(" WBNOINVD");
 
 	CACHEINFO *ca = cast(CACHEINFO*)s.caches; /// Caches
@@ -555,6 +556,7 @@ int main(int argc, char **argv) {
 	);
 	if (s.MISC & F_MISC_xTPR) printf(" xTPR");
 	if (s.MISC & F_MISC_PSN) printf(" PSN");
+	if (s.MISC & F_MISC_PCID) printf(" PCID");
 	if (s.MISC & F_MISC_IA32_ARCH_CAPABILITIES) printf(" IA32_ARCH_CAPABILITIES");
 
 	putchar('\n');
@@ -905,7 +907,7 @@ CACHE_AMD_NEWER:
 		if (c & BIT!(11)) s.DEBUG |= F_DEBUG_SDBG;
 		if (c & BIT!(14)) s.MISC  |= F_MISC_xTPR;
 		if (c & BIT!(15)) s.DEBUG |= F_DEBUG_PDCM;
-		if (c & BIT!(17)) s.CACHE |= F_CACHE_PCID;
+		if (c & BIT!(17)) s.MISC  |= F_MISC_PCID;
 		if (c & BIT!(18)) s.DEBUG |= F_DEBUG_MCA;
 		if (c & BIT!(21)) s.ACPI  |= F_ACPI_x2APIC;
 		if (c & BIT!(24)) s.EXTRA |= F_EXTRA_TSC_DEADLINE;
@@ -1022,6 +1024,7 @@ CACHE_AMD_NEWER:
 		// EBX
 		if (b & BIT!(2)) s.TECH   |= F_TECH_SGX;
 		if (b & BIT!(4)) s.MEM    |= F_MEM_HLE;
+		if (b & BIT!(10)) s.CACHE |= F_CACHE_INVPCID;
 		if (b & BIT!(11)) s.MEM   |= F_MEM_RTM;
 		if (b & BIT!(16)) s.AVX   |= F_AVX_AVX512F;
 		if (b & BIT!(20)) s.MEM   |= F_MEM_SMAP;
@@ -1440,7 +1443,7 @@ struct CPUINFO { align(1):
 	/// Bit 9: CNXT-ID: L1 Context ID$(BR)
 	/// Bit 10: SS: Self Snoop$(BR)
 	/// Bit 11: PREFETCHW$(BR)
-	/// Bit 12: PCID (INVPCID)$(BR)
+	/// Bit 12: INVPCID$(BR)
 	/// Bit 13: WBNOINVD$(BR)
 	ushort CACHE;
 
@@ -1549,8 +1552,9 @@ struct CPUINFO { align(1):
 
 	/// Miscellaneous$(BR)
 	/// Bit 8: PSN, serial number$(BR)
-	/// Bit 9: xTPR$(BR)
-	/// Bit 10: IA32_ARCH_CAPABILITIES$(BR)
+	/// Bit 9: PCID$(BR)
+	/// Bit 10: xTPR$(BR)
+	/// Bit 11: IA32_ARCH_CAPABILITIES$(BR)
 	uint MISC;
 }
 

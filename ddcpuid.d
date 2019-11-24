@@ -216,8 +216,8 @@ void sversion() {
 	"Copyright (c) dd86k 2016-2019\n"~
 	"License: MIT License <http://opensource.org/licenses/MIT>\n"~
 	"Project page: <https://github.com/dd86k/ddcpuid>\n"~
-	"Compiler: "~ __VENDOR__ ~" v%u.%03u\n",
-	d.version_major, d.version_minor
+	"Compiler: "~ __VENDOR__ ~" v%u.%03u (D %u.%03u)\n",
+	d.version_major, d.version_minor, d.D_major, d.D_minor
 	);
 }
 
@@ -276,10 +276,8 @@ int main(int argc, char **argv) {
 	if (opt_override) {
 		s.MaximumLeaf = MAX_LEAF;
 		s.MaximumExtendedLeaf = MAX_ELEAF;
-	} else {
+	} else
 		leafs(s);
-		assert(s.MaximumLeaf > 0, "LEAF == 0"); // LDC optimization bug
-	}
 
 	if (opt_raw) { // -r
 		puts(
@@ -502,13 +500,13 @@ int main(int argc, char **argv) {
 	if (s.MEM & F_MEM_PAE) printf(" PAE");
 	if (s.MEM & F_MEM_PSE) printf(" PSE");
 	if (s.MEM & F_MEM_PSE_36) printf(" PSE-36");
+	if (s.MEM & F_MEM_PAGE1GB) printf(" Page1GB");
 	if (s.MEM & F_MEM_NX)
 		switch (s.VendorID) {
 		case VENDOR_INTEL: printf(" Intel-XD/NX"); break;
 		case VENDOR_AMD: printf(" AMD-EVP/NX"); break;
 		default: printf(" NX");
 		}
-	if (s.MEM & F_MEM_PAGE1GB) printf(" Page1GB");
 	if (s.MEM & F_MEM_DCA) printf(" DCA");
 	if (s.MEM & F_MEM_PAT) printf(" PAT");
 	if (s.MEM & F_MEM_MTRR) printf(" MTRR");

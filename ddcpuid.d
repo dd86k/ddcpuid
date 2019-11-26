@@ -106,6 +106,7 @@ enum {
 	F_EXTRA_MOVDIRI	= BIT!(23),
 	F_EXTRA_MOVDIR64B	= BIT!(24),
 	F_EXTRA_ENQCMD	= BIT!(25),
+	F_EXTRA_SYSCALL	= BIT!(26),
 	//
 	// Technology bits
 	//
@@ -403,9 +404,8 @@ int main(int argc, char **argv) {
 	printf("\n[Extra]");
 	if (cpu.EXTRA & F_EXTRA_MONITOR) {
 		printf(" MONITOR+MWAIT");
-		if (cpu.mwait_min) {
+		if (cpu.mwait_min)
 			printf(" +MIN:%u +MAX:%u", cpu.mwait_min, cpu.mwait_max);
-		}
 	}
 	if (cpu.EXTRA & F_EXTRA_PCLMULQDQ) printf(" PCLMULQDQ");
 	if (cpu.EXTRA & F_EXTRA_CMPXCHG8B) printf(" CMPXCHG8B");
@@ -415,6 +415,7 @@ int main(int argc, char **argv) {
 	if (cpu.EXTRA & F_EXTRA_RDSEED) printf(" RDSEED");
 	if (cpu.EXTRA & F_EXTRA_RDMSR) printf(" RDMSR+WRMSR");
 	if (cpu.EXTRA & F_EXTRA_SYSENTER) printf(" SYSENTER+SYSEXIT");
+	if (cpu.EXTRA & F_EXTRA_SYSCALL) printf(" SYSCALL+SYSRET");
 	if (cpu.EXTRA & F_EXTRA_TSC) {
 		printf(" RDTSC");
 		if (cpu.EXTRA & F_EXTRA_TSC_DEADLINE)
@@ -492,16 +493,14 @@ int main(int argc, char **argv) {
 	}
 
 	printf("\n[ACPI]");
-	if (cpu.ACPI & F_ACPI_ACPI) {
-		printf(" ACPI");
-		if (cpu.ACPI & F_ACPI_APIC) printf(" APIC");
-		if (cpu.ACPI & F_ACPI_x2APIC) printf(" x2APIC");
-		if (cpu.ACPI & F_ACPI_ARAT) printf(" ARAT");
-		if (cpu.ACPI & F_ACPI_TM) printf(" TM");
-		if (cpu.ACPI & F_ACPI_TM2) printf(" TM2");
-		if (cpu.InitialAPICID) printf(" APIC-ID:%u", cpu.InitialAPICID);
-		if (cpu.MaxIDs) printf(" MAX-ID:%u", cpu.MaxIDs);
-	}
+	if (cpu.ACPI & F_ACPI_ACPI) printf(" ACPI");
+	if (cpu.ACPI & F_ACPI_APIC) printf(" APIC");
+	if (cpu.ACPI & F_ACPI_x2APIC) printf(" x2APIC");
+	if (cpu.ACPI & F_ACPI_ARAT) printf(" ARAT");
+	if (cpu.ACPI & F_ACPI_TM) printf(" TM");
+	if (cpu.ACPI & F_ACPI_TM2) printf(" TM2");
+	if (cpu.InitialAPICID) printf(" APIC-ID:%u", cpu.InitialAPICID);
+	if (cpu.MaxIDs) printf(" MAX-ID:%u", cpu.MaxIDs);
 
 	printf("\n[Virtualization]");
 	if (cpu.VIRT & F_VIRT_VME) printf(" VME");
@@ -1155,6 +1154,7 @@ EXTENDED_LEAVES:
 	switch (s.VendorID) {
 	case VENDOR_AMD:
 		if (c & BIT!(2)) s.VIRT   |= F_VIRT_VIRT;
+		if (c & BIT!(3)) s.ACPI   |= F_ACPI_x2APIC;
 		if (c & BIT!(6)) s.EXTEN  |= F_EXTEN_SSE4a;
 		if (c & BIT!(16)) s.EXTEN |= F_EXTEN_FMA4;
 		if (d & BIT!(22)) s.EXTEN |= F_EXTEN_MMXEXT;
@@ -1167,6 +1167,7 @@ EXTENDED_LEAVES:
 	if (c & BIT!(0)) s.EXTEN  |= F_EXTEN_LAHF64;
 	if (c & BIT!(5)) s.EXTRA  |= F_EXTRA_LZCNT;
 	if (c & BIT!(8)) s.CACHE  |= F_CACHE_PREFETCHW;
+	if (d & BIT!(11)) s.EXTRA |= F_EXTRA_SYSCALL;
 	if (d & BIT!(20)) s.MEM   |= F_MEM_NX;
 	if (d & BIT!(26)) s.MEM   |= F_MEM_PAGE1GB;
 	if (d & BIT!(27)) s.EXTRA |= F_EXTRA_RDTSCP;
@@ -1453,6 +1454,7 @@ struct CPUINFO { align(1):
 	/// Bit 23: MOVDIRI$(BR)
 	/// Bit 24: MOVDIR64B$(BR)
 	/// Bit 25: ENQCMD$(BR)
+	/// Bit 26: SYSCALL+SYSRET$(BR)
 	uint EXTRA;
 
 	//

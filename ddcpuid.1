@@ -8,7 +8,9 @@ ddcpuid - Simple x86/AMD64 CPUID tool
 
 .SH SYNOPSIS
 .SY ddcpuid
-.OP \-ro
+.OP \-r
+.OP \-o
+.OP \-s [...]
 .OP \--help
 .OP \--version
 .YS
@@ -57,6 +59,9 @@ Note: ECX is always cleared.
 .IP -o
 Overrides max leaf to 20h and extended max leaf to 8000_0020h. Affects feature
 scanning and -r.
+
+.IP -s
+For -r only: provide maximum sub-leaf.
 
 .SH WARNINGS
 ddcpuid is still currently going under active development, you may encounter

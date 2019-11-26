@@ -188,6 +188,7 @@ enum {
 	F_MISC_PCID	= BIT!(9),
 	F_MISC_xTPR	= BIT!(10),
 	F_MISC_IA32_ARCH_CAPABILITIES	= BIT!(11),
+	F_MISC_FSGSBASE	= BIT!(12),
 }
 
 char []CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
@@ -400,7 +401,12 @@ int main(int argc, char **argv) {
 	// -- Other instructions --
 
 	printf("\n[Extra]");
-	if (cpu.EXTRA & F_EXTRA_MONITOR) printf(" MONITOR+MWAIT");
+	if (cpu.EXTRA & F_EXTRA_MONITOR) {
+		printf(" MONITOR+MWAIT");
+		if (cpu.mwait_min) {
+			printf(" +MIN:%u +MAX:%u", cpu.mwait_min, cpu.mwait_max);
+		}
+	}
 	if (cpu.EXTRA & F_EXTRA_PCLMULQDQ) printf(" PCLMULQDQ");
 	if (cpu.EXTRA & F_EXTRA_CMPXCHG8B) printf(" CMPXCHG8B");
 	if (cpu.EXTRA & F_EXTRA_CMPXCHG16B) printf(" CMPXCHG16B");
@@ -563,6 +569,7 @@ int main(int argc, char **argv) {
 	if (cpu.MISC & F_MISC_PSN) printf(" PSN");
 	if (cpu.MISC & F_MISC_PCID) printf(" PCID");
 	if (cpu.MISC & F_MISC_IA32_ARCH_CAPABILITIES) printf(" IA32_ARCH_CAPABILITIES");
+	if (cpu.MISC & F_MISC_FSGSBASE) printf(" FSGSBASE");
 
 	putchar('\n');
 
@@ -873,7 +880,8 @@ CACHE_AMD_NEWER:
 		"mov %%eax, %0\n"~
 		"mov %%ebx, %1\n"~
 		"mov %%ecx, %2\n"~
-		"mov %%edx, %3" : "=a" a, "=b" b, "=c" c, "=d" d;
+		"mov %%edx, %3"
+		: "=a" a, "=b" b, "=c" c, "=d" d;
 	} else asm {
 		mov EAX, 1;
 		cpuid;
@@ -983,12 +991,31 @@ CACHE_AMD_NEWER:
 	if (d & BIT!(26)) s.EXTEN |= F_EXTEN_SSE2;
 	if (d & BIT!(28)) s.TECH  |= F_TECH_HTT;
 
+	if (s.MaximumLeaf < 5) goto EXTENDED_LEAVES;
+
+	version (GNU) asm {
+		"mov $5, %%eax\n"~
+		"cpuid\n"~
+		"mov %%eax, %0"
+		"mov %%ebx, %1"
+		: "=a" a "=b" b;
+	} else asm {
+		mov EAX, 5;
+		cpuid;
+		mov a, EAX;
+		mov b, EBX;
+	} // ----- 5H
+
+	s.mwait_min = cast(ushort)a;
+	s.mwait_max = cast(ushort)b;
+
 	if (s.MaximumLeaf < 6) goto EXTENDED_LEAVES;
 
 	version (GNU) asm {
 		"mov $6, %%eax\n"~
 		"cpuid\n"~
-		"mov %%eax, %0" : "=a" a;
+		"mov %%eax, %0"
+		: "=a" a;
 	} else asm {
 		mov EAX, 6;
 		cpuid;
@@ -1072,6 +1099,7 @@ CACHE_AMD_NEWER:
 	default:
 	}
 
+	if (b & BIT!(0)) s.MISC   |= F_MISC_FSGSBASE;
 	if (b & BIT!(3)) s.EXTEN  |= F_EXTEN_BMI1;
 	if (b & BIT!(5)) s.AVX    |= F_AVX_AVX2;
 	if (b & BIT!(7)) s.MEM    |= F_MEM_SMEP;
@@ -1115,7 +1143,8 @@ EXTENDED_LEAVES:
 		"mov $0x80000001, %%eax\n"~
 		"cpuid\n"~
 		"mov %%ecx, %0\n"~
-		"mov %%edx, %1" : "=c" c, "=d" d;
+		"mov %%edx, %1"
+		: "=c" c, "=d" d;
 	} else asm {
 		mov EAX, 0x8000_0001;
 		cpuid;
@@ -1149,7 +1178,8 @@ EXTENDED_LEAVES:
 		"mov $0x80000007, %%eax\n"~
 		"cpuid\n"~
 		"mov %%ebx, %0\n"~
-		"mov %%edx, %1" : "=b" b, "=d" d;
+		"mov %%edx, %1"
+		: "=b" b, "=d" d;
 	} else asm {
 		mov EAX, 0x8000_0007;
 		cpuid;
@@ -1208,7 +1238,8 @@ EXTENDED_LEAVES:
 	version (GNU) asm {
 		"mov $0x8000000a, %%eax\n"~
 		"cpuid\n"~
-		"mov %%eax, %0" : "=a" a;
+		"mov %%eax, %0"
+		: "=a" a;
 	} else asm {
 		mov EAX, 0x8000_000A;
 		cpuid;
@@ -1231,11 +1262,13 @@ void leafs(ref CPUINFO cpu) {
 		uint l = void, le = void;
 		asm {
 			"mov $0, %%eax\n"~
-			"cpuid" : "=a" l;
+			"cpuid"
+			: "=a" l;
 		}
 		asm {
 			"mov $0x80000000, %%eax\n"~
-			"cpuid" : "=a" le;
+			"cpuid"
+			: "=a" le;
 		}
 		cpu.MaximumLeaf = l;
 		cpu.MaximumExtendedLeaf = le;
@@ -1474,6 +1507,8 @@ struct CPUINFO { align(1):
 			ubyte InitialAPICID;
 		}
 	}
+	ushort mwait_min;
+	ushort mwait_max;
 
 	//
 	// Virtualization
@@ -1560,6 +1595,7 @@ struct CPUINFO { align(1):
 	/// Bit 9: PCID$(BR)
 	/// Bit 10: xTPR$(BR)
 	/// Bit 11: IA32_ARCH_CAPABILITIES$(BR)
+	/// Bit 12: FSGSBASE$(BR)
 	uint MISC;
 }
 

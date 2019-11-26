@@ -1072,7 +1072,7 @@ CACHE_AMD_NEWER:
 	default:
 	}
 
-	if (b & BIT!(4)) s.EXTEN  |= F_EXTEN_BMI1;
+	if (b & BIT!(3)) s.EXTEN  |= F_EXTEN_BMI1;
 	if (b & BIT!(5)) s.AVX    |= F_AVX_AVX2;
 	if (b & BIT!(7)) s.MEM    |= F_MEM_SMEP;
 	if (b & BIT!(8)) s.EXTEN  |= F_EXTEN_BMI2;

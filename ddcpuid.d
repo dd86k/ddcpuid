@@ -1,10 +1,12 @@
 extern (C):
+__gshared:
 
 int strcmp(scope const char*, scope const char*);
 int printf(scope const char*, ...);
 int puts(scope const char*);
 int putchar(int c);
 void* memset(void *, int, size_t);
+long strtol(scope inout(char)*,scope inout(char)**, int);
 
 enum VERSION = "0.14.0"; /// Program version
 enum	MAX_LEAF  = 0x20, /// Maximum leaf (-o)
@@ -188,13 +190,9 @@ enum {
 	F_MISC_IA32_ARCH_CAPABILITIES	= BIT!(11),
 }
 
-__gshared char []CACHE_TYPE = [
-	'?', 'D', 'I', 'U', '?', '?', '?', '?'
-];
+char []CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
 
-__gshared const(char) *[]PROCESSOR_TYPE = [
-	"Original", "OverDrive", "Dual", "Reserved"
-];
+const(char) *[]PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];
 
 void shelp() {
 	puts(
@@ -223,22 +221,22 @@ void sversion() {
 }
 
 /// Print cpuid info
-void printc(uint leaf) {
+void printc(uint leaf, uint sub) {
 	uint a = void, b = void, c = void, d = void;
 	version (GNU) asm {
 		"cpuid\n"
 		: "=a" a, "=b" b, "=c" c, "=d" d
-		: "a" leaf;
+		: "a" leaf "c" sub;
 	} else asm {
 		mov EAX, leaf;
-		mov ECX, 0;
+		mov ECX, sub;
 		cpuid;
 		mov a, EAX;
 		mov b, EBX;
 		mov c, ECX;
 		mov d, EDX;
 	}
-	printf("| %8X | %8X | %8X | %8X | %8X |\n", leaf, a, b, c, d);
+	printf("| %8X | %8X | %8X | %8X | %8X | %8X |\n", leaf, sub, a, b, c, d);
 }
 
 // GAS reminder: asm { "asm" : output : input : clobber }
@@ -246,10 +244,11 @@ void printc(uint leaf) {
 int main(int argc, char **argv) {
 	bool opt_raw;	/// Raw option (-r), table option
 	bool opt_override;	/// opt_override max leaf option (-o)
+	uint opt_subleaf;	/// Max subleaf for -r
 
-	while (--argc >= 1) { // CLI
-		if (argv[argc][1] == '-') { // Long arguments
-			char* a = argv[argc] + 2;
+	for (size_t argi = 1; argi < argc; ++argi) {
+		if (argv[argi][1] == '-') { // Long arguments
+			char* a = argv[argi] + 2;
 			if (strcmp(a, "help") == 0) {
 				shelp; return 0;
 			}
@@ -258,49 +257,55 @@ int main(int argc, char **argv) {
 			}
 			printf("Unknown parameter: %s\n", a);
 			return 1;
-		} else if (argv[argc][0] == '-') { // Short arguments
-			char* a = argv[argc];
-			while (*++a) switch (*a) {
+		} else if (argv[argi][0] == '-') { // Short arguments
+			char* a = argv[argi];
+			char o = a[1];
+			switch (o) {
 			case 'o': opt_override = true; break;
 			case 'r': opt_raw = true; break;
+			case 's':
+				opt_subleaf = cast(uint)strtol(argv[argi + 1], null, 10);
+				break;
 			case 'h': shelp; return 0;
 			default:
-				printf("Unknown parameter: %c\n", *a);
+				printf("Unknown parameter: %c\n", o);
 				return 1;
-			} // while+switch
+			}
 		} // else if
-	} // while arg
+	} // for
 
-	CPUINFO s = void;
-	memset(&s, 0, CPUINFO.sizeof);
+	CPUINFO cpu = void;
+	memset(&cpu, 0, CPUINFO.sizeof);
 
 	if (opt_override) {
-		s.MaximumLeaf = MAX_LEAF;
-		s.MaximumExtendedLeaf = MAX_ELEAF;
+		cpu.MaximumLeaf = MAX_LEAF;
+		cpu.MaximumExtendedLeaf = MAX_ELEAF;
 	} else
-		leafs(s);
+		leafs(cpu);
 
 	if (opt_raw) { // -r
 		puts(
-		"| Leaf     | EAX      | EBX      | ECX      | EDX      |\n"~
-		"|----------|----------|----------|----------|----------|"
+		"| Leaf     | Sub-leaf | EAX      | EBX      | ECX      | EDX      |\n"~
+		"|----------|----------|----------|----------|----------|----------|"
 		);
-		uint l;
+		uint l, s;
 		do {
-			printc(l);
-		} while (++l <= s.MaximumLeaf);
+			do { printc(l, s); } while (++s <= opt_subleaf);
+			s = 0;
+		} while (++l <= cpu.MaximumLeaf);
 		l = 0x8000_0000; // Extended
 		do {
-			printc(l);
-		} while (++l <= s.MaximumExtendedLeaf);
+			do { printc(l, s); } while (++s <= opt_subleaf);
+			s = 0;
+		} while (++l <= cpu.MaximumExtendedLeaf);
 		return 0;
 	}
 
-	fetchInfo(s);
+	fetchInfo(cpu);
 
-	const(char) *cstring = cast(const(char)*)s.cpuString;
+	const(char) *cstring = cast(const(char)*)cpu.cpuString;
 
-	switch (s.VendorID) {
+	switch (cpu.VendorID) {
 	case VENDOR_INTEL: // Common in Intel processor brand strings
 		while (*cstring == ' ') ++cstring; // left trim cpu string
 		break;
@@ -314,153 +319,153 @@ int main(int argc, char **argv) {
 	"[String] %.48s\n"~
 	"[Identifier] Family %u (%Xh) [%Xh:%Xh] Model %u (%Xh) [%Xh:%Xh] Stepping %u\n"~
 	"[Extensions]",
-	cast(char*)s.vendorString, cstring,
-	s.Family, s.Family, s.BaseFamily, s.ExtendedFamily,
-	s.Model, s.Model, s.BaseModel, s.ExtendedModel,
-	s.Stepping
+	cast(char*)cpu.vendorString, cstring,
+	cpu.Family, cpu.Family, cpu.BaseFamily, cpu.ExtendedFamily,
+	cpu.Model, cpu.Model, cpu.BaseModel, cpu.ExtendedModel,
+	cpu.Stepping
 	);
 
-	if (s.EXTEN & F_EXTEN_FPU) {
+	if (cpu.EXTEN & F_EXTEN_FPU) {
 		printf(" x87/FPU");
-		if (s.EXTEN & F_EXTEN_F16C) printf(" +F16C");
+		if (cpu.EXTEN & F_EXTEN_F16C) printf(" +F16C");
 	}
-	if (s.EXTEN & F_EXTEN_MMX) {
+	if (cpu.EXTEN & F_EXTEN_MMX) {
 		printf(" MMX");
-		if (s.EXTEN & F_EXTEN_MMXEXT) printf(" Ext.MMX");
+		if (cpu.EXTEN & F_EXTEN_MMXEXT) printf(" Ext.MMX");
 	}
-	if (s.EXTEN & F_EXTEN_3DNOW) {
+	if (cpu.EXTEN & F_EXTEN_3DNOW) {
 		printf(" 3DNow!");
-		if (s.EXTEN & F_EXTEN_3DNOWEXT) printf(" Ext.3DNow!");
+		if (cpu.EXTEN & F_EXTEN_3DNOWEXT) printf(" Ext.3DNow!");
 	}
-	if (s.EXTEN & F_EXTEN_SSE) {
+	if (cpu.EXTEN & F_EXTEN_SSE) {
 		printf(" SSE");
-		if (s.EXTEN & F_EXTEN_SSE2) printf(" SSE2");
-		if (s.EXTEN & F_EXTEN_SSE3) printf(" SSE3");
-		if (s.EXTEN & F_EXTEN_SSSE3) printf(" SSSE3");
-		if (s.EXTEN & F_EXTEN_SSE41) printf(" SSE4.1");
-		if (s.EXTEN & F_EXTEN_SSE42) printf(" SSE4.2");
-		if (s.EXTEN & F_EXTEN_SSE4a) printf(" SSE4a");
+		if (cpu.EXTEN & F_EXTEN_SSE2) printf(" SSE2");
+		if (cpu.EXTEN & F_EXTEN_SSE3) printf(" SSE3");
+		if (cpu.EXTEN & F_EXTEN_SSSE3) printf(" SSSE3");
+		if (cpu.EXTEN & F_EXTEN_SSE41) printf(" SSE4.1");
+		if (cpu.EXTEN & F_EXTEN_SSE42) printf(" SSE4.2");
+		if (cpu.EXTEN & F_EXTEN_SSE4a) printf(" SSE4a");
 	}
-	if (s.EXTEN & F_EXTEN_x86_64) {
-		switch (s.VendorID) {
+	if (cpu.EXTEN & F_EXTEN_x86_64) {
+		switch (cpu.VendorID) {
 		case VENDOR_INTEL: printf(" Intel64/x86-64"); break;
 		case VENDOR_AMD: printf(" AMD64/x86-64"); break;
 		default: printf(" x86-64");
 		}
-		if (s.EXTEN & F_EXTEN_LAHF64)
+		if (cpu.EXTEN & F_EXTEN_LAHF64)
 			printf(" +LAHF64");
 	}
-	if (s.VIRT & F_VIRT_VIRT)
-		switch (s.VendorID) {
+	if (cpu.VIRT & F_VIRT_VIRT)
+		switch (cpu.VendorID) {
 		case VENDOR_INTEL: printf(" VT-x/VMX"); break;
 		case VENDOR_AMD: // SVM
 			printf(" AMD-V/VMX");
-			if (s.VirtVersion)
-				printf(":v%u", s.VirtVersion);
+			if (cpu.VirtVersion)
+				printf(":v%u", cpu.VirtVersion);
 			break;
 		case VENDOR_VIA: printf(" VIA-VT/VMX"); break;
 		default: printf(" VMX");
 		}
-	if (s.TECH & F_TECH_SMX) printf(" Intel-TXT/SMX");
-	if (s.EXTEN & F_EXTEN_AES_NI) printf(" AES-NI");
-	if (s.AVX & F_AVX_AVX) printf(" AVX");
-	if (s.AVX & F_AVX_AVX2) printf(" AVX2");
-	if (s.AVX & F_AVX_AVX512F) {
+	if (cpu.TECH & F_TECH_SMX) printf(" Intel-TXT/SMX");
+	if (cpu.EXTEN & F_EXTEN_AES_NI) printf(" AES-NI");
+	if (cpu.AVX & F_AVX_AVX) printf(" AVX");
+	if (cpu.AVX & F_AVX_AVX2) printf(" AVX2");
+	if (cpu.AVX & F_AVX_AVX512F) {
 		printf(" AVX512F");
-		if (s.AVX & F_AVX_AVX512ER) printf(" AVX512ER");
-		if (s.AVX & F_AVX_AVX512PF) printf(" AVX512PF");
-		if (s.AVX & F_AVX_AVX512CD) printf(" AVX512CD");
-		if (s.AVX & F_AVX_AVX512DQ) printf(" AVX512DQ");
-		if (s.AVX & F_AVX_AVX512BW) printf(" AVX512BW");
-		if (s.AVX & F_AVX_AVX512VL) printf(" AVX512VL");
-		if (s.AVX & F_AVX_AVX512_IFMA) printf(" AVX512_IFMA");
-		if (s.AVX & F_AVX_AVX512_VBMI) printf(" AVX512_VBMI");
-		if (s.AVX & F_AVX_AVX512_4VNNIW) printf(" AVX512_4VNNIW");
-		if (s.AVX & F_AVX_AVX512_4FMAPS) printf(" AVX512_4FMAPS");
-		if (s.AVX & F_AVX_AVX512_VBMI2) printf(" AVX512_VBMI2");
-		if (s.AVX & F_AVX_AVX512_GFNI) printf(" AVX512_GFNI");
-		if (s.AVX & F_AVX_AVX512_VAES) printf(" AVX512_VAES");
-		if (s.AVX & F_AVX_AVX512_VNNI) printf(" AVX512_VNNI");
-		if (s.AVX & F_AVX_AVX512_BITALG) printf(" AVX512_BITALG");
-		if (s.AVX & F_AVX_AVX512_BF16) printf(" AVX512_BF16");
-		if (s.AVX & F_AVX_AVX512_VP2INTERSECT) printf(" AVX512_VP2INTERSECT");
+		if (cpu.AVX & F_AVX_AVX512ER) printf(" AVX512ER");
+		if (cpu.AVX & F_AVX_AVX512PF) printf(" AVX512PF");
+		if (cpu.AVX & F_AVX_AVX512CD) printf(" AVX512CD");
+		if (cpu.AVX & F_AVX_AVX512DQ) printf(" AVX512DQ");
+		if (cpu.AVX & F_AVX_AVX512BW) printf(" AVX512BW");
+		if (cpu.AVX & F_AVX_AVX512VL) printf(" AVX512VL");
+		if (cpu.AVX & F_AVX_AVX512_IFMA) printf(" AVX512_IFMA");
+		if (cpu.AVX & F_AVX_AVX512_VBMI) printf(" AVX512_VBMI");
+		if (cpu.AVX & F_AVX_AVX512_4VNNIW) printf(" AVX512_4VNNIW");
+		if (cpu.AVX & F_AVX_AVX512_4FMAPS) printf(" AVX512_4FMAPS");
+		if (cpu.AVX & F_AVX_AVX512_VBMI2) printf(" AVX512_VBMI2");
+		if (cpu.AVX & F_AVX_AVX512_GFNI) printf(" AVX512_GFNI");
+		if (cpu.AVX & F_AVX_AVX512_VAES) printf(" AVX512_VAES");
+		if (cpu.AVX & F_AVX_AVX512_VNNI) printf(" AVX512_VNNI");
+		if (cpu.AVX & F_AVX_AVX512_BITALG) printf(" AVX512_BITALG");
+		if (cpu.AVX & F_AVX_AVX512_BF16) printf(" AVX512_BF16");
+		if (cpu.AVX & F_AVX_AVX512_VP2INTERSECT) printf(" AVX512_VP2INTERSECT");
 	}
-	if (s.EXTEN & F_EXTEN_SHA) printf(" SHA");
-	if (s.EXTEN & F_EXTEN_FMA) printf(" FMA3");
-	if (s.EXTEN & F_EXTEN_FMA4) printf(" FMA4");
-	if (s.EXTEN & F_EXTEN_BMI1) printf(" BMI1");
-	if (s.EXTEN & F_EXTEN_BMI2) printf(" BMI2");
-	if (s.EXTEN & F_EXTEN_WAITPKG) printf(" WAITPKG");
+	if (cpu.EXTEN & F_EXTEN_SHA) printf(" SHA");
+	if (cpu.EXTEN & F_EXTEN_FMA) printf(" FMA3");
+	if (cpu.EXTEN & F_EXTEN_FMA4) printf(" FMA4");
+	if (cpu.EXTEN & F_EXTEN_BMI1) printf(" BMI1");
+	if (cpu.EXTEN & F_EXTEN_BMI2) printf(" BMI2");
+	if (cpu.EXTEN & F_EXTEN_WAITPKG) printf(" WAITPKG");
 
 	// -- Other instructions --
 
 	printf("\n[Extra]");
-	if (s.EXTRA & F_EXTRA_MONITOR) printf(" MONITOR+MWAIT");
-	if (s.EXTRA & F_EXTRA_PCLMULQDQ) printf(" PCLMULQDQ");
-	if (s.EXTRA & F_EXTRA_CMPXCHG8B) printf(" CMPXCHG8B");
-	if (s.EXTRA & F_EXTRA_CMPXCHG16B) printf(" CMPXCHG16B");
-	if (s.EXTRA & F_EXTRA_MOVBE) printf(" MOVBE");
-	if (s.EXTRA & F_EXTRA_RDRAND) printf(" RDRAND");
-	if (s.EXTRA & F_EXTRA_RDSEED) printf(" RDSEED");
-	if (s.EXTRA & F_EXTRA_RDMSR) printf(" RDMSR+WRMSR");
-	if (s.EXTRA & F_EXTRA_SYSENTER) printf(" SYSENTER+SYSEXIT");
-	if (s.EXTRA & F_EXTRA_TSC) {
+	if (cpu.EXTRA & F_EXTRA_MONITOR) printf(" MONITOR+MWAIT");
+	if (cpu.EXTRA & F_EXTRA_PCLMULQDQ) printf(" PCLMULQDQ");
+	if (cpu.EXTRA & F_EXTRA_CMPXCHG8B) printf(" CMPXCHG8B");
+	if (cpu.EXTRA & F_EXTRA_CMPXCHG16B) printf(" CMPXCHG16B");
+	if (cpu.EXTRA & F_EXTRA_MOVBE) printf(" MOVBE");
+	if (cpu.EXTRA & F_EXTRA_RDRAND) printf(" RDRAND");
+	if (cpu.EXTRA & F_EXTRA_RDSEED) printf(" RDSEED");
+	if (cpu.EXTRA & F_EXTRA_RDMSR) printf(" RDMSR+WRMSR");
+	if (cpu.EXTRA & F_EXTRA_SYSENTER) printf(" SYSENTER+SYSEXIT");
+	if (cpu.EXTRA & F_EXTRA_TSC) {
 		printf(" RDTSC");
-		if (s.EXTRA & F_EXTRA_TSC_DEADLINE)
+		if (cpu.EXTRA & F_EXTRA_TSC_DEADLINE)
 			printf(" +TSC-Deadline");
-		if (s.EXTRA & F_EXTRA_TSC_INVARIANT)
+		if (cpu.EXTRA & F_EXTRA_TSC_INVARIANT)
 			printf(" +TSC-Invariant");
 	}
-	if (s.EXTRA & F_EXTRA_RDTSCP) printf(" RDTSCP");
-	if (s.EXTRA & F_EXTRA_RDPID) printf(" RDPID");
-	if (s.EXTRA & F_EXTRA_CMOV) {
+	if (cpu.EXTRA & F_EXTRA_RDTSCP) printf(" RDTSCP");
+	if (cpu.EXTRA & F_EXTRA_RDPID) printf(" RDPID");
+	if (cpu.EXTRA & F_EXTRA_CMOV) {
 		printf(" CMOV");
-		if (s.EXTEN & F_EXTEN_FPU) printf(" FCOMI+FCMOV");
+		if (cpu.EXTEN & F_EXTEN_FPU) printf(" FCOMI+FCMOV");
 	}
-	if (s.EXTRA & F_EXTRA_LZCNT) printf(" LZCNT");
-	if (s.EXTRA & F_EXTRA_POPCNT) printf(" POPCNT");
-	if (s.EXTRA & F_EXTRA_XSAVE) printf(" XSAVE+XRSTOR");
-	if (s.EXTRA & F_EXTRA_OSXSAVE) printf(" XSETBV+XGETBV");
-	if (s.EXTRA & F_EXTRA_FXSR) printf(" FXSAVE+FXRSTOR");
-	if (s.EXTRA & F_EXTRA_PCONFIG) printf(" PCONFIG");
-	if (s.EXTRA & F_EXTRA_CLDEMOTE) printf(" CLDEMOTE");
-	if (s.EXTRA & F_EXTRA_MOVDIRI) printf(" MOVDIRI");
-	if (s.EXTRA & F_EXTRA_MOVDIR64B) printf(" MOVDIR64B");
-	if (s.EXTRA & F_EXTRA_ENQCMD) printf(" ENQCMD");
+	if (cpu.EXTRA & F_EXTRA_LZCNT) printf(" LZCNT");
+	if (cpu.EXTRA & F_EXTRA_POPCNT) printf(" POPCNT");
+	if (cpu.EXTRA & F_EXTRA_XSAVE) printf(" XSAVE+XRSTOR");
+	if (cpu.EXTRA & F_EXTRA_OSXSAVE) printf(" XSETBV+XGETBV");
+	if (cpu.EXTRA & F_EXTRA_FXSR) printf(" FXSAVE+FXRSTOR");
+	if (cpu.EXTRA & F_EXTRA_PCONFIG) printf(" PCONFIG");
+	if (cpu.EXTRA & F_EXTRA_CLDEMOTE) printf(" CLDEMOTE");
+	if (cpu.EXTRA & F_EXTRA_MOVDIRI) printf(" MOVDIRI");
+	if (cpu.EXTRA & F_EXTRA_MOVDIR64B) printf(" MOVDIR64B");
+	if (cpu.EXTRA & F_EXTRA_ENQCMD) printf(" ENQCMD");
 
 	// -- Vendor specific technologies ---
 
 	printf("\n[Technologies]");
 
-	switch (s.VendorID) {
+	switch (cpu.VendorID) {
 	case VENDOR_INTEL:
-		if (s.TECH & F_TECH_EIST) printf(" EIST");
-		if (s.TECH & F_TECH_TURBOBOOST)
-			printf(s.TECH & F_TECH_TURBOBOOST30 ?
+		if (cpu.TECH & F_TECH_EIST) printf(" EIST");
+		if (cpu.TECH & F_TECH_TURBOBOOST)
+			printf(cpu.TECH & F_TECH_TURBOBOOST30 ?
 				" TurboBoot-3.0" : " TurboBoost");
-		if (s.TECH & F_MEM_HLE || s.TECH & F_MEM_RTM)
+		if (cpu.TECH & F_MEM_HLE || cpu.TECH & F_MEM_RTM)
 			printf(" Intel-TSX");
-		if (s.TECH & F_TECH_SMX) printf(" Intel-TXT/SMX");
-		if (s.TECH & F_TECH_SGX) printf(" Intel-SGX");
+		if (cpu.TECH & F_TECH_SMX) printf(" Intel-TXT/SMX");
+		if (cpu.TECH & F_TECH_SGX) printf(" Intel-SGX");
 		break;
 	case VENDOR_AMD:
-		if (s.TECH & F_TECH_TURBOBOOST) printf(" Core-Performance-Boost");
+		if (cpu.TECH & F_TECH_TURBOBOOST) printf(" Core-Performance-Boost");
 		break;
 	default:
 	}
-	if (s.TECH & F_TECH_HTT) printf(" HTT");
+	if (cpu.TECH & F_TECH_HTT) printf(" HTT");
 
 	// -- Cache information --
 
 	printf("\n[Cache]");
-	if (s.CACHE & F_CACHE_CLFLUSH) printf(" CLFLUSH:%uB", s.CLFLUSHLineSize << 3);
-	if (s.CACHE & F_CACHE_CNXT_ID) printf(" CNXT_ID");
-	if (s.CACHE & F_CACHE_SS) printf(" SS");
-	if (s.CACHE & F_CACHE_PREFETCHW) printf(" PREFETCHW");
-	if (s.CACHE & F_CACHE_INVPCID) printf(" INVPCID");
-	if (s.CACHE & F_CACHE_WBNOINVD) printf(" WBNOINVD");
+	if (cpu.CACHE & F_CACHE_CLFLUSH) printf(" CLFLUSH:%uB", cpu.CLFLUSHLineSize << 3);
+	if (cpu.CACHE & F_CACHE_CNXT_ID) printf(" CNXT_ID");
+	if (cpu.CACHE & F_CACHE_SS) printf(" SS");
+	if (cpu.CACHE & F_CACHE_PREFETCHW) printf(" PREFETCHW");
+	if (cpu.CACHE & F_CACHE_INVPCID) printf(" INVPCID");
+	if (cpu.CACHE & F_CACHE_WBNOINVD) printf(" WBNOINVD");
 
-	CACHEINFO *ca = cast(CACHEINFO*)s.caches; /// Caches
+	CACHEINFO *ca = cast(CACHEINFO*)cpu.caches; /// Caches
 
 	while (ca.type) {
 		char c = 'K';
@@ -481,83 +486,83 @@ int main(int argc, char **argv) {
 	}
 
 	printf("\n[ACPI]");
-	if (s.ACPI & F_ACPI_ACPI) {
+	if (cpu.ACPI & F_ACPI_ACPI) {
 		printf(" ACPI");
-		if (s.ACPI & F_ACPI_APIC) printf(" APIC");
-		if (s.ACPI & F_ACPI_x2APIC) printf(" x2APIC");
-		if (s.ACPI & F_ACPI_ARAT) printf(" ARAT");
-		if (s.ACPI & F_ACPI_TM) printf(" TM");
-		if (s.ACPI & F_ACPI_TM2) printf(" TM2");
-		if (s.InitialAPICID) printf(" APIC-ID:%u", s.InitialAPICID);
-		if (s.MaxIDs) printf(" MAX-ID:%u", s.MaxIDs);
+		if (cpu.ACPI & F_ACPI_APIC) printf(" APIC");
+		if (cpu.ACPI & F_ACPI_x2APIC) printf(" x2APIC");
+		if (cpu.ACPI & F_ACPI_ARAT) printf(" ARAT");
+		if (cpu.ACPI & F_ACPI_TM) printf(" TM");
+		if (cpu.ACPI & F_ACPI_TM2) printf(" TM2");
+		if (cpu.InitialAPICID) printf(" APIC-ID:%u", cpu.InitialAPICID);
+		if (cpu.MaxIDs) printf(" MAX-ID:%u", cpu.MaxIDs);
 	}
 
 	printf("\n[Virtualization]");
-	if (s.VIRT & F_VIRT_VME) printf(" VME");
+	if (cpu.VIRT & F_VIRT_VME) printf(" VME");
 
 	printf("\n[Memory]");
-	if (s.phys_bits) printf(" P-Bits:%u", s.phys_bits);
-	if (s.line_bits) printf(" L-Bits:%u", s.line_bits);
-	if (s.MEM & F_MEM_PAE) printf(" PAE");
-	if (s.MEM & F_MEM_PSE) printf(" PSE");
-	if (s.MEM & F_MEM_PSE_36) printf(" PSE-36");
-	if (s.MEM & F_MEM_PAGE1GB) printf(" Page1GB");
-	if (s.MEM & F_MEM_NX)
-		switch (s.VendorID) {
+	if (cpu.phys_bits) printf(" P-Bits:%u", cpu.phys_bits);
+	if (cpu.line_bits) printf(" L-Bits:%u", cpu.line_bits);
+	if (cpu.MEM & F_MEM_PAE) printf(" PAE");
+	if (cpu.MEM & F_MEM_PSE) printf(" PSE");
+	if (cpu.MEM & F_MEM_PSE_36) printf(" PSE-36");
+	if (cpu.MEM & F_MEM_PAGE1GB) printf(" Page1GB");
+	if (cpu.MEM & F_MEM_NX)
+		switch (cpu.VendorID) {
 		case VENDOR_INTEL: printf(" Intel-XD/NX"); break;
 		case VENDOR_AMD: printf(" AMD-EVP/NX"); break;
 		default: printf(" NX");
 		}
-	if (s.MEM & F_MEM_DCA) printf(" DCA");
-	if (s.MEM & F_MEM_PAT) printf(" PAT");
-	if (s.MEM & F_MEM_MTRR) printf(" MTRR");
-	if (s.MEM & F_MEM_PGE) printf(" PGE");
-	if (s.MEM & F_MEM_SMEP) printf(" SMEP");
-	if (s.MEM & F_MEM_SMAP) printf(" SMAP");
-	if (s.MEM & F_MEM_PKU) printf(" PKU");
-	if (s.MEM & F_MEM_HLE) printf(" HLE");
-	if (s.MEM & F_MEM_RTM) printf(" RTM");
-	if (s.MEM & F_MEM_5PL) printf(" 5PL");
-	if (s.MEM & F_MEM_FSREPMOV) printf(" FSREPMOV");
+	if (cpu.MEM & F_MEM_DCA) printf(" DCA");
+	if (cpu.MEM & F_MEM_PAT) printf(" PAT");
+	if (cpu.MEM & F_MEM_MTRR) printf(" MTRR");
+	if (cpu.MEM & F_MEM_PGE) printf(" PGE");
+	if (cpu.MEM & F_MEM_SMEP) printf(" SMEP");
+	if (cpu.MEM & F_MEM_SMAP) printf(" SMAP");
+	if (cpu.MEM & F_MEM_PKU) printf(" PKU");
+	if (cpu.MEM & F_MEM_HLE) printf(" HLE");
+	if (cpu.MEM & F_MEM_RTM) printf(" RTM");
+	if (cpu.MEM & F_MEM_5PL) printf(" 5PL");
+	if (cpu.MEM & F_MEM_FSREPMOV) printf(" FSREPMOV");
 
 	printf("\n[Debugging]");
-	if (s.DEBUG & F_DEBUG_MCA) printf(" MCA");
-	if (s.DEBUG & F_DEBUG_MCE) printf(" MCE");
-	if (s.DEBUG & F_DEBUG_DE) printf(" DE");
-	if (s.DEBUG & F_DEBUG_DS) printf(" DS");
-	if (s.DEBUG & F_DEBUG_DS_CPL) printf(" DS-CPL");
-	if (s.DEBUG & F_DEBUG_DTES64) printf(" DTES64");
-	if (s.DEBUG & F_DEBUG_PDCM) printf(" PDCM");
-	if (s.DEBUG & F_DEBUG_SDBG) printf(" SDBG");
-	if (s.DEBUG & F_DEBUG_PBE) printf(" PBE");
+	if (cpu.DEBUG & F_DEBUG_MCA) printf(" MCA");
+	if (cpu.DEBUG & F_DEBUG_MCE) printf(" MCE");
+	if (cpu.DEBUG & F_DEBUG_DE) printf(" DE");
+	if (cpu.DEBUG & F_DEBUG_DS) printf(" DS");
+	if (cpu.DEBUG & F_DEBUG_DS_CPL) printf(" DS-CPL");
+	if (cpu.DEBUG & F_DEBUG_DTES64) printf(" DTES64");
+	if (cpu.DEBUG & F_DEBUG_PDCM) printf(" PDCM");
+	if (cpu.DEBUG & F_DEBUG_SDBG) printf(" SDBG");
+	if (cpu.DEBUG & F_DEBUG_PBE) printf(" PBE");
 
 	printf("\n[Security]");
-	if (s.SEC & F_SEC_IBPB) printf(" IBPB");
-	if (s.SEC & F_SEC_IBRS) printf(" IBRS");
-	if (s.SEC & F_SEC_STIBP) printf(" STIBP");
-	if (s.SEC & F_SEC_SSBD) printf(" SSBD");
+	if (cpu.SEC & F_SEC_IBPB) printf(" IBPB");
+	if (cpu.SEC & F_SEC_IBRS) printf(" IBRS");
+	if (cpu.SEC & F_SEC_STIBP) printf(" STIBP");
+	if (cpu.SEC & F_SEC_SSBD) printf(" SSBD");
 
-	switch (s.VendorID) {
+	switch (cpu.VendorID) {
 	case VENDOR_INTEL:
-		if (s.SEC & F_SEC_L1D_FLUSH) printf(" L1D_FLUSH");
-		if (s.SEC & F_SEC_MD_CLEAR) printf(" MD_CLEAR");
+		if (cpu.SEC & F_SEC_L1D_FLUSH) printf(" L1D_FLUSH");
+		if (cpu.SEC & F_SEC_MD_CLEAR) printf(" MD_CLEAR");
 		break;
 	case VENDOR_AMD:
-		if (s.SEC & F_SEC_IBRS_ON) printf(" IBRS_ON");
-		if (s.SEC & F_SEC_IBRS_PREF) printf(" IBRS_PREF");
-		if (s.SEC & F_SEC_STIBP_ON) printf(" STIBP_ON");
+		if (cpu.SEC & F_SEC_IBRS_ON) printf(" IBRS_ON");
+		if (cpu.SEC & F_SEC_IBRS_PREF) printf(" IBRS_PREF");
+		if (cpu.SEC & F_SEC_STIBP_ON) printf(" STIBP_ON");
 		break;
 	default:
 	}
 
 	printf("\n[Misc.] HLeaf:%Xh HELeaf:%Xh Type:%s Index:%u",
-		s.MaximumLeaf, s.MaximumExtendedLeaf,
-		PROCESSOR_TYPE[s.ProcessorType], s.BrandIndex
+		cpu.MaximumLeaf, cpu.MaximumExtendedLeaf,
+		PROCESSOR_TYPE[cpu.ProcessorType], cpu.BrandIndex
 	);
-	if (s.MISC & F_MISC_xTPR) printf(" xTPR");
-	if (s.MISC & F_MISC_PSN) printf(" PSN");
-	if (s.MISC & F_MISC_PCID) printf(" PCID");
-	if (s.MISC & F_MISC_IA32_ARCH_CAPABILITIES) printf(" IA32_ARCH_CAPABILITIES");
+	if (cpu.MISC & F_MISC_xTPR) printf(" xTPR");
+	if (cpu.MISC & F_MISC_PSN) printf(" PSN");
+	if (cpu.MISC & F_MISC_PCID) printf(" PCID");
+	if (cpu.MISC & F_MISC_IA32_ARCH_CAPABILITIES) printf(" IA32_ARCH_CAPABILITIES");
 
 	putchar('\n');
 

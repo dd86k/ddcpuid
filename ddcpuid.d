@@ -24,8 +24,7 @@ version (X86)
 else
 version (X86_64)
 	enum PLATFORM = "amd64";
-else static assert(0,
-		"ddcpuid is only supported on x86 platforms");
+else static assert(0, "ddcpuid is only supported on x86 platforms");
 
 template BIT(int n) { enum { BIT = 1 << n } }
 

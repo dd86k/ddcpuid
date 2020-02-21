@@ -1,3 +1,4 @@
+@system:
 extern (C):
 __gshared:
 
@@ -8,7 +9,7 @@ int putchar(int c);
 void* memset(void *, int, size_t);
 long strtol(scope inout(char)*,scope inout(char)**, int);
 
-enum VERSION = "0.14.0"; /// Program version
+enum VERSION = "0.14.1"; /// Program version
 enum	MAX_LEAF  = 0x20, /// Maximum leaf (-o)
 	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
 
@@ -450,8 +451,15 @@ int main(int argc, char **argv) {
 		if (cpu.TECH & F_TECH_TURBOBOOST)
 			printf(cpu.TECH & F_TECH_TURBOBOOST30 ?
 				" TurboBoot-3.0" : " TurboBoost");
-		if (cpu.TECH & F_MEM_HLE || cpu.TECH & F_MEM_RTM)
-			printf(" Intel-TSX");
+		if (cpu.TECH & F_MEM_HLE || cpu.TECH & F_MEM_RTM) {
+			printf(" Intel-TSX (");
+			if (cpu.TECH & F_MEM_HLE)
+				printf("HLE");
+			if (cpu.TECH & F_MEM_HLE && cpu.TECH & F_MEM_RTM)
+				printf(", ");
+			if (cpu.TECH & F_MEM_RTM)
+				printf("RTM");
+		}
 		if (cpu.TECH & F_TECH_SMX) printf(" Intel-TXT/SMX");
 		if (cpu.TECH & F_TECH_SGX) printf(" Intel-SGX");
 		break;

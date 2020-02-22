@@ -24,7 +24,8 @@ version (X86)
 else
 version (X86_64)
 	enum PLATFORM = "amd64";
-else static assert(0, "ddcpuid is only supported on x86 platforms");
+else
+static assert(0, "ddcpuid is only supported on x86 platforms");
 
 template BIT(int n) { enum { BIT = 1 << n } }
 
@@ -214,9 +215,9 @@ void sversion() {
 	import d = std.compiler;
 	printf(
 	"ddcpuid-"~PLATFORM~" v"~VERSION~" ("~__TIMESTAMP__~")\n"~
-	"Copyright (c) dd86k 2016-2019\n"~
+	"Copyright (c) dd86k 2016-2020\n"~
 	"License: MIT License <http://opensource.org/licenses/MIT>\n"~
-	"Project page: <https://github.com/dd86k/ddcpuid>\n"~
+	"Project page: <https://git.dd86k.space/ddcpuid>, <https://github.com/dd86k/ddcpuid>\n"~
 	"Compiler: "~ __VENDOR__ ~" v%u.%03u (D %u.%03u)\n",
 	d.version_major, d.version_minor, d.D_major, d.D_minor
 	);

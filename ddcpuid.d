@@ -55,6 +55,7 @@ enum {
 	F_EXTEN_x86_64	= BIT!(21),
 	F_EXTEN_LAHF64	= BIT!(22),
 	F_EXTEN_WAITPKG	= BIT!(23),
+	F_EXTEN_XOP	= BIT!(24),
 	//
 	// AVX
 	//
@@ -348,6 +349,7 @@ int main(int argc, char **argv) {
 		if (cpu.EXTEN & F_EXTEN_SSE41) printf(" SSE4.1");
 		if (cpu.EXTEN & F_EXTEN_SSE42) printf(" SSE4.2");
 		if (cpu.EXTEN & F_EXTEN_SSE4a) printf(" SSE4a");
+		if (cpu.EXTEN & F_EXTEN_XOP) printf(" XOP");
 	}
 	if (cpu.EXTEN & F_EXTEN_x86_64) {
 		switch (cpu.VendorID) {
@@ -1164,6 +1166,7 @@ EXTENDED_LEAVES:
 		if (c & BIT!(2)) s.VIRT   |= F_VIRT_VIRT;
 		if (c & BIT!(3)) s.ACPI   |= F_ACPI_x2APIC;
 		if (c & BIT!(6)) s.EXTEN  |= F_EXTEN_SSE4a;
+		if (c & BIT!(11)) s.EXTEN |= F_EXTEN_XOP;
 		if (c & BIT!(16)) s.EXTEN |= F_EXTEN_FMA4;
 		if (d & BIT!(22)) s.EXTEN |= F_EXTEN_MMXEXT;
 		if (d & BIT!(30)) s.EXTEN |= F_EXTEN_3DNOWEXT;
@@ -1406,6 +1409,7 @@ struct CPUINFO { align(1):
 	/// Bit 21: x86_64 (long mode, EM64T/Intel64)$(BR)
 	/// Bit 22: +LAHF/SAHF in long mode$(BR)
 	/// Bit 23: WAITPKG$(BR)
+	/// Bit 24: (AMD) XOP$(BR)
 	uint EXTEN;
 
 	/// All AVX extensions$(BR)

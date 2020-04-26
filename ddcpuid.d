@@ -56,6 +56,7 @@ enum {
 	F_EXTEN_LAHF64	= BIT!(22),
 	F_EXTEN_WAITPKG	= BIT!(23),
 	F_EXTEN_XOP	= BIT!(24),
+	F_EXTEN_TBM	= BIT!(25),
 	//
 	// AVX
 	//
@@ -398,6 +399,7 @@ int main(int argc, char **argv) {
 	if (cpu.EXTEN & F_EXTEN_SHA) printf(" SHA");
 	if (cpu.EXTEN & F_EXTEN_FMA) printf(" FMA3");
 	if (cpu.EXTEN & F_EXTEN_FMA4) printf(" FMA4");
+	if (cpu.EXTEN & F_EXTEN_TBM) printf(" TBM");
 	if (cpu.EXTEN & F_EXTEN_BMI1) printf(" BMI1");
 	if (cpu.EXTEN & F_EXTEN_BMI2) printf(" BMI2");
 	if (cpu.EXTEN & F_EXTEN_WAITPKG) printf(" WAITPKG");
@@ -535,8 +537,6 @@ int main(int argc, char **argv) {
 	if (cpu.MEM & F_MEM_SMEP) printf(" SMEP");
 	if (cpu.MEM & F_MEM_SMAP) printf(" SMAP");
 	if (cpu.MEM & F_MEM_PKU) printf(" PKU");
-	if (cpu.MEM & F_MEM_HLE) printf(" HLE");
-	if (cpu.MEM & F_MEM_RTM) printf(" RTM");
 	if (cpu.MEM & F_MEM_5PL) printf(" 5PL");
 	if (cpu.MEM & F_MEM_FSREPMOV) printf(" FSREPMOV");
 
@@ -1168,6 +1168,7 @@ EXTENDED_LEAVES:
 		if (c & BIT!(6)) s.EXTEN  |= F_EXTEN_SSE4a;
 		if (c & BIT!(11)) s.EXTEN |= F_EXTEN_XOP;
 		if (c & BIT!(16)) s.EXTEN |= F_EXTEN_FMA4;
+		if (c & BIT!(21)) s.EXTEN |= F_EXTEN_TBM;
 		if (d & BIT!(22)) s.EXTEN |= F_EXTEN_MMXEXT;
 		if (d & BIT!(30)) s.EXTEN |= F_EXTEN_3DNOWEXT;
 		if (d & BIT!(31)) s.EXTEN |= F_EXTEN_3DNOW;
@@ -1410,6 +1411,7 @@ struct CPUINFO { align(1):
 	/// Bit 22: +LAHF/SAHF in long mode$(BR)
 	/// Bit 23: WAITPKG$(BR)
 	/// Bit 24: (AMD) XOP$(BR)
+	/// Bit 25: (AMD) TBM$(BR)
 	uint EXTEN;
 
 	/// All AVX extensions$(BR)

@@ -449,7 +449,6 @@ int main(int argc, char **argv) {
 	if (cpu.EXTRA & F_EXTRA_MOVDIR64B) printf(" MOVDIR64B");
 	if (cpu.EXTRA & F_EXTRA_ENQCMD) printf(" ENQCMD");
 	if (cpu.EXTRA & F_EXTRA_SKINIT) printf(" SKINIT+STGI");
-	if (cpu.EXTRA & F_EXTRA_CLFLUSHOPT) printf(" CLFLUSHOPT");
 
 	// -- Vendor specific technologies ---
 
@@ -469,6 +468,7 @@ int main(int argc, char **argv) {
 				printf(", ");
 			if (cpu.TECH & F_MEM_RTM)
 				printf("RTM");
+			printf(")");
 		}
 		if (cpu.TECH & F_TECH_SMX) printf(" Intel-TXT/SMX");
 		if (cpu.TECH & F_TECH_SGX) printf(" Intel-SGX");
@@ -483,7 +483,10 @@ int main(int argc, char **argv) {
 	// -- Cache information --
 
 	printf("\n[Cache]");
-	if (cpu.CACHE & F_CACHE_CLFLUSH) printf(" CLFLUSH:%uB", cpu.CLFLUSHLineSize << 3);
+	if (cpu.CACHE & F_CACHE_CLFLUSH) {
+		printf(" CLFLUSH:%uB", cpu.CLFLUSHLineSize << 3);
+		if (cpu.EXTRA & F_EXTRA_CLFLUSHOPT) printf(" CLFLUSHOPT");
+	}
 	if (cpu.CACHE & F_CACHE_CNXT_ID) printf(" CNXT_ID");
 	if (cpu.CACHE & F_CACHE_SS) printf(" SS");
 	if (cpu.CACHE & F_CACHE_PREFETCHW) printf(" PREFETCHW");

@@ -57,6 +57,7 @@ enum {
 	F_EXTEN_WAITPKG	= BIT!(23),
 	F_EXTEN_XOP	= BIT!(24),
 	F_EXTEN_TBM	= BIT!(25),
+	F_EXTEN_ADX	= BIT!(26),
 	//
 	// AVX
 	//
@@ -399,6 +400,7 @@ int main(int argc, char **argv) {
 		if (cpu.AVX & F_AVX_AVX512_BF16) printf(" AVX512_BF16");
 		if (cpu.AVX & F_AVX_AVX512_VP2INTERSECT) printf(" AVX512_VP2INTERSECT");
 	}
+	if (cpu.EXTEN & F_EXTEN_ADX) printf(" ADX");
 	if (cpu.EXTEN & F_EXTEN_SHA) printf(" SHA");
 	if (cpu.EXTEN & F_EXTEN_FMA) printf(" FMA3");
 	if (cpu.EXTEN & F_EXTEN_FMA4) printf(" FMA4");
@@ -485,8 +487,8 @@ int main(int argc, char **argv) {
 	printf("\n[Cache]");
 	if (cpu.CACHE & F_CACHE_CLFLUSH) {
 		printf(" CLFLUSH:%uB", cpu.CLFLUSHLineSize << 3);
-		if (cpu.EXTRA & F_EXTRA_CLFLUSHOPT) printf(" CLFLUSHOPT");
 	}
+	if (cpu.EXTRA & F_EXTRA_CLFLUSHOPT) printf(" CLFLUSHOPT");
 	if (cpu.CACHE & F_CACHE_CNXT_ID) printf(" CNXT_ID");
 	if (cpu.CACHE & F_CACHE_SS) printf(" SS");
 	if (cpu.CACHE & F_CACHE_PREFETCHW) printf(" PREFETCHW");
@@ -1123,6 +1125,7 @@ CACHE_AMD_NEWER:
 	if (b & BIT!(7)) s.MEM    |= F_MEM_SMEP;
 	if (b & BIT!(8)) s.EXTEN  |= F_EXTEN_BMI2;
 	if (b & BIT!(18)) s.EXTRA |= F_EXTRA_RDSEED;
+	if (b & BIT!(19)) s.EXTEN |= F_EXTEN_ADX;
 	if (b & BIT!(23)) s.EXTRA |= F_EXTRA_CLFLUSHOPT;
 	if (c & BIT!(22)) s.EXTRA |= F_EXTRA_RDPID;
 
@@ -1420,6 +1423,7 @@ struct CPUINFO { align(1):
 	/// Bit 23: WAITPKG$(BR)
 	/// Bit 24: (AMD) XOP$(BR)
 	/// Bit 25: (AMD) TBM$(BR)
+	/// Bit 26: ADX$(BR)
 	uint EXTEN;
 
 	/// All AVX extensions$(BR)

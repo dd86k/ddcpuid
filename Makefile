@@ -11,8 +11,8 @@ ifeq ($(DC),dmd)
 endif
 
 ifeq ($(DC),gdc)
-	DEBUGFLAGS=-g
-	RELEASEFLAGS=-O -frelease -fbounds-check=off
+	DEBUGFLAGS=-g -oddcpuid
+	RELEASEFLAGS=-O -frelease -fbounds-check=off -oddcpuid
 endif
 
 ifeq ($(DC),ldc)

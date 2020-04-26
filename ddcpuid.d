@@ -110,6 +110,7 @@ enum {
 	F_EXTRA_MOVDIR64B	= BIT!(24),
 	F_EXTRA_ENQCMD	= BIT!(25),
 	F_EXTRA_SYSCALL	= BIT!(26),
+	F_EXTRA_MONITORX	= BIT!(27),
 	//
 	// Technology bits
 	//
@@ -411,6 +412,7 @@ int main(int argc, char **argv) {
 		printf(" MONITOR+MWAIT");
 		if (cpu.mwait_min)
 			printf(" +MIN:%u +MAX:%u", cpu.mwait_min, cpu.mwait_max);
+		if (cpu.EXTRA & F_EXTRA_MONITORX) printf(" MONITORX+MWAITX");
 	}
 	if (cpu.EXTRA & F_EXTRA_PCLMULQDQ) printf(" PCLMULQDQ");
 	if (cpu.EXTRA & F_EXTRA_CMPXCHG8B) printf(" CMPXCHG8B");
@@ -1169,6 +1171,7 @@ EXTENDED_LEAVES:
 		if (c & BIT!(11)) s.EXTEN |= F_EXTEN_XOP;
 		if (c & BIT!(16)) s.EXTEN |= F_EXTEN_FMA4;
 		if (c & BIT!(21)) s.EXTEN |= F_EXTEN_TBM;
+		if (c & BIT!(29)) s.EXTEN |= F_EXTRA_MONITORX;
 		if (d & BIT!(22)) s.EXTEN |= F_EXTEN_MMXEXT;
 		if (d & BIT!(30)) s.EXTEN |= F_EXTEN_3DNOWEXT;
 		if (d & BIT!(31)) s.EXTEN |= F_EXTEN_3DNOW;
@@ -1469,6 +1472,7 @@ struct CPUINFO { align(1):
 	/// Bit 24: MOVDIR64B$(BR)
 	/// Bit 25: ENQCMD$(BR)
 	/// Bit 26: SYSCALL+SYSRET$(BR)
+	/// Bit 27: MONITORX+MWAITX$(BR)
 	uint EXTRA;
 
 	//

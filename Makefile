@@ -1,11 +1,28 @@
-DC=dmd
-DFLAGS=-betterC
 PREFIX=/usr/local
+DC=dmd
 
-.PHONY: clean install uninstall
+ifeq ($(DC),dmd)
+	DFLAGS=-betterC
+	DEBUGFLAGS=-debug
+endif
 
-ddcpuid: ddcpuid.d
-	$(DC) $(DFLAGS) ddcpuid.d
+ifeq ($(DC),gdc)
+	DEBUGFLAGS=-g
+endif
+
+ifeq ($(DC),ldc)
+	DEBUGFLAGS=-g
+endif
+
+.PHONY: clean install uninstall debug release
+
+default: debug
+
+debug:
+	$(MAKE) ddcpuid DFLAGS="$(DFLAGS) $(DEBUGFLAGS)"
+
+release:
+	$(MAKE) ddcpuid DFLAGS="$(DFLAGS)"
 
 clean:
 	rm -fv ddcpuid.o
@@ -18,4 +35,7 @@ install: ddcpuid
 uninstall: 
 	rm -fv $(PREFIX)/bin/ddcpuid
 	rm -fv $(PREFIX)/share/man/man1/ddcpuid.1
+
+ddcpuid: ddcpuid.d
+	$(DC) $(DFLAGS) ddcpuid.d
 

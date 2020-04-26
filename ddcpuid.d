@@ -111,6 +111,8 @@ enum {
 	F_EXTRA_ENQCMD	= BIT!(25),
 	F_EXTRA_SYSCALL	= BIT!(26),
 	F_EXTRA_MONITORX	= BIT!(27),
+	F_EXTRA_SKINIT	= BIT!(28),
+	F_EXTRA_CLFLUSHOPT	= BIT!(29),
 	//
 	// Technology bits
 	//
@@ -446,6 +448,8 @@ int main(int argc, char **argv) {
 	if (cpu.EXTRA & F_EXTRA_MOVDIRI) printf(" MOVDIRI");
 	if (cpu.EXTRA & F_EXTRA_MOVDIR64B) printf(" MOVDIR64B");
 	if (cpu.EXTRA & F_EXTRA_ENQCMD) printf(" ENQCMD");
+	if (cpu.EXTRA & F_EXTRA_SKINIT) printf(" SKINIT+STGI");
+	if (cpu.EXTRA & F_EXTRA_CLFLUSHOPT) printf(" CLFLUSHOPT");
 
 	// -- Vendor specific technologies ---
 
@@ -1116,6 +1120,7 @@ CACHE_AMD_NEWER:
 	if (b & BIT!(7)) s.MEM    |= F_MEM_SMEP;
 	if (b & BIT!(8)) s.EXTEN  |= F_EXTEN_BMI2;
 	if (b & BIT!(18)) s.EXTRA |= F_EXTRA_RDSEED;
+	if (b & BIT!(23)) s.EXTRA |= F_EXTRA_CLFLUSHOPT;
 	if (c & BIT!(22)) s.EXTRA |= F_EXTRA_RDPID;
 
 	switch (s.VendorID) {
@@ -1165,9 +1170,10 @@ EXTENDED_LEAVES:
 		if (c & BIT!(3)) s.ACPI   |= F_ACPI_x2APIC;
 		if (c & BIT!(6)) s.EXTEN  |= F_EXTEN_SSE4a;
 		if (c & BIT!(11)) s.EXTEN |= F_EXTEN_XOP;
+		if (c & BIT!(12)) s.EXTRA |= F_EXTRA_SKINIT;
 		if (c & BIT!(16)) s.EXTEN |= F_EXTEN_FMA4;
 		if (c & BIT!(21)) s.EXTEN |= F_EXTEN_TBM;
-		if (c & BIT!(29)) s.EXTEN |= F_EXTRA_MONITORX;
+		if (c & BIT!(29)) s.EXTRA |= F_EXTRA_MONITORX;
 		if (d & BIT!(22)) s.EXTEN |= F_EXTEN_MMXEXT;
 		if (d & BIT!(30)) s.EXTEN |= F_EXTEN_3DNOWEXT;
 		if (d & BIT!(31)) s.EXTEN |= F_EXTEN_3DNOW;
@@ -1469,6 +1475,8 @@ struct CPUINFO { align(1):
 	/// Bit 25: ENQCMD$(BR)
 	/// Bit 26: SYSCALL+SYSRET$(BR)
 	/// Bit 27: MONITORX+MWAITX$(BR)
+	/// Bit 28: SKINIT+STGI$(BR)
+	/// Bit 29: CLFLUSHOPT$(BR)
 	uint EXTRA;
 
 	//

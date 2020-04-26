@@ -1007,8 +1007,8 @@ CACHE_AMD_NEWER:
 	version (GNU) asm {
 		"mov $5, %%eax\n"~
 		"cpuid\n"~
-		"mov %%eax, %0"
-		"mov %%ebx, %1"
+		"mov %%eax, %0\n"~
+		"mov %%ebx, %1\n"
 		: "=a" a "=b" b;
 	} else asm {
 		mov EAX, 5;

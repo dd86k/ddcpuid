@@ -1,6 +1,10 @@
 PREFIX=/usr/local
 DC=dmd
 
+ifneq ($(DC), gdc)
+	RELEASEFLAGS=-O -release -boundscheck=off
+endif
+
 ifeq ($(DC),dmd)
 	DFLAGS=-betterC
 	DEBUGFLAGS=-debug
@@ -8,6 +12,7 @@ endif
 
 ifeq ($(DC),gdc)
 	DEBUGFLAGS=-g
+	RELEASEFLAGS=-O -frelease -fbounds-check=off
 endif
 
 ifeq ($(DC),ldc)
@@ -22,7 +27,7 @@ debug:
 	$(MAKE) ddcpuid DFLAGS="$(DFLAGS) $(DEBUGFLAGS)"
 
 release:
-	$(MAKE) ddcpuid DFLAGS="$(DFLAGS)"
+	$(MAKE) ddcpuid DFLAGS="$(DFLAGS) $(RELEASEFLAGS)"
 
 clean:
 	rm -fv ddcpuid.o

@@ -1124,20 +1124,16 @@ CACHE_AMD_NEWER:
 			"mov $7, %%eax\n"~
 			"mov $1, %%ecx\n"~
 			"cpuid\n"~
-			"mov %%ebx, %0\n"~
-			"mov %%ecx, %1\n"~
-			"mov %%edx, %2\n"
-			: "=b" b, "=c" c, "=d" d;
+			"mov %%eax, %0\n"
+			: "=a" a;
 		} else asm {
 			mov EAX, 7;
 			mov ECX, 1;
 			cpuid;
-			mov b, EBX;
-			mov c, ECX;
-			mov d, EDX;
+			mov a, EAX;
 		} // ----- 7H ECX=1h
 		// a
-		if(a & BIT!(5)) s.AVX |= F_AVX_AVX512_BF16;
+		if (a & BIT!(5)) s.AVX |= F_AVX_AVX512_BF16;
 		break;
 	default:
 	}

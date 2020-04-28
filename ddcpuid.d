@@ -1217,7 +1217,7 @@ CACHE_AMD_NEWER:
 			"mov %%ebx, (%%rdi)\n"~
 			"mov %%ecx, 4(%%rdi)\n"~
 			"mov %%edx, 8(%%rdi)\n"
-			: "m" __A;
+			: "=m" __A;
 		} else asm {
 			mov RDI, __A;
 			mov EAX, 0x4000_0000;
@@ -1245,7 +1245,7 @@ CACHE_AMD_NEWER:
 		}
 	}
 	version (GNU) asm {
-		"mov $0x4000_0001, %%eax\n"~
+		"mov $0x40000001, %%eax\n"~
 		"mov $0, %%ecx\n"~
 		"cpuid\n"~
 		"mov %%eax, %0\n"~

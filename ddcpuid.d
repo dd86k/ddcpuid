@@ -9,8 +9,9 @@ int putchar(int c);
 void* memset(void *, int, size_t);
 long strtol(scope inout(char)*,scope inout(char)**, int);
 
-enum VERSION = "0.15.0"; /// Program version
+enum VERSION = "0.16.0"; /// Program version
 enum	MAX_LEAF  = 0x20, /// Maximum leaf (-o)
+	MAX_VLEAF = 0x4000_0004, /// Maximum hypervisor leaf (-o)
 	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
 
 // Self-made vendor "IDs" for faster look-ups, LSB-based.
@@ -18,6 +19,8 @@ enum VENDOR_OTHER = 0;	/// Other/unknown
 enum VENDOR_INTEL = 0x756e6547;	/// Intel: "Genu"
 enum VENDOR_AMD   = 0x68747541;	/// AMD: "Auth"
 enum VENDOR_VIA   = 0x20414956;	/// VIA: "VIA "
+enum VIRT_VENDOR_KVM  = 0x4b4d564b; /// KVM: "KVMK"
+enum VIRT_VENDOR_VBOX = 0x786f4256; /// VirtualBox: "VBox"
 
 version (X86)
 	enum PLATFORM = "x86";
@@ -147,6 +150,24 @@ enum {
 	F_VIRT_VIRT	= BIT!(8),
 	F_VIRT_VME	= BIT!(9),
 	//
+	// KVM bits
+	//
+	F_KVM_FEATURE_CLOCKSOURCE	= BIT!(0),
+	F_KVM_FEATURE_NOP_IO_DELAY	= BIT!(1),
+	F_KVM_FEATURE_MMU_OP	= BIT!(2),
+	F_KVM_FEATURE_CLOCKSOURCE2	= BIT!(3),
+	F_KVM_FEATURE_ASYNC_PF	= BIT!(4),
+	F_KVM_FEATURE_STEAL_TIME	= BIT!(5),
+	F_KVM_FEATURE_PV_EOI	= BIT!(6),
+	F_KVM_FEATURE_PV_UNHAULT	= BIT!(7),
+	F_KVM_FEATURE_PV_TLB_FLUSH	= BIT!(9),
+	F_KVM_FEATURE_ASYNC_PF_VMEXIT	= BIT!(10),
+	F_KVM_FEATURE_PV_SEND_IPI	= BIT!(11),
+	F_KVM_FEATURE_PV_POLL_CONTROL	= BIT!(12),
+	F_KVM_FEATURE_PV_SCHED_YIELD	= BIT!(13),
+	F_KVM_FEATURE_CLOCSOURCE_STABLE_BIT	= BIT!(24),
+	F_KVM_HINTS_REALTIME	= BIT!(25),
+	//
 	// Memory bits
 	//
 	F_MEM_PAE	= BIT!(0),
@@ -210,7 +231,7 @@ void shelp() {
 	"\n"~
 	"OPTIONS\n"~
 	"  -r    Show raw CPUID data in a table\n"~
-	"  -o    Override leaves to 20h and 8000_0020h\n"~
+	"  -o    Override leaves to 20h, 4000_0002h, and 8000_0020h\n"~
 	"\n"~
 	"  --version    Print version information screen and quit\n"~
 	"  -h, --help   Print this help screen and quit"
@@ -224,8 +245,8 @@ void sversion() {
 	"Copyright (c) dd86k 2016-2020\n"~
 	"License: MIT License <http://opensource.org/licenses/MIT>\n"~
 	"Project page: <https://git.dd86k.space/ddcpuid>, <https://github.com/dd86k/ddcpuid>\n"~
-	"Compiler: "~ __VENDOR__ ~" v%u.%03u (D %u.%03u)\n",
-	d.version_major, d.version_minor, d.D_major, d.D_minor
+	"Compiler: "~ __VENDOR__ ~" v%u.%03u\n",
+	d.version_major, d.version_minor
 	);
 }
 
@@ -302,6 +323,11 @@ int main(int argc, char **argv) {
 			do { printc(l, s); } while (++s <= opt_subleaf);
 			s = 0;
 		} while (++l <= cpu.MaximumLeaf);
+		l = 0x4000_0000; // Not used, but some hypervisors use it
+		do {
+			do { printc(l, s); } while (++s <= opt_subleaf);
+			s = 0;
+		} while (++l <= cpu.MaximumVirtLeaf);
 		l = 0x8000_0000; // Extended
 		do {
 			do { printc(l, s); } while (++s <= opt_subleaf);
@@ -321,7 +347,9 @@ int main(int argc, char **argv) {
 	default:
 	}
 
-	// -- Processor basic information --
+	//
+	// ANCHOR Processor basic information
+	//
 
 	printf(
 	"[Vendor] %.12s\n"~
@@ -370,8 +398,8 @@ int main(int argc, char **argv) {
 		case VENDOR_INTEL: printf(" VT-x/VMX"); break;
 		case VENDOR_AMD: // SVM
 			printf(" AMD-V/VMX");
-			if (cpu.VirtVersion)
-				printf(":v%u", cpu.VirtVersion);
+			if (cpu.virt_ver)
+				printf(":v%u", cpu.virt_ver);
 			break;
 		case VENDOR_VIA: printf(" VIA-VT/VMX"); break;
 		default: printf(" VMX");
@@ -409,7 +437,9 @@ int main(int argc, char **argv) {
 	if (cpu.EXTEN & F_EXTEN_BMI2) printf(" BMI2");
 	if (cpu.EXTEN & F_EXTEN_WAITPKG) printf(" WAITPKG");
 
-	// -- Other instructions --
+	//
+	// ANCHOR Other instructions
+	//
 
 	printf("\n[Extra]");
 	if (cpu.EXTRA & F_EXTRA_MONITOR) {
@@ -452,7 +482,9 @@ int main(int argc, char **argv) {
 	if (cpu.EXTRA & F_EXTRA_ENQCMD) printf(" ENQCMD");
 	if (cpu.EXTRA & F_EXTRA_SKINIT) printf(" SKINIT+STGI");
 
-	// -- Vendor specific technologies ---
+	//
+	// ANCHOR Vendor specific technologies
+	//
 
 	printf("\n[Technologies]");
 
@@ -482,7 +514,9 @@ int main(int argc, char **argv) {
 	}
 	if (cpu.TECH & F_TECH_HTT) printf(" HTT");
 
-	// -- Cache information --
+	//
+	// ANCHOR Cache information
+	//
 
 	printf("\n[Cache]");
 	if (cpu.CACHE & F_CACHE_CLFLUSH) {
@@ -527,6 +561,29 @@ int main(int argc, char **argv) {
 
 	printf("\n[Virtualization]");
 	if (cpu.VIRT & F_VIRT_VME) printf(" VME");
+	if (cpu.MaximumVirtLeaf >= 0x4000_0000) {
+		printf(" HOST:%.12s", cast(char*)cpu.virt_vendor);
+		switch (cpu.virt_vendor_id) {
+		case VIRT_VENDOR_KVM:
+			if (cpu.VIRT_SPEC & F_KVM_FEATURE_CLOCKSOURCE) printf(" KVM_FEATURE_CLOCKSOURCE");
+			if (cpu.VIRT_SPEC & F_KVM_FEATURE_NOP_IO_DELAY) printf(" KVM_FEATURE_NOP_IO_DELAY");
+			if (cpu.VIRT_SPEC & F_KVM_FEATURE_MMU_OP) printf(" KVM_FEATURE_MMU_OP");
+			if (cpu.VIRT_SPEC & F_KVM_FEATURE_CLOCKSOURCE2) printf(" KVM_FEATURE_CLOCKSOURCE2");
+			if (cpu.VIRT_SPEC & F_KVM_FEATURE_ASYNC_PF) printf(" KVM_FEATURE_ASYNC_PF");
+			if (cpu.VIRT_SPEC & F_KVM_FEATURE_STEAL_TIME) printf(" KVM_FEATURE_STEAL_TIME");
+			if (cpu.VIRT_SPEC & F_KVM_FEATURE_PV_EOI) printf(" KVM_FEATURE_PV_EOI");
+			if (cpu.VIRT_SPEC & F_KVM_FEATURE_PV_UNHAULT) printf(" KVM_FEATURE_PV_UNHAULT");
+			if (cpu.VIRT_SPEC & F_KVM_FEATURE_PV_TLB_FLUSH) printf(" KVM_FEATURE_PV_TLB_FLUSH");
+			if (cpu.VIRT_SPEC & F_KVM_FEATURE_ASYNC_PF_VMEXIT) printf(" KVM_FEATURE_ASYNC_PF_VMEXIT");
+			if (cpu.VIRT_SPEC & F_KVM_FEATURE_PV_SEND_IPI) printf(" KVM_FEATURE_PV_SEND_IPI");
+			if (cpu.VIRT_SPEC & F_KVM_FEATURE_PV_POLL_CONTROL) printf(" KVM_FEATURE_PV_POLL_CONTROL");
+			if (cpu.VIRT_SPEC & F_KVM_FEATURE_PV_SCHED_YIELD) printf(" KVM_FEATURE_PV_SCHED_YIELD");
+			if (cpu.VIRT_SPEC & F_KVM_FEATURE_CLOCSOURCE_STABLE_BIT) printf(" KVM_FEATURE_CLOCSOURCE_STABLE_BIT");
+			if (cpu.VIRT_SPEC & F_KVM_HINTS_REALTIME) printf(" KVM_HINTS_REALTIME");
+			break;
+		default:
+		}
+	}
 
 	printf("\n[Memory]");
 	if (cpu.phys_bits) printf(" P-Bits:%u", cpu.phys_bits);
@@ -1149,7 +1206,66 @@ CACHE_AMD_NEWER:
 	default:
 	}
 
-	//if (s.MaximumLeaf < ...) goto EXTENDED_LEAVES;
+	if (s.MaximumVirtLeaf < 0x4000_0000) goto EXTENDED_LEAVES;
+
+	__A = cast(size_t)&s.virt_vendor;
+	version (X86_64) {
+		version (GNU) asm {
+			"mov %0, %%rdi\n"~
+			"mov $0x40000000, %%eax\n"~
+			"cpuid\n"~
+			"mov %%ebx, (%%rdi)\n"~
+			"mov %%ecx, 4(%%rdi)\n"~
+			"mov %%edx, 8(%%rdi)\n"
+			: "m" __A;
+		} else asm {
+			mov RDI, __A;
+			mov EAX, 0x4000_0000;
+			cpuid;
+			mov [RDI], EBX;
+			mov [RDI+4], ECX;
+			mov [RDI+8], EDX;
+		}
+	} else {
+		version (GNU) asm {
+			"mov %0, %%edi\n"~
+			"mov $0x40000000, %%eax\n"~
+			"cpuid\n"~
+			"mov %%ebx, (%%edi)\n"~
+			"mov %%ecx, 4(%%edi)\n"~
+			"mov %%edx, 8(%%edi)\n"
+			: "m" __A;
+		} else asm {
+			mov EDI, __A;
+			mov EAX, 0x4000_0000;
+			cpuid;
+			mov [EDI], EBX;
+			mov [EDI+4], ECX;
+			mov [EDI+8], EDX;
+		}
+	}
+	version (GNU) asm {
+		"mov $0x4000_0001, %%eax\n"~
+		"mov $0, %%ecx\n"~
+		"cpuid\n"~
+		"mov %%eax, %0\n"~
+		"mov %%edx, %1\n"
+		: "=a" a, "=d" d;
+	} else asm {
+		mov EAX, 0x4000_0001;
+		mov ECX, 0;
+		cpuid;
+		mov a, EAX;
+		mov d, EAX;
+	} // ----- 4000_0001H ECX=0h
+
+	switch (s.virt_vendor_id) {
+	case VIRT_VENDOR_KVM:
+		s.VIRT_SPEC = a;
+		if (d & BIT!(2)) s.VIRT_SPEC |= F_KVM_HINTS_REALTIME;
+		break;
+	default:
+	}
 
 	//
 	// Extended CPUID leaves
@@ -1272,7 +1388,7 @@ EXTENDED_LEAVES:
 
 	switch (s.VendorID) {
 	case VENDOR_AMD:
-		s.VirtVersion = cast(ubyte)a; // EAX[7:0]
+		s.virt_ver = cast(ubyte)a; // EAX[7:0]
 		break;
 	default:
 	}
@@ -1283,11 +1399,16 @@ EXTENDED_LEAVES:
 /// Get maximum leaf and maximum extended leaf into CPUINFO
 void leafs(ref CPUINFO cpu) {
 	version (GNU) { // GDC
-		uint l = void, le = void;
+		uint l = void, lv = void, le = void; // @suppress(dscanner.suspicious.unmodified)
 		asm {
 			"mov $0, %%eax\n"~
 			"cpuid"
 			: "=a" l;
+		}
+		asm {
+			"mov $0x40000000, %%eax\n"~
+			"cpuid"
+			: "=a" lv;
 		}
 		asm {
 			"mov $0x80000000, %%eax\n"~
@@ -1295,6 +1416,7 @@ void leafs(ref CPUINFO cpu) {
 			: "=a" le;
 		}
 		cpu.MaximumLeaf = l;
+		cpu.MaximumVirtLeaf = lv;
 		cpu.MaximumExtendedLeaf = le;
 	} else
 	version (LDC) { // LDC2
@@ -1304,6 +1426,9 @@ void leafs(ref CPUINFO cpu) {
 			mov EAX, 0;
 			cpuid;
 			mov [ESI + cpu.MaximumLeaf.offsetof], EAX;
+			mov EAX, 0x4000_0000;
+			cpuid;
+			mov [ESI + cpu.MaximumVirtLeaf.offsetof], EAX;
 			mov EAX, 0x8000_0000;
 			cpuid;
 			mov [ESI + cpu.MaximumExtendedLeaf.offsetof], EAX;
@@ -1315,6 +1440,9 @@ void leafs(ref CPUINFO cpu) {
 			mov EAX, 0;
 			cpuid;
 			mov [RSI + cpu.MaximumLeaf.offsetof], EAX;
+			mov EAX, 0x4000_0000;
+			cpuid;
+			mov [ESI + cpu.MaximumVirtLeaf.offsetof], EAX;
 			mov EAX, 0x8000_0000;
 			cpuid;
 			mov [RSI + cpu.MaximumExtendedLeaf.offsetof], EAX;
@@ -1326,6 +1454,9 @@ void leafs(ref CPUINFO cpu) {
 			mov EAX, 0;
 			cpuid;
 			mov [ESI + cpu.MaximumLeaf.offsetof], EAX;
+			mov EAX, 0x4000_0000;
+			cpuid;
+			mov [ESI + cpu.MaximumVirtLeaf.offsetof], EAX;
 			mov EAX, 0x8000_0000;
 			cpuid;
 			mov [ESI + cpu.MaximumExtendedLeaf.offsetof], EAX;
@@ -1337,6 +1468,9 @@ void leafs(ref CPUINFO cpu) {
 			mov EAX, 0;
 			cpuid;
 			mov [RSI + cpu.MaximumLeaf.offsetof], EAX;
+			mov EAX, 0x4000_0000;
+			cpuid;
+			mov [ESI + cpu.MaximumVirtLeaf.offsetof], EAX;
 			mov EAX, 0x8000_0000;
 			cpuid;
 			mov [RSI + cpu.MaximumExtendedLeaf.offsetof], EAX;
@@ -1378,6 +1512,7 @@ struct CPUINFO { align(1):
 
 	uint MaximumLeaf;
 	uint MaximumExtendedLeaf;
+	uint MaximumVirtLeaf;
 
 	//
 	// Identifier
@@ -1550,9 +1685,31 @@ struct CPUINFO { align(1):
 	/// Bit 8: VMX/SVM capable$(BR)
 	/// Bit 9: VME$(BR)
 	union {
-		ubyte VirtVersion;
+		ubyte virt_ver;
 		uint VIRT;
 	}
+	union {
+		char[12] virt_vendor;
+		uint virt_vendor_id;
+	}
+	/// Hypervisor specific features$(BR)
+	/// * KVM $(BR)
+	/// Bit 0: (KVM) KVM_FEATURE_CLOCKSOURCE$(BR)
+	/// Bit 1: (KVM) KVM_FEATURE_NOP_IO_DELAY$(BR)
+	/// Bit 2: (KVM) KVM_FEATURE_MMU_OP$(BR)
+	/// Bit 3: (KVM) KVM_FEATURE_CLOCKSOURCE2$(BR)
+	/// Bit 4: (KVM) KVM_FEATURE_ASYNC_PF$(BR)
+	/// Bit 5: (KVM) KVM_FEATURE_STEAL_TIME$(BR)
+	/// Bit 6: (KVM) KVM_FEATURE_PV_EOI$(BR)
+	/// Bit 7: (KVM) KVM_FEATURE_PV_UNHAULT$(BR)
+	/// Bit 9: (KVM) KVM_FEATURE_PV_TLB_FLUSH$(BR)
+	/// Bit 10: (KVM) KVM_FEATURE_ASYNC_PF_VMEXIT$(BR)
+	/// Bit 11: (KVM) KVM_FEATURE_PV_SEND_IPI$(BR)
+	/// Bit 12: (KVM) KVM_FEATURE_PV_POLL_CONTROL$(BR)
+	/// Bit 13: (KVM) KVM_FEATURE_PV_SCHED_YIELD$(BR)
+	/// Bit 24: (KVM) KVM_FEATURE_CLOCSOURCE_STABLE_BIT$(BR)
+	/// Bit 25: (KVM) KVM_HINTS_REALTIME$(BR)
+	uint VIRT_SPEC;
 
 	//
 	// Memory

@@ -1262,7 +1262,7 @@ CACHE_AMD_NEWER:
 	switch (s.virt_vendor_id) {
 	case VIRT_VENDOR_KVM:
 		s.VIRT_SPEC = a;
-		if (d & BIT!(2)) s.VIRT_SPEC |= F_KVM_HINTS_REALTIME;
+		if (d & BIT!(0)) s.VIRT_SPEC |= F_KVM_HINTS_REALTIME;
 		break;
 	default:
 	}

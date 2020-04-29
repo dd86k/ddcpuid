@@ -562,8 +562,18 @@ int main(int argc, char **argv) {
 	printf("\n[Virtualization]");
 	if (cpu.VIRT & F_VIRT_VME) printf(" VME");
 	if (cpu.MaximumVirtLeaf >= 0x4000_0000) {
-		printf(" HOST:%.12s", cast(char*)cpu.virt_vendor);
+		if (cpu.virt_vendor_id)
+			printf(" HOST:%.12s", cast(char*)cpu.virt_vendor);
 		switch (cpu.virt_vendor_id) {
+		case 0: // VBox Minimal Paravirt
+			if (cpu.VIRT_SPEC)
+				printf(" TSC_FREQ_KHZ:%u", cpu.VIRT_SPEC);
+			if (cpu.VIRT_SPEC2)
+				printf(" APIC_FREQ_KHZ:%u", cpu.VIRT_SPEC2);
+			break;
+/*		case VIRT_VENDOR_VBOX: // Hyper-V
+			
+			break;*/
 		case VIRT_VENDOR_KVM:
 			if (cpu.VIRT_SPEC & F_KVM_FEATURE_CLOCKSOURCE) printf(" KVM_FEATURE_CLOCKSOURCE");
 			if (cpu.VIRT_SPEC & F_KVM_FEATURE_NOP_IO_DELAY) printf(" KVM_FEATURE_NOP_IO_DELAY");
@@ -640,8 +650,7 @@ int main(int argc, char **argv) {
 
 	printf("\n[Misc.] HLeaf:%Xh HELeaf:%Xh Type:%s Index:%u",
 		cpu.MaximumLeaf, cpu.MaximumExtendedLeaf,
-		PROCESSOR_TYPE[cpu.ProcessorType], cpu.BrandIndex
-	);
+		PROCESSOR_TYPE[cpu.ProcessorType], cpu.BrandIndex);
 	if (cpu.MISC & F_MISC_xTPR) printf(" xTPR");
 	if (cpu.MISC & F_MISC_PSN) printf(" PSN");
 	if (cpu.MISC & F_MISC_PCID) printf(" PCID");
@@ -1244,6 +1253,9 @@ CACHE_AMD_NEWER:
 			mov [EDI+8], EDX;
 		}
 	}
+
+	if (s.MaximumVirtLeaf < 0x4000_0001) goto EXTENDED_LEAVES;
+
 	version (GNU) asm {
 		"mov $0x40000001, %%eax\n"~
 		"mov $0, %%ecx\n"~
@@ -1256,13 +1268,38 @@ CACHE_AMD_NEWER:
 		mov ECX, 0;
 		cpuid;
 		mov a, EAX;
-		mov d, EAX;
+		mov d, EDX;
 	} // ----- 4000_0001H ECX=0h
 
 	switch (s.virt_vendor_id) {
 	case VIRT_VENDOR_KVM:
 		s.VIRT_SPEC = a;
 		if (d & BIT!(0)) s.VIRT_SPEC |= F_KVM_HINTS_REALTIME;
+		break;
+	default:
+	}
+
+	if (s.MaximumVirtLeaf < 0x4000_0010) goto EXTENDED_LEAVES;
+
+	version (GNU) asm {
+		"mov $0x40000010, %%eax\n"~
+		"mov $0, %%ecx\n"~
+		"cpuid\n"~
+		"mov %%eax, %0\n"~
+		"mov %%ebx, %1\n"
+		: "=a" a, "=b" b;
+	} else asm {
+		mov EAX, 0x4000_0010;
+		mov ECX, 0;
+		cpuid;
+		mov a, EAX;
+		mov b, EBX;
+	} // ----- 4000_0001H ECX=0h
+
+	switch (s.virt_vendor_id) {
+	case 0: // VBox Minimal
+		s.VIRT_SPEC = a;
+		s.VIRT_SPEC2 = b;
 		break;
 	default:
 	}
@@ -1688,6 +1725,7 @@ struct CPUINFO { align(1):
 		ubyte virt_ver;
 		uint VIRT;
 	}
+	// Virtualization software vendor name
 	union {
 		char[12] virt_vendor;
 		uint virt_vendor_id;
@@ -1709,7 +1747,12 @@ struct CPUINFO { align(1):
 	/// Bit 13: (KVM) KVM_FEATURE_PV_SCHED_YIELD$(BR)
 	/// Bit 24: (KVM) KVM_FEATURE_CLOCSOURCE_STABLE_BIT$(BR)
 	/// Bit 25: (KVM) KVM_HINTS_REALTIME$(BR)
+	/// * VBox Hyper-V$(BR)
+	/// * VBox Minimal$(BR)
+	/// Bit 0-15:  TSC_FREQ_KHZ$(BR)
+	/// Bit 16-31: APIC_FREQ_KHZ$(BR)
 	uint VIRT_SPEC;
+	uint VIRT_SPEC2;
 
 	//
 	// Memory

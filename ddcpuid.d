@@ -1715,7 +1715,7 @@ void leafs(ref CPUINFO cpu) {
 			mov [RSI + cpu.MaximumLeaf.offsetof], EAX;
 			mov EAX, 0x4000_0000;
 			cpuid;
-			mov [ESI + cpu.MaximumVirtLeaf.offsetof], EAX;
+			mov [RSI + cpu.MaximumVirtLeaf.offsetof], EAX;
 			mov EAX, 0x8000_0000;
 			cpuid;
 			mov [RSI + cpu.MaximumExtendedLeaf.offsetof], EAX;
@@ -1743,7 +1743,7 @@ void leafs(ref CPUINFO cpu) {
 			mov [RSI + cpu.MaximumLeaf.offsetof], EAX;
 			mov EAX, 0x4000_0000;
 			cpuid;
-			mov [ESI + cpu.MaximumVirtLeaf.offsetof], EAX;
+			mov [RSI + cpu.MaximumVirtLeaf.offsetof], EAX;
 			mov EAX, 0x8000_0000;
 			cpuid;
 			mov [RSI + cpu.MaximumExtendedLeaf.offsetof], EAX;

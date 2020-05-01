@@ -2,7 +2,7 @@
 ." Please read man-pages(7) and groff_man(7) about the manual page format.
 ." Don't forget to respect the format of this document!
 ."
-.TH ddcpuid 1 "April 2020" dd86k "User manual"
+.TH ddcpuid 1 "May 2020" dd86k "User manual"
 .SH NAME
 ddcpuid - Simple x86/AMD64 CPUID tool
 
@@ -21,6 +21,8 @@ is a simple x86/AMD64 CPUID information tool.
 
 Processor technologies are reported per processor vendor, depending if
 available in documentation. Only Intel and AMD processors are supported.
+Some paravirtualization interfaces are supported (notably Hyper-V, KVM,
+and the VBox Minimal interfaces).
 
 The following is reported:
 
@@ -42,6 +44,8 @@ The following is reported:
   - xTPR
   - PBE
   - LAHF64+SAHF64
+  - FSGSBASE
+  - And more!
 .EE
 
 .SH OPTIONS
@@ -51,14 +55,14 @@ Show help screen and exit.
 .IP --version
 Show version screen and exit.
 
+.IP -o
+Overrides leaves to 20h, 4000_0010h, and 8000_0020h. Affects feature
+scanning and -r.
+
 .IP -r
 Print a raw table of CPUID data.
 
 Note: ECX is always cleared.
-
-.IP -o
-Overrides leaves to 20h,4000_0004h, and 8000_0020h. Affects feature
-scanning and -r.
 
 .IP -s
 For -r only: provide maximum sub-leaf to travel.
@@ -78,7 +82,7 @@ online
 While the best supported compiler is DMD, LDC offers superior optimizations.
 
 .SH BUGS
-Compiling with GDC/GCC, compiling above -O1 segfaults at run-time.
+With GDC, compiling above -O1 segfaults at run-time. Tested on 8.4.0.
 
 .SH AUTHOR
 Written by dd86k.

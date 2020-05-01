@@ -2,26 +2,6 @@
 extern (C):
 __gshared:
 
-int strcmp(scope const char*, scope const char*);
-int printf(scope const char*, ...);
-int puts(scope const char*);
-int putchar(int c);
-void* memset(void *, int, size_t);
-long strtol(scope inout(char)*,scope inout(char)**, int);
-
-enum VERSION = "0.16.0"; /// Program version
-enum	MAX_LEAF  = 0x20, /// Maximum leaf (-o)
-	MAX_VLEAF = 0x4000_0004, /// Maximum hypervisor leaf (-o)
-	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
-
-// Self-made vendor "IDs" for faster look-ups, LSB-based.
-enum VENDOR_OTHER = 0;	/// Other/unknown
-enum VENDOR_INTEL = 0x756e6547;	/// Intel: "Genu"
-enum VENDOR_AMD   = 0x68747541;	/// AMD: "Auth"
-enum VENDOR_VIA   = 0x20414956;	/// VIA: "VIA "
-enum VIRT_VENDOR_KVM  = 0x4b4d564b; /// KVM: "KVMK"
-enum VIRT_VENDOR_VBOX = 0x786f4256; /// VirtualBox: "VBox"
-
 version (X86)
 	enum PLATFORM = "x86";
 else
@@ -30,9 +10,30 @@ version (X86_64)
 else
 static assert(0, "ddcpuid is only supported on x86 platforms");
 
+int strcmp(scope const char*, scope const char*);
+int printf(scope const char*, ...);
+int puts(scope const char*);
+int putchar(int c);
+void* memset(void *, int, size_t);
+long strtol(scope inout(char)*,scope inout(char)**, int);
+
+enum	VERSION = "0.16.0"; /// Program version
+enum	MAX_LEAF  = 0x20, /// Maximum leaf (-o)
+	MAX_VLEAF = 0x4000_0010, /// Maximum virt leaf (-o)
+	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
+
+// Self-made vendor "IDs" for faster look-ups, LSB-based.
+enum VENDOR_OTHER = 0;	/// Other/unknown
+enum VENDOR_INTEL = 0x756e6547;	/// Intel: "Genu"
+enum VENDOR_AMD   = 0x68747541;	/// AMD: "Auth"
+enum VENDOR_VIA   = 0x20414956;	/// VIA: "VIA "
+enum VIRT_VENDOR_KVM      = 0x4b4d564b; /// KVM: "KVMK"
+enum VIRT_VENDOR_VBOX_HV  = 0x786f4256; /// VirtualBox: "VBox", hyper-v interface
+enum VIRT_VENDOR_VBOX_MIN = 0x00000000; /// VirtualBox: Minimal interface
+
 template BIT(int n) { enum { BIT = 1 << n } }
 
-enum {
+enum {	// NOTE: Flags for our structure, not CPUID bits!
 	//
 	// Extension bits
 	//
@@ -150,7 +151,7 @@ enum {
 	F_VIRT_VIRT	= BIT!(8),
 	F_VIRT_VME	= BIT!(9),
 	//
-	// KVM bits
+	// KVM interface bits
 	//
 	F_KVM_FEATURE_CLOCKSOURCE	= BIT!(0),
 	F_KVM_FEATURE_NOP_IO_DELAY	= BIT!(1),
@@ -167,6 +168,88 @@ enum {
 	F_KVM_FEATURE_PV_SCHED_YIELD	= BIT!(13),
 	F_KVM_FEATURE_CLOCSOURCE_STABLE_BIT	= BIT!(24),
 	F_KVM_HINTS_REALTIME	= BIT!(25),
+	//
+	// Hyper-V interface bits
+	//
+	HV_BASE_FEAT_VP_RUNTIME_MSR                  = BIT!(0), // Pair A,-
+	HV_BASE_FEAT_PART_TIME_REF_COUNT_MSR         = BIT!(1),
+	HV_BASE_FEAT_BASIC_SYNIC_MSRS                = BIT!(2),
+	HV_BASE_FEAT_STIMER_MSRS                     = BIT!(3),
+	HV_BASE_FEAT_APIC_ACCESS_MSRS                = BIT!(4),
+	HV_BASE_FEAT_HYPERCALL_MSRS                  = BIT!(5),
+	HV_BASE_FEAT_VP_ID_MSR                       = BIT!(6),
+	HV_BASE_FEAT_VIRT_SYS_RESET_MSR              = BIT!(7),
+	HV_BASE_FEAT_STAT_PAGES_MSR                  = BIT!(8),
+	HV_BASE_FEAT_PART_REF_TSC_MSR                = BIT!(9),
+	HV_BASE_FEAT_GUEST_IDLE_STATE_MSR            = BIT!(10),
+	HV_BASE_FEAT_TIMER_FREQ_MSRS                 = BIT!(11),
+	HV_BASE_FEAT_DEBUG_MSRS                      = BIT!(12),
+	HV_PART_FLAGS_CREATE_PART                    = BIT!(0), // Pair B,2
+	HV_PART_FLAGS_ACCESS_PART_ID                 = BIT!(1),
+	HV_PART_FLAGS_ACCESS_MEMORY_POOL             = BIT!(2),
+	HV_PART_FLAGS_ADJUST_MSG_BUFFERS             = BIT!(3),
+	HV_PART_FLAGS_POST_MSGS                      = BIT!(4),
+	HV_PART_FLAGS_SIGNAL_EVENTS                  = BIT!(5),
+	HV_PART_FLAGS_CREATE_PORT                    = BIT!(6),
+	HV_PART_FLAGS_CONNECT_PORT                   = BIT!(7),
+	HV_PART_FLAGS_ACCESS_STATS                   = BIT!(8),
+	HV_PART_FLAGS_DEBUGGING                      = BIT!(11),
+	HV_PART_FLAGS_CPU_MGMT                       = BIT!(12),
+	HV_PART_FLAGS_CPU_PROFILER                   = BIT!(13),
+	HV_PART_FLAGS_EXPANDED_STACK_WALK            = BIT!(14),
+	HV_PART_FLAGS_ACCESS_VSM                     = BIT!(16),
+	HV_PART_FLAGS_ACCESS_VP_REGS                 = BIT!(17),
+	HV_PART_FLAGS_EXTENDED_HYPERCALLS            = BIT!(20),
+	HV_PART_FLAGS_START_VP                       = BIT!(21),
+	HV_PM_MAX_CPU_POWER_STATE_C0                 = BIT!(0) << 24, // Pair C,3
+	HV_PM_MAX_CPU_POWER_STATE_C1                 = BIT!(1) << 24,
+	HV_PM_MAX_CPU_POWER_STATE_C2                 = BIT!(2) << 24,
+	HV_PM_MAX_CPU_POWER_STATE_C3                 = BIT!(3) << 24,
+	HV_PM_HPET_REQD_FOR_C3                       = BIT!(4) << 24,
+	HV_MISC_FEAT_MWAIT                           = BIT!(0),
+	HV_MISC_FEAT_GUEST_DEBUGGING                 = BIT!(1),
+	HV_MISC_FEAT_PERF_MON                        = BIT!(2),
+	HV_MISC_FEAT_PCPU_DYN_PART_EVENT             = BIT!(3),
+	HV_MISC_FEAT_XMM_HYPERCALL_INPUT             = BIT!(4),
+	HV_MISC_FEAT_GUEST_IDLE_STATE                = BIT!(5),
+	HV_MISC_FEAT_HYPERVISOR_SLEEP_STATE          = BIT!(6),
+	HV_MISC_FEAT_QUERY_NUMA_DISTANCE             = BIT!(7),
+	HV_MISC_FEAT_TIMER_FREQ                      = BIT!(8),
+	HV_MISC_FEAT_INJECT_SYNMC_XCPT               = BIT!(9),
+	HV_MISC_FEAT_GUEST_CRASH_MSRS                = BIT!(10),
+	HV_MISC_FEAT_DEBUG_MSRS                      = BIT!(11),
+	HV_MISC_FEAT_NPIEP1                          = BIT!(12),
+	HV_MISC_FEAT_DISABLE_HYPERVISOR              = BIT!(13),
+	HV_MISC_FEAT_EXT_GVA_RANGE_FOR_FLUSH_VA_LIST = BIT!(14),
+	HV_MISC_FEAT_HYPERCALL_OUTPUT_XMM            = BIT!(15),
+	HV_MISC_FEAT_SINT_POLLING_MODE               = BIT!(17),
+	HV_MISC_FEAT_HYPERCALL_MSR_LOCK              = BIT!(18),
+	HV_MISC_FEAT_USE_DIRECT_SYNTH_MSRS           = BIT!(19),
+	HV_HINT_HYPERCALL_FOR_PROCESS_SWITCH         = BIT!(0), // Pair D,4
+	HV_HINT_HYPERCALL_FOR_TLB_FLUSH              = BIT!(1),
+	HV_HINT_HYPERCALL_FOR_TLB_SHOOTDOWN          = BIT!(2),
+	HV_HINT_MSR_FOR_APIC_ACCESS                  = BIT!(3),
+	HV_HINT_MSR_FOR_SYS_RESET                    = BIT!(4),
+	HV_HINT_RELAX_TIME_CHECKS                    = BIT!(5),
+	HV_HINT_DMA_REMAPPING                        = BIT!(6),
+	HV_HINT_INTERRUPT_REMAPPING                  = BIT!(7),
+	HV_HINT_X2APIC_MSRS                          = BIT!(8),
+	HV_HINT_DEPRECATE_AUTO_EOI                   = BIT!(9),
+	HV_HINT_SYNTH_CLUSTER_IPI_HYPERCALL          = BIT!(10),
+	HV_HINT_EX_PROC_MASKS_INTERFACE              = BIT!(11),
+	HV_HINT_NESTED_HYPERV                        = BIT!(12),
+	HV_HINT_INT_FOR_MBEC_SYSCALLS                = BIT!(13),
+	HV_HINT_NESTED_ENLIGHTENED_VMCS_INTERFACE    = BIT!(14),
+	HV_HOST_FEAT_AVIC                            = BIT!(0) << 16,
+	HV_HOST_FEAT_MSR_BITMAP                      = BIT!(1) << 16,
+	HV_HOST_FEAT_PERF_COUNTER                    = BIT!(2) << 16,
+	HV_HOST_FEAT_NESTED_PAGING                   = BIT!(3) << 16,
+	HV_HOST_FEAT_DMA_REMAPPING                   = BIT!(4) << 16,
+	HV_HOST_FEAT_INTERRUPT_REMAPPING             = BIT!(5) << 16,
+	HV_HOST_FEAT_MEM_PATROL_SCRUBBER             = BIT!(6) << 16,
+	HV_HOST_FEAT_DMA_PROT_IN_USE                 = BIT!(7) << 16,
+	HV_HOST_FEAT_HPET_REQUESTED                  = BIT!(8) << 16,
+	HV_HOST_FEAT_STIMER_VOLATILE                 = BIT!(9) << 16,
 	//
 	// Memory bits
 	//
@@ -305,10 +388,11 @@ int main(int argc, char **argv) {
 	} // for
 
 	CPUINFO cpu = void;
-	memset(&cpu, 0, CPUINFO.sizeof);
+	memset(cast(ubyte*)&cpu + 12, 0, CPUINFO.sizeof - 12);
 
 	if (opt_override) {
 		cpu.MaximumLeaf = MAX_LEAF;
+		cpu.MaximumVirtLeaf = MAX_VLEAF;
 		cpu.MaximumExtendedLeaf = MAX_ELEAF;
 	} else
 		leafs(cpu);
@@ -318,12 +402,12 @@ int main(int argc, char **argv) {
 		"| Leaf     | Sub-leaf | EAX      | EBX      | ECX      | EDX      |\n"~
 		"|----------|----------|----------|----------|----------|----------|"
 		);
-		uint l, s;
+		uint l, s; // Normal
 		do {
 			do { printc(l, s); } while (++s <= opt_subleaf);
 			s = 0;
 		} while (++l <= cpu.MaximumLeaf);
-		l = 0x4000_0000; // Not used, but some hypervisors use it
+		l = 0x4000_0000; // Show first level regardless
 		do {
 			do { printc(l, s); } while (++s <= opt_subleaf);
 			s = 0;
@@ -565,15 +649,93 @@ int main(int argc, char **argv) {
 		if (cpu.virt_vendor_id)
 			printf(" HOST:%.12s", cast(char*)cpu.virt_vendor);
 		switch (cpu.virt_vendor_id) {
-		case 0: // VBox Minimal Paravirt
+		case VIRT_VENDOR_VBOX_MIN: // VBox Minimal Paravirt
 			if (cpu.VIRT_SPEC)
 				printf(" TSC_FREQ_KHZ:%u", cpu.VIRT_SPEC);
 			if (cpu.VIRT_SPEC2)
 				printf(" APIC_FREQ_KHZ:%u", cpu.VIRT_SPEC2);
 			break;
-/*		case VIRT_VENDOR_VBOX: // Hyper-V
-			
-			break;*/
+		case VIRT_VENDOR_VBOX_HV: // Hyper-V
+			if (cpu.VIRT_SPEC & HV_BASE_FEAT_VP_RUNTIME_MSR) printf(" HV_BASE_FEAT_VP_RUNTIME_MSR");
+			if (cpu.VIRT_SPEC & HV_BASE_FEAT_PART_TIME_REF_COUNT_MSR) printf(" HV_BASE_FEAT_PART_TIME_REF_COUNT_MSR");
+			if (cpu.VIRT_SPEC & HV_BASE_FEAT_BASIC_SYNIC_MSRS) printf(" HV_BASE_FEAT_BASIC_SYNIC_MSRS");
+			if (cpu.VIRT_SPEC & HV_BASE_FEAT_STIMER_MSRS) printf(" HV_BASE_FEAT_STIMER_MSRS");
+			if (cpu.VIRT_SPEC & HV_BASE_FEAT_APIC_ACCESS_MSRS) printf(" HV_BASE_FEAT_APIC_ACCESS_MSRS");
+			if (cpu.VIRT_SPEC & HV_BASE_FEAT_HYPERCALL_MSRS) printf(" HV_BASE_FEAT_HYPERCALL_MSRS");
+			if (cpu.VIRT_SPEC & HV_BASE_FEAT_VP_ID_MSR) printf(" HV_BASE_FEAT_VP_ID_MSR");
+			if (cpu.VIRT_SPEC & HV_BASE_FEAT_VIRT_SYS_RESET_MSR) printf(" HV_BASE_FEAT_VIRT_SYS_RESET_MSR");
+			if (cpu.VIRT_SPEC & HV_BASE_FEAT_STAT_PAGES_MSR) printf(" HV_BASE_FEAT_STAT_PAGES_MSR");
+			if (cpu.VIRT_SPEC & HV_BASE_FEAT_PART_REF_TSC_MSR) printf(" HV_BASE_FEAT_PART_REF_TSC_MSR");
+			if (cpu.VIRT_SPEC & HV_BASE_FEAT_GUEST_IDLE_STATE_MSR) printf(" HV_BASE_FEAT_GUEST_IDLE_STATE_MSR");
+			if (cpu.VIRT_SPEC & HV_BASE_FEAT_TIMER_FREQ_MSRS) printf(" HV_BASE_FEAT_TIMER_FREQ_MSRS");
+			if (cpu.VIRT_SPEC & HV_BASE_FEAT_DEBUG_MSRS) printf(" HV_BASE_FEAT_DEBUG_MSRS");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_CREATE_PART) printf(" HV_PART_FLAGS_CREATE_PART");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_ACCESS_PART_ID) printf(" HV_PART_FLAGS_ACCESS_PART_ID");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_ACCESS_MEMORY_POOL) printf(" HV_PART_FLAGS_ACCESS_MEMORY_POOL");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_ADJUST_MSG_BUFFERS) printf(" HV_PART_FLAGS_ADJUST_MSG_BUFFERS");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_POST_MSGS) printf(" HV_PART_FLAGS_POST_MSGS");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_SIGNAL_EVENTS) printf(" HV_PART_FLAGS_SIGNAL_EVENTS");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_CREATE_PORT) printf(" HV_PART_FLAGS_CREATE_PORT");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_CONNECT_PORT) printf(" HV_PART_FLAGS_CONNECT_PORT");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_ACCESS_STATS) printf(" HV_PART_FLAGS_ACCESS_STATS");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_DEBUGGING) printf(" HV_PART_FLAGS_DEBUGGING");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_CPU_MGMT) printf(" HV_PART_FLAGS_CPU_MGMT");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_CPU_PROFILER) printf(" HV_PART_FLAGS_CPU_PROFILER");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_EXPANDED_STACK_WALK) printf(" HV_PART_FLAGS_EXPANDED_STACK_WALK");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_ACCESS_VSM) printf(" HV_PART_FLAGS_ACCESS_VSM");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_ACCESS_VP_REGS) printf(" HV_PART_FLAGS_ACCESS_VP_REGS");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_EXTENDED_HYPERCALLS) printf(" HV_PART_FLAGS_EXTENDED_HYPERCALLS");
+			if (cpu.VIRT_SPEC2 & HV_PART_FLAGS_START_VP) printf(" HV_PART_FLAGS_START_VP");
+			if (cpu.VIRT_SPEC3 & HV_PM_MAX_CPU_POWER_STATE_C0) printf(" HV_PM_MAX_CPU_POWER_STATE_C0");
+			if (cpu.VIRT_SPEC3 & HV_PM_MAX_CPU_POWER_STATE_C1) printf(" HV_PM_MAX_CPU_POWER_STATE_C1");
+			if (cpu.VIRT_SPEC3 & HV_PM_MAX_CPU_POWER_STATE_C2) printf(" HV_PM_MAX_CPU_POWER_STATE_C2");
+			if (cpu.VIRT_SPEC3 & HV_PM_MAX_CPU_POWER_STATE_C3) printf(" HV_PM_MAX_CPU_POWER_STATE_C3");
+			if (cpu.VIRT_SPEC3 & HV_PM_HPET_REQD_FOR_C3) printf(" HV_PM_HPET_REQD_FOR_C3");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_MWAIT) printf(" HV_MISC_FEAT_MWAIT");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_GUEST_DEBUGGING) printf(" HV_MISC_FEAT_GUEST_DEBUGGING");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_PERF_MON) printf(" HV_MISC_FEAT_PERF_MON");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_PCPU_DYN_PART_EVENT) printf(" HV_MISC_FEAT_PCPU_DYN_PART_EVENT");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_XMM_HYPERCALL_INPUT) printf(" HV_MISC_FEAT_XMM_HYPERCALL_INPUT");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_GUEST_IDLE_STATE) printf(" HV_MISC_FEAT_GUEST_IDLE_STATE");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_HYPERVISOR_SLEEP_STATE) printf(" HV_MISC_FEAT_HYPERVISOR_SLEEP_STATE");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_QUERY_NUMA_DISTANCE) printf(" HV_MISC_FEAT_QUERY_NUMA_DISTANCE");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_TIMER_FREQ) printf(" HV_MISC_FEAT_TIMER_FREQ");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_INJECT_SYNMC_XCPT) printf(" HV_MISC_FEAT_INJECT_SYNMC_XCPT");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_GUEST_CRASH_MSRS) printf(" HV_MISC_FEAT_GUEST_CRASH_MSRS");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_DEBUG_MSRS) printf(" HV_MISC_FEAT_DEBUG_MSRS");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_NPIEP1) printf(" HV_MISC_FEAT_NPIEP1");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_DISABLE_HYPERVISOR) printf(" HV_MISC_FEAT_DISABLE_HYPERVISOR");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_EXT_GVA_RANGE_FOR_FLUSH_VA_LIST) printf(" HV_MISC_FEAT_EXT_GVA_RANGE_FOR_FLUSH_VA_LIST");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_HYPERCALL_OUTPUT_XMM) printf(" HV_MISC_FEAT_HYPERCALL_OUTPUT_XMM");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_SINT_POLLING_MODE) printf(" HV_MISC_FEAT_SINT_POLLING_MODE");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_HYPERCALL_MSR_LOCK) printf(" HV_MISC_FEAT_HYPERCALL_MSR_LOCK");
+			if (cpu.VIRT_SPEC3 & HV_MISC_FEAT_USE_DIRECT_SYNTH_MSRS) printf(" HV_MISC_FEAT_USE_DIRECT_SYNTH_MSRS");
+			if (cpu.VIRT_SPEC4 & HV_HINT_HYPERCALL_FOR_PROCESS_SWITCH) printf(" HV_HINT_HYPERCALL_FOR_PROCESS_SWITCH");
+			if (cpu.VIRT_SPEC4 & HV_HINT_HYPERCALL_FOR_TLB_FLUSH) printf(" HV_HINT_HYPERCALL_FOR_TLB_FLUSH");
+			if (cpu.VIRT_SPEC4 & HV_HINT_HYPERCALL_FOR_TLB_SHOOTDOWN) printf(" HV_HINT_HYPERCALL_FOR_TLB_SHOOTDOWN");
+			if (cpu.VIRT_SPEC4 & HV_HINT_MSR_FOR_APIC_ACCESS) printf(" HV_HINT_MSR_FOR_APIC_ACCESS");
+			if (cpu.VIRT_SPEC4 & HV_HINT_MSR_FOR_SYS_RESET) printf(" HV_HINT_MSR_FOR_SYS_RESET");
+			if (cpu.VIRT_SPEC4 & HV_HINT_RELAX_TIME_CHECKS) printf(" HV_HINT_RELAX_TIME_CHECKS");
+			if (cpu.VIRT_SPEC4 & HV_HINT_DMA_REMAPPING) printf(" HV_HINT_DMA_REMAPPING");
+			if (cpu.VIRT_SPEC4 & HV_HINT_INTERRUPT_REMAPPING) printf(" HV_HINT_INTERRUPT_REMAPPING");
+			if (cpu.VIRT_SPEC4 & HV_HINT_X2APIC_MSRS) printf(" HV_HINT_X2APIC_MSRS");
+			if (cpu.VIRT_SPEC4 & HV_HINT_DEPRECATE_AUTO_EOI) printf(" HV_HINT_DEPRECATE_AUTO_EOI");
+			if (cpu.VIRT_SPEC4 & HV_HINT_SYNTH_CLUSTER_IPI_HYPERCALL) printf(" HV_HINT_SYNTH_CLUSTER_IPI_HYPERCALL");
+			if (cpu.VIRT_SPEC4 & HV_HINT_EX_PROC_MASKS_INTERFACE) printf(" HV_HINT_EX_PROC_MASKS_INTERFACE");
+			if (cpu.VIRT_SPEC4 & HV_HINT_NESTED_HYPERV) printf(" HV_HINT_NESTED_HYPERV");
+			if (cpu.VIRT_SPEC4 & HV_HINT_INT_FOR_MBEC_SYSCALLS) printf(" HV_HINT_INT_FOR_MBEC_SYSCALLS");
+			if (cpu.VIRT_SPEC4 & HV_HINT_NESTED_ENLIGHTENED_VMCS_INTERFACE) printf(" HV_HINT_NESTED_ENLIGHTENED_VMCS_INTERFACE");
+			if (cpu.VIRT_SPEC4 & HV_HOST_FEAT_AVIC) printf(" HV_HOST_FEAT_AVIC");
+			if (cpu.VIRT_SPEC4 & HV_HOST_FEAT_MSR_BITMAP) printf(" HV_HOST_FEAT_MSR_BITMAP");
+			if (cpu.VIRT_SPEC4 & HV_HOST_FEAT_PERF_COUNTER) printf(" HV_HOST_FEAT_PERF_COUNTER");
+			if (cpu.VIRT_SPEC4 & HV_HOST_FEAT_NESTED_PAGING) printf(" HV_HOST_FEAT_NESTED_PAGING");
+			if (cpu.VIRT_SPEC4 & HV_HOST_FEAT_DMA_REMAPPING) printf(" HV_HOST_FEAT_DMA_REMAPPING");
+			if (cpu.VIRT_SPEC4 & HV_HOST_FEAT_INTERRUPT_REMAPPING) printf(" HV_HOST_FEAT_INTERRUPT_REMAPPING");
+			if (cpu.VIRT_SPEC4 & HV_HOST_FEAT_MEM_PATROL_SCRUBBER) printf(" HV_HOST_FEAT_MEM_PATROL_SCRUBBER");
+			if (cpu.VIRT_SPEC4 & HV_HOST_FEAT_DMA_PROT_IN_USE) printf(" HV_HOST_FEAT_DMA_PROT_IN_USE");
+			if (cpu.VIRT_SPEC4 & HV_HOST_FEAT_HPET_REQUESTED) printf(" HV_HOST_FEAT_HPET_REQUESTED");
+			if (cpu.VIRT_SPEC4 & HV_HOST_FEAT_STIMER_VOLATILE) printf(" HV_HOST_FEAT_STIMER_VOLATILE");
+			break;
 		case VIRT_VENDOR_KVM:
 			if (cpu.VIRT_SPEC & F_KVM_FEATURE_CLOCKSOURCE) printf(" KVM_FEATURE_CLOCKSOURCE");
 			if (cpu.VIRT_SPEC & F_KVM_FEATURE_NOP_IO_DELAY) printf(" KVM_FEATURE_NOP_IO_DELAY");
@@ -1279,6 +1441,80 @@ CACHE_AMD_NEWER:
 	default:
 	}
 
+	if (s.MaximumVirtLeaf < 0x4000_0003) goto EXTENDED_LEAVES;
+
+	version (GNU) asm {
+		"mov $0x40000003, %%eax\n"~
+		"mov $0, %%ecx\n"~
+		"cpuid\n"~
+		"mov %%eax, %0\n"~
+		"mov %%ebx, %1\n"~
+		"mov %%ecx, %2\n"~
+		"mov %%edx, %3\n"
+		: "=a" a, "=b" b, "=c" c, "=d", d;
+	} else asm {
+		mov EAX, 0x4000_0003;
+		mov ECX, 0;
+		cpuid;
+		mov a, EAX;
+		mov b, EBX;
+		mov c, ECX;
+		mov d, EDX;
+	} // ----- 4000_0003H ECX=0h
+
+	switch (s.virt_vendor_id) {
+	case VIRT_VENDOR_VBOX_HV:
+		s.VIRT_SPEC = a;
+		s.VIRT_SPEC2 = b;
+		s.VIRT_SPEC3 = (c << 24) | d;
+		break;
+	default:
+	}
+
+	if (s.MaximumVirtLeaf < 0x4000_0004) goto EXTENDED_LEAVES;
+
+	version (GNU) asm {
+		"mov $0x40000004, %%eax\n"~
+		"mov $0, %%ecx\n"~
+		"cpuid\n"~
+		"mov %%eax, %0\n"
+		: "=a" a;
+	} else asm {
+		mov EAX, 0x4000_0004;
+		mov ECX, 0;
+		cpuid;
+		mov a, EAX;
+	} // ----- 4000_0004H ECX=0h
+
+	switch (s.virt_vendor_id) {
+	case VIRT_VENDOR_VBOX_HV:
+		s.VIRT_SPEC4 = a << 16;
+		break;
+	default:
+	}
+
+	if (s.MaximumVirtLeaf < 0x4000_0006) goto EXTENDED_LEAVES;
+
+	version (GNU) asm {
+		"mov $0x40000006, %%eax\n"~
+		"mov $0, %%ecx\n"~
+		"cpuid\n"~
+		"mov %%eax, %0\n"
+		: "=a" a;
+	} else asm {
+		mov EAX, 0x4000_0006;
+		mov ECX, 0;
+		cpuid;
+		mov a, EAX;
+	} // ----- 4000_0006H ECX=0h
+
+	switch (s.virt_vendor_id) {
+	case VIRT_VENDOR_VBOX_HV:
+		s.VIRT_SPEC4 |= cast(ushort)a;
+		break;
+	default:
+	}
+
 	if (s.MaximumVirtLeaf < 0x4000_0010) goto EXTENDED_LEAVES;
 
 	version (GNU) asm {
@@ -1297,7 +1533,7 @@ CACHE_AMD_NEWER:
 	} // ----- 4000_0001H ECX=0h
 
 	switch (s.virt_vendor_id) {
-	case 0: // VBox Minimal
+	case VIRT_VENDOR_VBOX_MIN: // VBox Minimal
 		s.VIRT_SPEC = a;
 		s.VIRT_SPEC2 = b;
 		break;
@@ -1541,15 +1777,15 @@ struct CACHEINFO {
 }
 
 struct CPUINFO { align(1):
+	uint MaximumLeaf;
+	uint MaximumExtendedLeaf;
+	uint MaximumVirtLeaf;
+
 	union {
 		ubyte [12]vendorString;	// inits to 0
 		uint VendorID;
 	}
 	ubyte [48]cpuString;	// inits to 0
-
-	uint MaximumLeaf;
-	uint MaximumExtendedLeaf;
-	uint MaximumVirtLeaf;
 
 	//
 	// Identifier
@@ -1747,12 +1983,15 @@ struct CPUINFO { align(1):
 	/// Bit 13: (KVM) KVM_FEATURE_PV_SCHED_YIELD$(BR)
 	/// Bit 24: (KVM) KVM_FEATURE_CLOCSOURCE_STABLE_BIT$(BR)
 	/// Bit 25: (KVM) KVM_HINTS_REALTIME$(BR)
-	/// * VBox Hyper-V$(BR)
 	/// * VBox Minimal$(BR)
-	/// Bit 0-15:  TSC_FREQ_KHZ$(BR)
-	/// Bit 16-31: APIC_FREQ_KHZ$(BR)
+	/// SPEC:  TSC_FREQ_KHZ$(BR)
+	/// SPEC2: APIC_FREQ_KHZ$(BR)
+	/// * VBox Hyper-V$(BR)
+	/// 
 	uint VIRT_SPEC;
 	uint VIRT_SPEC2;
+	uint VIRT_SPEC3;
+	uint VIRT_SPEC4;
 
 	//
 	// Memory

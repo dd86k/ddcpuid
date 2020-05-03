@@ -1,21 +1,21 @@
 PREFIX=/usr/local
 DC=dmd
 
-ifneq ($(DC), gdc)
+ifneq ($(findstring gdc,$(DC)),gdc)
 	RELEASEFLAGS=-O -release -boundscheck=off
 endif
 
-ifeq ($(DC),dmd)
+ifeq ($(findstring dmd,$(DC)),dmd)
 	DFLAGS=-betterC
 	DEBUGFLAGS=-debug
 endif
 
-ifeq ($(DC),gdc)
+ifeq ($(findstring gdc,$(DC)),gdc)
 	DEBUGFLAGS=-g -oddcpuid
 	RELEASEFLAGS=-O -frelease -fbounds-check=off -oddcpuid
 endif
 
-ifeq ($(DC),ldc)
+ifeq ($(findstring ldc,$(DC)),ldc)
 	DEBUGFLAGS=-g
 endif
 

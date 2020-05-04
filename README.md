@@ -38,3 +38,21 @@ and see if the condition applies.
 
 **UPDATE**: This has been fixed in commit d64fbceb68dbd9135b0c130776e9bb2c13a96237.
 New function receives structure as reference to be populated. `hleaf` removed.
+
+## Makefile
+
+The Makefile relies on GNU Make (gmake/gnumake).
+
+Available variables:
+- `DC`: D compiler, defaults to `dmd`
+- `PREFIX`: installation path prefix, defaults to `/usr/local`
+
+Available actions:
+- debug (default)
+- release
+- install
+- uninstall
+
+Examples:
+- `make`: Produce a debug build
+- `make release DC=ldc`: Produce a release build with LDC

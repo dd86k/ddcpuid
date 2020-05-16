@@ -34,6 +34,7 @@ The following is reported:
 - Cache information
 - ACPI features
 - Virtualization features
+  - Paravirtualization interface features
 - Memory features
 - Debugging features
 - Security features
@@ -62,7 +63,7 @@ scanning and -r.
 .IP -r
 Print a raw table of CPUID data.
 
-Note: ECX is always cleared.
+Note: ECX is always cleared by default.
 
 .IP -s
 For -r only: provide maximum sub-leaf to travel.
@@ -71,18 +72,21 @@ For -r only: provide maximum sub-leaf to travel.
 You may encounter incorrect reporting. Please contact me if that happens!
 
 .SH NOTES
-This man-page was written for ddcpuid 0.16.0.
+This man-page was written for ddcpuid 0.16.0. The full technical manual contains
+more details, such as explanations to intel and amd technologies, as well as
+various extensions in detail.
 
-A full user manual is available
 .UR https://dd86k.space/docs/ddcpuid-manual.pdf
-online
+Manual:
 .UE
-(PDF).
+(PDF)
 
 While the best supported compiler is DMD, LDC offers superior optimizations.
 
 .SH BUGS
 With GDC, compiling above -O1 segfaults at run-time. Tested on 8.4.0.
+
+May misreport due to human error.
 
 .SH AUTHOR
 Written by dd86k.
@@ -101,4 +105,4 @@ Email:
 .ME
 
 .SH HISTORY
-This project started February 26, 2016.
+This project started February 26, 2016 out of curiosity.

@@ -293,6 +293,7 @@ enum {	// NOTE: Flags for our structure, not CPUID bits!
 	F_SEC_SSBD	= BIT!(6),
 	F_SEC_L1D_FLUSH	= BIT!(7),
 	F_SEC_MD_CLEAR	= BIT!(8),
+	F_SEC_CET_IBT	= BIT!(9),
 	//
 	// Misc. bits
 	//
@@ -307,13 +308,14 @@ char []CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
 
 const(char) *[]PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];
 
-void shelp() {
+void clih() {
 	puts(
 	"x86/AMD64 CPUID information tool\n"~
 	"  Usage: ddcpuid [OPTIONS]\n"~
 	"\n"~
 	"OPTIONS\n"~
 	"  -r    Show raw CPUID data in a table\n"~
+	"  -s    (with -r) subleaf to loop to (ECX)\n"~
 	"  -o    Override leaves to 20h, 4000_0002h, and 8000_0020h\n"~
 	"\n"~
 	"  --version    Print version information screen and quit\n"~
@@ -321,7 +323,7 @@ void shelp() {
 	);
 }
 
-void sversion() {
+void cliv() {
 	import d = std.compiler;
 	printf(
 	"ddcpuid-"~PLATFORM~" v"~VERSION~" ("~__TIMESTAMP__~")\n"~
@@ -363,10 +365,10 @@ int main(int argc, char **argv) {
 		if (argv[argi][1] == '-') { // Long arguments
 			char* a = argv[argi] + 2;
 			if (strcmp(a, "help") == 0) {
-				shelp; return 0;
+				clih; return 0;
 			}
 			if (strcmp(a, "version") == 0) {
-				sversion; return 0;
+				cliv; return 0;
 			}
 			printf("Unknown parameter: %s\n", a);
 			return 1;
@@ -379,7 +381,7 @@ int main(int argc, char **argv) {
 			case 's':
 				opt_subleaf = cast(uint)strtol(argv[argi + 1], null, 10);
 				break;
-			case 'h': shelp; return 0;
+			case 'h': clih; return 0;
 			default:
 				printf("Unknown parameter: %c\n", o);
 				return 1;
@@ -801,6 +803,7 @@ int main(int argc, char **argv) {
 	case VENDOR_INTEL:
 		if (cpu.SEC & F_SEC_L1D_FLUSH) printf(" L1D_FLUSH");
 		if (cpu.SEC & F_SEC_MD_CLEAR) printf(" MD_CLEAR");
+		if (cpu.SEC & F_SEC_CET_IBT) printf(" CET_IBT");
 		break;
 	case VENDOR_AMD:
 		if (cpu.SEC & F_SEC_IBRS_ON) printf(" IBRS_ON");
@@ -1314,7 +1317,6 @@ CACHE_AMD_NEWER:
 		if (b & BIT!(17)) s.AVX   |= F_AVX_AVX512DQ;
 		if (b & BIT!(30)) s.AVX   |= F_AVX_AVX512BW;
 		if (b & BIT!(21)) s.AVX   |= F_AVX_AVX512_IFMA;
-		if (b & BIT!(29)) s.EXTEN |= F_EXTEN_SHA;
 		if (b & BIT!(31)) s.AVX   |= F_AVX_AVX512_VBMI;
 		// ECX
 		if (c & BIT!(1)) s.AVX    |= F_AVX_AVX512VL;
@@ -1338,6 +1340,7 @@ CACHE_AMD_NEWER:
 		if (d & BIT!(8)) s.AVX    |= F_AVX_AVX512_VP2INTERSECT;
 		if (d & BIT!(10)) s.SEC   |= F_SEC_MD_CLEAR;
 		if (d & BIT!(18)) s.EXTRA |= F_EXTRA_PCONFIG;
+		if (d & BIT!(20)) s.SEC   |= F_SEC_CET_IBT;
 		if (d & BIT!(26)) s.SEC   |= (F_SEC_IBRS | F_SEC_IBPB);
 		if (d & BIT!(27)) s.SEC   |= F_SEC_STIBP;
 		if (d & BIT!(28)) s.SEC   |= F_SEC_L1D_FLUSH;
@@ -1347,6 +1350,7 @@ CACHE_AMD_NEWER:
 	default:
 	}
 
+	// b
 	if (b & BIT!(0)) s.MISC   |= F_MISC_FSGSBASE;
 	if (b & BIT!(3)) s.EXTEN  |= F_EXTEN_BMI1;
 	if (b & BIT!(5)) s.AVX    |= F_AVX_AVX2;
@@ -1355,6 +1359,8 @@ CACHE_AMD_NEWER:
 	if (b & BIT!(18)) s.EXTRA |= F_EXTRA_RDSEED;
 	if (b & BIT!(19)) s.EXTEN |= F_EXTEN_ADX;
 	if (b & BIT!(23)) s.EXTRA |= F_EXTRA_CLFLUSHOPT;
+	if (b & BIT!(29)) s.EXTEN |= F_EXTEN_SHA;
+	// c
 	if (c & BIT!(22)) s.EXTRA |= F_EXTRA_RDPID;
 
 	switch (s.VendorID) {

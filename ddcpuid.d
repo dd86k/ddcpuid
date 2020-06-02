@@ -329,7 +329,7 @@ void cliv() {
 	"ddcpuid-"~PLATFORM~" v"~VERSION~" ("~__TIMESTAMP__~")\n"~
 	"Copyright (c) dd86k 2016-2020\n"~
 	"License: MIT License <http://opensource.org/licenses/MIT>\n"~
-	"Project page: <https://git.dd86k.space/ddcpuid>, <https://github.com/dd86k/ddcpuid>\n"~
+	"Project page: <https://git.dd86k.space/dd86k/ddcpuid>, <https://github.com/dd86k/ddcpuid>\n"~
 	"Compiler: "~ __VENDOR__ ~" v%u.%03u\n",
 	d.version_major, d.version_minor
 	);
@@ -409,7 +409,7 @@ int main(int argc, char **argv) {
 			do { printc(l, s); } while (++s <= opt_subleaf);
 			s = 0;
 		} while (++l <= cpu.MaximumLeaf);
-		l = 0x4000_0000; // Show first level regardless
+		l = 0x4000_0000; // Hypervisor, show first level anyway
 		do {
 			do { printc(l, s); } while (++s <= opt_subleaf);
 			s = 0;

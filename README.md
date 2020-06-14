@@ -22,6 +22,9 @@ DMD, GDC, and LDC compilers are supported. Best supported by DMD.
 GDC support is still experimental. **Compiling above -O1 segfaults at run-time.**
 (tested on GDC 8.3.0-6ubuntu1~18.04.1)
 
+On GDC 10.0, it has been tested that applying any optimization levels break
+analysis and thus show improper results.
+
 ## LDC Notes
 
 Since LDC 1.13.0 includes lld-link on Windows platforms, the project may fail

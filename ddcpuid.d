@@ -1457,7 +1457,7 @@ CACHE_AMD_NEWER:
 		"mov %%ebx, %1\n"~
 		"mov %%ecx, %2\n"~
 		"mov %%edx, %3\n"
-		: "=a" a, "=b" b, "=c" c, "=d", d;
+		: "=a" a, "=b" b, "=c" c, "=d" d;
 	} else asm {
 		mov EAX, 0x4000_0003;
 		mov ECX, 0;

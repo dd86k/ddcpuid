@@ -17,7 +17,7 @@ int putchar(int c);
 void* memset(void *, int, size_t);
 long strtol(scope inout(char)*,scope inout(char)**, int);
 
-enum	VERSION = "0.16.0"; /// Program version
+enum	VERSION = "0.16.1"; /// Program version
 enum	MAX_LEAF  = 0x20, /// Maximum leaf (-o)
 	MAX_VLEAF = 0x4000_0010, /// Maximum virt leaf (-o)
 	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
@@ -62,6 +62,9 @@ enum {	// NOTE: Flags for our structure, not CPUID bits!
 	F_EXTEN_XOP	= BIT!(24),
 	F_EXTEN_TBM	= BIT!(25),
 	F_EXTEN_ADX	= BIT!(26),
+	F_EXTEN_AMX	= BIT!(27),
+	F_EXTEN_AMX_BF16	= BIT!(28),
+	F_EXTEN_AMX_INT8	= BIT!(29),
 	//
 	// AVX
 	//
@@ -522,6 +525,9 @@ int main(int argc, char **argv) {
 	if (cpu.EXTEN & F_EXTEN_BMI1) printf(" BMI1");
 	if (cpu.EXTEN & F_EXTEN_BMI2) printf(" BMI2");
 	if (cpu.EXTEN & F_EXTEN_WAITPKG) printf(" WAITPKG");
+	if (cpu.EXTEN & F_EXTEN_AMX) printf(" AMX");
+	if (cpu.EXTEN & F_EXTEN_AMX_BF16) printf(" +BF16");
+	if (cpu.EXTEN & F_EXTEN_AMX_INT8) printf(" +INT8");
 
 	//
 	// ANCHOR Other instructions
@@ -581,17 +587,14 @@ int main(int argc, char **argv) {
 			printf(cpu.TECH & F_TECH_TURBOBOOST30 ?
 				" TurboBoot-3.0" : " TurboBoost");
 		if (cpu.TECH & F_MEM_HLE || cpu.TECH & F_MEM_RTM) {
-			printf(" Intel-TSX (");
+			printf(" TSX");
 			if (cpu.TECH & F_MEM_HLE)
-				printf("HLE");
-			if (cpu.TECH & F_MEM_HLE && cpu.TECH & F_MEM_RTM)
-				printf(", ");
+				printf(" +HLE");
 			if (cpu.TECH & F_MEM_RTM)
-				printf("RTM");
-			printf(")");
+				printf(" +RTM");
 		}
-		if (cpu.TECH & F_TECH_SMX) printf(" Intel-TXT/SMX");
-		if (cpu.TECH & F_TECH_SGX) printf(" Intel-SGX");
+		if (cpu.TECH & F_TECH_SMX) printf(" TXT/SMX");
+		if (cpu.TECH & F_TECH_SGX) printf(" SGX");
 		break;
 	case VENDOR_AMD:
 		if (cpu.TECH & F_TECH_TURBOBOOST) printf(" Core-Performance-Boost");
@@ -1341,6 +1344,9 @@ CACHE_AMD_NEWER:
 		if (d & BIT!(10)) s.SEC   |= F_SEC_MD_CLEAR;
 		if (d & BIT!(18)) s.EXTRA |= F_EXTRA_PCONFIG;
 		if (d & BIT!(20)) s.SEC   |= F_SEC_CET_IBT;
+		if (d & BIT!(22)) s.EXTEN |= F_EXTEN_AMX_BF16;
+		if (d & BIT!(24)) s.EXTEN |= F_EXTEN_AMX;
+		if (d & BIT!(25)) s.EXTEN |= F_EXTEN_AMX_INT8;
 		if (d & BIT!(26)) s.SEC   |= (F_SEC_IBRS | F_SEC_IBPB);
 		if (d & BIT!(27)) s.SEC   |= F_SEC_STIBP;
 		if (d & BIT!(28)) s.SEC   |= F_SEC_L1D_FLUSH;

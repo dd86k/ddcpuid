@@ -121,6 +121,7 @@ enum {	// NOTE: Flags for our structure, not CPUID bits!
 	F_EXTRA_MONITORX	= BIT!(27),
 	F_EXTRA_SKINIT	= BIT!(28),
 	F_EXTRA_CLFLUSHOPT	= BIT!(29),
+	F_EXTRA_SERIALIZE	= BIT!(30),
 	//
 	// Technology bits
 	//
@@ -530,7 +531,7 @@ int main(int argc, char **argv) {
 	if (cpu.EXTEN & F_EXTEN_AMX_INT8) printf(" +INT8");
 
 	//
-	// ANCHOR Other instructions
+	// ANCHOR Extra/lone instructions
 	//
 
 	printf("\n[Extra]");
@@ -573,6 +574,7 @@ int main(int argc, char **argv) {
 	if (cpu.EXTRA & F_EXTRA_MOVDIR64B) printf(" MOVDIR64B");
 	if (cpu.EXTRA & F_EXTRA_ENQCMD) printf(" ENQCMD");
 	if (cpu.EXTRA & F_EXTRA_SKINIT) printf(" SKINIT+STGI");
+	if (cpu.EXTRA & F_EXTRA_SERIALIZE) printf(" SERIALIZE");
 
 	//
 	// ANCHOR Vendor specific technologies
@@ -1342,6 +1344,7 @@ CACHE_AMD_NEWER:
 		if (d & BIT!(3)) s.AVX    |= F_AVX_AVX512_4FMAPS;
 		if (d & BIT!(8)) s.AVX    |= F_AVX_AVX512_VP2INTERSECT;
 		if (d & BIT!(10)) s.SEC   |= F_SEC_MD_CLEAR;
+		if (d & BIT!(14)) s.EXTRA |= F_EXTRA_SERIALIZE;
 		if (d & BIT!(18)) s.EXTRA |= F_EXTRA_PCONFIG;
 		if (d & BIT!(20)) s.SEC   |= F_SEC_CET_IBT;
 		if (d & BIT!(22)) s.EXTEN |= F_EXTEN_AMX_BF16;
@@ -1904,6 +1907,7 @@ struct CPUINFO { align(1):
 	/// Bit 27: MONITORX+MWAITX$(BR)
 	/// Bit 28: SKINIT+STGI$(BR)
 	/// Bit 29: CLFLUSHOPT$(BR)
+	/// Bit 30: SERIALIZE$(BR)
 	uint EXTRA;
 
 	//

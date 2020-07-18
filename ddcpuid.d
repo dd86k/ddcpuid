@@ -341,11 +341,13 @@ void cliv() {
 
 /// Print cpuid info
 void printc(uint leaf, uint sub) {
-	uint a = void, b = void, c = void, d = void;
-	version (GNU) asm {
+	align(1) uint a = void, b = void, c = void, d = void;
+	version (GNU) {
+		asm {
 		"cpuid\n"
 		: "=a" a, "=b" b, "=c" c, "=d" d
 		: "a" leaf "c" sub;
+		}
 	} else asm {
 		mov EAX, leaf;
 		mov ECX, sub;
@@ -647,7 +649,7 @@ int main(int argc, char **argv) {
 	if (cpu.ACPI & F_ACPI_ARAT) printf(" ARAT");
 	if (cpu.ACPI & F_ACPI_TM) printf(" TM");
 	if (cpu.ACPI & F_ACPI_TM2) printf(" TM2");
-	if (cpu.InitialAPICID) printf(" APIC-ID:%u", cpu.InitialAPICID);
+	printf(" APIC-ID:%u", cpu.InitialAPICID);
 	if (cpu.MaxIDs) printf(" MAX-ID:%u", cpu.MaxIDs);
 
 	printf("\n[Virtualization]");

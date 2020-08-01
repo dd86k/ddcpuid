@@ -5,7 +5,7 @@ processors.
 
 _Currently featuring 132 CPUID bits documented and counting!_
 
-The ddcpuid Technical Manual is available here:
+The latest ddcpuid manual is available here:
 [dd86k.space](https://dd86k.space/docs/ddcpuid-manual.pdf) (PDF).
 
 Both the manual and tool is meant to be used together to fully understand
@@ -13,17 +13,22 @@ available features on the processor.
 
 # Compiling
 
+Since ddcpuid is a single file, you simply need to invoke the compiler:
+`gdc ddcpuid.d`. Some compilers accept a module name, making
+`dmd ddcpuid` possible.
+
 It is highly recommended to use the `-betterC` switch when compiling.
 
-DMD, GDC, and LDC compilers are supported. Best supported by DMD.
+DMD, GDC, and LDC compilers are supported. Best supported by DMD, and best
+optimizations by LDC.
 
 ## GDC Notes
 
 GDC support is still experimental. **Compiling above -O1 segfaults at run-time.**
 (tested on GDC 8.3.0-6ubuntu1~18.04.1)
 
-On GDC 10.0, it has been tested that applying any optimization levels break
-analysis and thus show improper results.
+On GDC 10.0, it has been tested that applying any optimization level will break
+results.
 
 ## LDC Notes
 

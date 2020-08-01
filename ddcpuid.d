@@ -341,13 +341,11 @@ void cliv() {
 
 /// Print cpuid info
 void printc(uint leaf, uint sub) {
-	align(1) uint a = void, b = void, c = void, d = void;
-	version (GNU) {
-		asm {
+	uint a = void, b = void, c = void, d = void;
+	version (GNU) asm {
 		"cpuid\n"
-		: "=a" a, "=b" b, "=c" c, "=d" d
-		: "a" leaf "c" sub;
-		}
+		: "=a" (a), "=b" (b), "=c" (c), "=d" (d)
+		: "a" (leaf), "c" (sub);
 	} else asm {
 		mov EAX, leaf;
 		mov ECX, sub;

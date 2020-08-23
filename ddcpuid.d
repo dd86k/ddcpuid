@@ -790,7 +790,7 @@ int main(int argc, char **argv) {
 	if (cpu.MEM & F_MEM_SMAP) printf(" SMAP");
 	if (cpu.MEM & F_MEM_PKU) printf(" PKU");
 	if (cpu.MEM & F_MEM_5PL) printf(" 5PL");
-	if (cpu.MEM & F_MEM_FSREPMOV) printf(" FSREPMOV");
+	if (cpu.MEM & F_MEM_FSREPMOV) printf(" FSRM");
 
 	printf("\nDebugging   :");
 	if (cpu.DEBUG & F_DEBUG_MCA) printf(" MCA");
@@ -2034,7 +2034,7 @@ struct CPUINFO { align(1):
 	/// Bit 12: SMAP$(BR)
 	/// Bit 13: PKU$(BR)
 	/// Bit 14: 5PL (5-level paging)$(BR)
-	/// Bit 15: FSREPMOV (fast rep mov)$(BR)
+	/// Bit 15: FSRM (fast rep mov)$(BR)
 	uint MEM;
 	union {
 		ushort b_8000_0008_ax;

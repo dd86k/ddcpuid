@@ -17,7 +17,7 @@ int putchar(int c);
 void* memset(void *, int, size_t);
 long strtol(scope inout(char)*,scope inout(char)**, int);
 
-enum	VERSION = "0.16.1"; /// Program version
+enum	VERSION = "0.17.0"; /// Program version
 enum	MAX_LEAF  = 0x20, /// Maximum leaf (-o)
 	MAX_VLEAF = 0x4000_0010, /// Maximum virt leaf (-o)
 	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
@@ -442,10 +442,10 @@ int main(int argc, char **argv) {
 	//
 
 	printf(
-	"[Vendor] %.12s\n"~
-	"[String] %.48s\n"~
-	"[Identifier] Family %u (%Xh) [%Xh:%Xh] Model %u (%Xh) [%Xh:%Xh] Stepping %u\n"~
-	"[Extensions]",
+	"Vendor      : %.12s\n"~
+	"String      : %.48s\n"~
+	"Identifier  : Family %u (%Xh) [%Xh:%Xh] Model %u (%Xh) [%Xh:%Xh] Stepping %u\n"~
+	"Extensions  :",
 	cast(char*)cpu.vendorString, cstring,
 	cpu.Family, cpu.Family, cpu.BaseFamily, cpu.ExtendedFamily,
 	cpu.Model, cpu.Model, cpu.BaseModel, cpu.ExtendedModel,
@@ -458,11 +458,11 @@ int main(int argc, char **argv) {
 	}
 	if (cpu.EXTEN & F_EXTEN_MMX) {
 		printf(" MMX");
-		if (cpu.EXTEN & F_EXTEN_MMXEXT) printf(" Ext.MMX");
+		if (cpu.EXTEN & F_EXTEN_MMXEXT) printf(" ExtMMX");
 	}
 	if (cpu.EXTEN & F_EXTEN_3DNOW) {
 		printf(" 3DNow!");
-		if (cpu.EXTEN & F_EXTEN_3DNOWEXT) printf(" Ext.3DNow!");
+		if (cpu.EXTEN & F_EXTEN_3DNOWEXT) printf(" Ext3DNow!");
 	}
 	if (cpu.EXTEN & F_EXTEN_SSE) {
 		printf(" SSE");
@@ -534,11 +534,11 @@ int main(int argc, char **argv) {
 	// ANCHOR Extra/lone instructions
 	//
 
-	printf("\n[Extra]");
+	printf("\nExtra       :");
 	if (cpu.EXTRA & F_EXTRA_MONITOR) {
 		printf(" MONITOR+MWAIT");
 		if (cpu.mwait_min)
-			printf(" +MIN:%u +MAX:%u", cpu.mwait_min, cpu.mwait_max);
+			printf(" +MIN=%u +MAX=%u", cpu.mwait_min, cpu.mwait_max);
 		if (cpu.EXTRA & F_EXTRA_MONITORX) printf(" MONITORX+MWAITX");
 	}
 	if (cpu.EXTRA & F_EXTRA_PCLMULQDQ) printf(" PCLMULQDQ");
@@ -580,7 +580,7 @@ int main(int argc, char **argv) {
 	// ANCHOR Vendor specific technologies
 	//
 
-	printf("\n[Technologies]");
+	printf("\nTechnologies:");
 
 	switch (cpu.VendorID) {
 	case VENDOR_INTEL:
@@ -609,9 +609,9 @@ int main(int argc, char **argv) {
 	// ANCHOR Cache information
 	//
 
-	printf("\n[Cache]");
+	printf("\nCache       :");
 	if (cpu.CACHE & F_CACHE_CLFLUSH) {
-		printf(" CLFLUSH:%uB", cpu.CLFLUSHLineSize << 3);
+		printf(" CLFLUSH=%uB", cpu.CLFLUSHLineSize << 3);
 	}
 	if (cpu.EXTRA & F_EXTRA_CLFLUSHOPT) printf(" CLFLUSHOPT");
 	if (cpu.CACHE & F_CACHE_CNXT_ID) printf(" CNXT_ID");
@@ -628,39 +628,39 @@ int main(int argc, char **argv) {
 			ca.size >>= 10;
 			c = 'M';
 		}
-		printf("\n- L%u-%c: %u %ciB, %u ways, %u partitions, %u B, %u sets",
+		printf("\n\tL%u-%c: %u %ciB\t%2u ways, %u parts, %u B, %u sets",
 			ca.level, CACHE_TYPE[ca.type], ca.size, c,
 			ca.ways, ca.partitions, ca.linesize, ca.sets
 		);
-		if (ca.features & BIT!(0)) printf("\n\t- Self Initializing");
-		if (ca.features & BIT!(1)) printf("\n\t- Fully Associative");
-		if (ca.features & BIT!(2)) printf("\n\t- No Write-Back Validation");
-		if (ca.features & BIT!(3)) printf("\n\t- Cache Inclusive");
-		if (ca.features & BIT!(4)) printf("\n\t- Complex Cache Indexing");
+		if (ca.feat & BIT!(0)) printf(" +SI"); // Self Initiative
+		if (ca.feat & BIT!(1)) printf(" +FA"); // Fully Associative
+		if (ca.feat & BIT!(2)) printf(" +NWBV"); // No Write-Back Validation
+		if (ca.feat & BIT!(3)) printf(" +CI"); // Cache Inclusive
+		if (ca.feat & BIT!(4)) printf(" +CCI"); // Complex Cache Indexing
 		++ca;
 	}
 
-	printf("\n[ACPI]");
+	printf("\nACPI        :");
 	if (cpu.ACPI & F_ACPI_ACPI) printf(" ACPI");
 	if (cpu.ACPI & F_ACPI_APIC) printf(" APIC");
 	if (cpu.ACPI & F_ACPI_x2APIC) printf(" x2APIC");
 	if (cpu.ACPI & F_ACPI_ARAT) printf(" ARAT");
 	if (cpu.ACPI & F_ACPI_TM) printf(" TM");
 	if (cpu.ACPI & F_ACPI_TM2) printf(" TM2");
-	printf(" APIC-ID:%u", cpu.InitialAPICID);
-	if (cpu.MaxIDs) printf(" MAX-ID:%u", cpu.MaxIDs);
+	printf(" APIC-ID=%u", cpu.InitialAPICID);
+	if (cpu.MaxIDs) printf(" MAX-ID=%u", cpu.MaxIDs);
 
-	printf("\n[Virtualization]");
+	printf("\nVirt.       :");
 	if (cpu.VIRT & F_VIRT_VME) printf(" VME");
 	if (cpu.MaximumVirtLeaf >= 0x4000_0000) {
 		if (cpu.virt_vendor_id)
-			printf(" HOST:%.12s", cast(char*)cpu.virt_vendor);
+			printf(" HOST=%.12s", cast(char*)cpu.virt_vendor);
 		switch (cpu.virt_vendor_id) {
 		case VIRT_VENDOR_VBOX_MIN: // VBox Minimal Paravirt
 			if (cpu.VIRT_SPEC)
-				printf(" TSC_FREQ_KHZ:%u", cpu.VIRT_SPEC);
+				printf(" TSC_FREQ_KHZ=%u", cpu.VIRT_SPEC);
 			if (cpu.VIRT_SPEC2)
-				printf(" APIC_FREQ_KHZ:%u", cpu.VIRT_SPEC2);
+				printf(" APIC_FREQ_KHZ=%u", cpu.VIRT_SPEC2);
 			break;
 		case VIRT_VENDOR_VBOX_HV: // Hyper-V
 			if (cpu.VIRT_SPEC & HV_BASE_FEAT_VP_RUNTIME_MSR) printf(" HV_BASE_FEAT_VP_RUNTIME_MSR");
@@ -764,9 +764,9 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	printf("\n[Memory]");
-	if (cpu.phys_bits) printf(" P-Bits:%u", cpu.phys_bits);
-	if (cpu.line_bits) printf(" L-Bits:%u", cpu.line_bits);
+	printf("\nMemory      :");
+	if (cpu.phys_bits) printf(" P-Bits=%u", cpu.phys_bits);
+	if (cpu.line_bits) printf(" L-Bits=%u", cpu.line_bits);
 	if (cpu.MEM & F_MEM_PAE) printf(" PAE");
 	if (cpu.MEM & F_MEM_PSE) printf(" PSE");
 	if (cpu.MEM & F_MEM_PSE_36) printf(" PSE-36");
@@ -787,7 +787,7 @@ int main(int argc, char **argv) {
 	if (cpu.MEM & F_MEM_5PL) printf(" 5PL");
 	if (cpu.MEM & F_MEM_FSREPMOV) printf(" FSREPMOV");
 
-	printf("\n[Debugging]");
+	printf("\nDebugging   :");
 	if (cpu.DEBUG & F_DEBUG_MCA) printf(" MCA");
 	if (cpu.DEBUG & F_DEBUG_MCE) printf(" MCE");
 	if (cpu.DEBUG & F_DEBUG_DE) printf(" DE");
@@ -798,7 +798,7 @@ int main(int argc, char **argv) {
 	if (cpu.DEBUG & F_DEBUG_SDBG) printf(" SDBG");
 	if (cpu.DEBUG & F_DEBUG_PBE) printf(" PBE");
 
-	printf("\n[Security]");
+	printf("\nSecurity    :");
 	if (cpu.SEC & F_SEC_IBPB) printf(" IBPB");
 	if (cpu.SEC & F_SEC_IBRS) printf(" IBRS");
 	if (cpu.SEC & F_SEC_STIBP) printf(" STIBP");
@@ -818,7 +818,7 @@ int main(int argc, char **argv) {
 	default:
 	}
 
-	printf("\n[Misc.] HLeaf:%Xh HELeaf:%Xh Type:%s Index:%u",
+	printf("\nMisc.       : HLeaf=%Xh HELeaf=%Xh Type=%s Index=%u",
 		cpu.MaximumLeaf, cpu.MaximumExtendedLeaf,
 		PROCESSOR_TYPE[cpu.ProcessorType], cpu.BrandIndex);
 	if (cpu.MISC & F_MISC_xTPR) printf(" xTPR");
@@ -1000,11 +1000,11 @@ void fetchInfo(ref CPUINFO s) {
 		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
 		ca.ways = cast(ubyte)((b >> 22) + 1);
 		ca.sets = cast(ushort)(c + 1);
-		if (a & BIT!(8)) ca.features = 1;
-		if (a & BIT!(9)) ca.features |= BIT!(1);
-		if (d & BIT!(0)) ca.features |= BIT!(2);
-		if (d & BIT!(1)) ca.features |= BIT!(3);
-		if (d & BIT!(2)) ca.features |= BIT!(4);
+		if (a & BIT!(8)) ca.feat = 1;
+		if (a & BIT!(9)) ca.feat |= BIT!(1);
+		if (d & BIT!(0)) ca.feat |= BIT!(2);
+		if (d & BIT!(1)) ca.feat |= BIT!(3);
+		if (d & BIT!(2)) ca.feat |= BIT!(4);
 		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
 
 		debug printf("| %8X | %8X | %8X | %8X | %8X |\n", l, a, b, c, d);
@@ -1118,10 +1118,10 @@ CACHE_AMD_NEWER:
 		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
 		ca.ways = cast(ubyte)((b >> 22) + 1);
 		ca.sets = cast(ushort)(c + 1);
-		if (a & BIT!(8)) ca.features = 1;
-		if (a & BIT!(9)) ca.features |= BIT!(1);
-		if (d & BIT!(0)) ca.features |= BIT!(2);
-		if (d & BIT!(1)) ca.features |= BIT!(3);
+		if (a & BIT!(8)) ca.feat = 1;
+		if (a & BIT!(9)) ca.feat |= BIT!(1);
+		if (d & BIT!(0)) ca.feat |= BIT!(2);
+		if (d & BIT!(1)) ca.feat |= BIT!(3);
 		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
 
 		debug printf("| %8X | %8X | %8X | %8X | %8X |\n", l, a, b, c, d);
@@ -1786,7 +1786,7 @@ struct CACHEINFO {
 	// bit 2, Write-Back Invalidate/Invalidate (toggle)
 	// bit 3, Cache Inclusiveness (toggle)
 	// bit 4, Complex Cache Indexing (toggle)
-	ushort features;
+	ushort feat;
 	ubyte type; // data=1, instructions=2, unified=3
 	ubyte level; // L1, L2, etc.
 }

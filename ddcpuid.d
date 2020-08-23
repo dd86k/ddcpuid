@@ -1786,9 +1786,9 @@ struct CACHEINFO {
 	/// (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
 	uint size; // Size in KB
 	ushort sets;
-	// bit 0, Self Initializing cache level
+	// bit 0, Self Initializing cache
 	// bit 1, Fully Associative cache
-	// bit 2, Write-Back Invalidate/Invalidate (toggle)
+	// bit 2, No Write-Back Invalidation (toggle)
 	// bit 3, Cache Inclusiveness (toggle)
 	// bit 4, Complex Cache Indexing (toggle)
 	ushort feat;

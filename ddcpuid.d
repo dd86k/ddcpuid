@@ -17,23 +17,28 @@ int putchar(int c);
 void* memset(void *, int, size_t);
 long strtol(scope inout(char)*,scope inout(char)**, int);
 
-enum	VERSION = "0.17.0"; /// Program version
-enum	MAX_LEAF  = 0x20, /// Maximum leaf (-o)
-	MAX_VLEAF = 0x4000_0010, /// Maximum virt leaf (-o)
-	MAX_ELEAF = 0x8000_0020; /// Maximum extended leaf (-o)
+enum VERSION	= "0.17.0"; /// Program version
+
+enum : uint {
+	MAX_LEAF	= 0x20, /// Maximum leaf (-o)
+	MAX_VLEAF	= 0x4000_0010, /// Maximum virt leaf (-o)
+	MAX_ELEAF	= 0x8000_0020, /// Maximum extended leaf (-o)
+}
 
 // Self-made vendor "IDs" for faster look-ups, LSB-based.
-enum VENDOR_OTHER = 0;	/// Other/unknown
-enum VENDOR_INTEL = 0x756e6547;	/// Intel: "Genu"
-enum VENDOR_AMD   = 0x68747541;	/// AMD: "Auth"
-enum VENDOR_VIA   = 0x20414956;	/// VIA: "VIA "
-enum VIRT_VENDOR_KVM      = 0x4b4d564b; /// KVM: "KVMK"
-enum VIRT_VENDOR_VBOX_HV  = 0x786f4256; /// VirtualBox: "VBox", hyper-v interface
-enum VIRT_VENDOR_VBOX_MIN = 0x00000000; /// VirtualBox: Minimal interface
+enum : uint {
+	VENDOR_OTHER = 0,	/// Other/unknown
+	VENDOR_INTEL = 0x756e6547,	/// Intel: "Genu"
+	VENDOR_AMD   = 0x68747541,	/// AMD: "Auth"
+	VENDOR_VIA   = 0x20414956,	/// VIA: "VIA "
+	VIRT_VENDOR_KVM      = 0x4b4d564b, /// KVM: "KVMK"
+	VIRT_VENDOR_VBOX_HV  = 0x786f4256, /// VirtualBox: "VBox", hyper-v interface
+	VIRT_VENDOR_VBOX_MIN = 0x00000000, /// VirtualBox: Minimal interface
+}
 
 template BIT(int n) { enum { BIT = 1 << n } }
 
-enum {	// NOTE: Flags for our structure, not CPUID bits!
+enum {	// NOTE: CPUINFO structure flags, not actual CPUID bits
 	//
 	// Extension bits
 	//

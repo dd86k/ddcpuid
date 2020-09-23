@@ -2,13 +2,9 @@
 extern (C):
 __gshared:
 
-version (X86)
-	enum PLATFORM = "x86";
-else
-version (X86_64)
-	enum PLATFORM = "amd64";
-else
-static assert(0, "ddcpuid is only supported on x86 platforms");
+version (X86) enum PLATFORM = "x86";
+else version (X86_64) enum PLATFORM = "amd64";
+else static assert(0, "ddcpuid is only supported on x86 platforms");
 
 int strcmp(scope const char*, scope const char*);
 int printf(scope const char*, ...);
@@ -278,6 +274,7 @@ enum {	// NOTE: CPUINFO structure flags, not actual CPUID bits
 	F_MEM_PKU	= BIT!(13),
 	F_MEM_5PL	= BIT!(14),
 	F_MEM_FSREPMOV	= BIT!(15),
+	F_MEM_TSXLDTRK	= BIT!(16),
 	//
 	// Debug bits
 	//
@@ -599,6 +596,8 @@ int main(int argc, char **argv) {
 				printf(" +HLE");
 			if (cpu.TECH & F_MEM_RTM)
 				printf(" +RTM");
+			if (cpu.EXTEN & F_MEM_TSXLDTRK)
+				printf(" +TSXLDTRK");
 		}
 		if (cpu.TECH & F_TECH_SMX) printf(" TXT/SMX");
 		if (cpu.TECH & F_TECH_SGX) printf(" SGX");
@@ -1350,6 +1349,7 @@ CACHE_AMD_NEWER:
 		if (d & BIT!(8)) s.AVX    |= F_AVX_AVX512_VP2INTERSECT;
 		if (d & BIT!(10)) s.SEC   |= F_SEC_MD_CLEAR;
 		if (d & BIT!(14)) s.EXTRA |= F_EXTRA_SERIALIZE;
+		if (d & BIT!(16)) s.EXTEN |= F_MEM_TSXLDTRK;
 		if (d & BIT!(18)) s.EXTRA |= F_EXTRA_PCONFIG;
 		if (d & BIT!(20)) s.SEC   |= F_SEC_CET_IBT;
 		if (d & BIT!(22)) s.EXTEN |= F_EXTEN_AMX_BF16;

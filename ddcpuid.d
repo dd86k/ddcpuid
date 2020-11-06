@@ -1,3 +1,13 @@
+/*
+ * ddcpuid x86 CPU Identification tool
+ * Written by dd86k <dd@dax.moe>
+ *
+ * NOTE: printf is mainly used for two reasons. First, fputs with stdout
+ *       crashes on Windows. Secondly, line buffering.
+ *
+ * License: MIT
+ */
+
 @system:
 extern (C):
 __gshared:
@@ -9,9 +19,11 @@ else static assert(0, "ddcpuid is only supported on x86 platforms");
 int strcmp(scope const char*, scope const char*);
 int printf(scope const char*, ...);
 int puts(scope const char*);
-int putchar(int c);
+int putchar(int);
 void* memset(void *, int, size_t);
 long strtol(scope inout(char)*,scope inout(char)**, int);
+
+template BIT(int n) { enum { BIT = 1 << n } }
 
 enum VERSION	= "0.17.0"; /// Program version
 
@@ -31,8 +43,6 @@ enum : uint {
 	VIRT_VENDOR_VBOX_HV  = 0x786f4256, /// VirtualBox: "VBox", hyper-v interface
 	VIRT_VENDOR_VBOX_MIN = 0x00000000, /// VirtualBox: Minimal interface
 }
-
-template BIT(int n) { enum { BIT = 1 << n } }
 
 enum {	// NOTE: CPUINFO structure flags, not actual CPUID bits
 	//
@@ -317,7 +327,7 @@ const(char) *[]PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];
 void clih() {
 	puts(
 	"x86/AMD64 CPUID information tool\n"~
-	"  Usage: ddcpuid [OPTIONS]\n"~
+	"  Usage: ddcpuid [OPTIONS...]\n"~
 	"\n"~
 	"OPTIONS\n"~
 	"  -r    Show raw CPUID data in a table\n"~
@@ -376,21 +386,24 @@ int main(int argc, char **argv) {
 			if (strcmp(a, "version") == 0) {
 				cliv; return 0;
 			}
-			printf("Unknown parameter: %s\n", a);
+			printf("Unknown parameter: '%s'\n", argv[argi]);
 			return 1;
 		} else if (argv[argi][0] == '-') { // Short arguments
-			char* a = argv[argi];
-			char o = a[1];
-			switch (o) {
-			case 'o': opt_override = true; break;
-			case 'r': opt_raw = true; break;
-			case 's':
-				opt_subleaf = cast(uint)strtol(argv[argi + 1], null, 10);
-				break;
-			case 'h': clih; return 0;
-			default:
-				printf("Unknown parameter: %c\n", o);
-				return 1;
+			char* a = argv[argi] + 1;
+			char o = void;
+			while ((o = *a) != 0) {
+				++a;
+				switch (o) {
+				case 'o': opt_override = true; continue;
+				case 'r': opt_raw = true; continue;
+				case 's':
+					opt_subleaf = cast(uint)strtol(argv[argi + 1], null, 10);
+					continue;
+				case 'h': clih; return 0;
+				default:
+					printf("Unknown parameter: '-%c'\n", o);
+					return 1;
+				}
 			}
 		} // else if
 	} // for

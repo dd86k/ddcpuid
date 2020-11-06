@@ -643,7 +643,7 @@ int main(int argc, char **argv) {
 			ca.size >>= 10;
 			c = 'M';
 		}
-		printf("\n\tL%u-%c: %u %ciB\t%2u ways, %u parts, %u B, %u sets",
+		printf("\n\tL%u-%c: %u %ciB\t%u ways, %u parts, %u B, %u sets",
 			ca.level, CACHE_TYPE[ca.type], ca.size, c,
 			ca.ways, ca.partitions, ca.linesize, ca.sets
 		);

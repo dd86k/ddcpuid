@@ -410,17 +410,28 @@ int main(int argc, char **argv) {
 		"| Leaf     | Sub-leaf | EAX      | EBX      | ECX      | EDX      |\n"~
 		"|----------|----------|----------|----------|----------|----------|"
 		);
-		uint l, s; // Normal
+		
+		// EAX=00000000H: Normal leaves
+		
+		uint l, s;
 		do {
 			do { printc(l, s); } while (++s <= opt_subleaf);
 			s = 0;
 		} while (++l <= cpu.MaximumLeaf);
-		l = 0x4000_0000; // Hypervisor, show first level anyway
-		do {
-			do { printc(l, s); } while (++s <= opt_subleaf);
-			s = 0;
-		} while (++l <= cpu.MaximumVirtLeaf);
-		l = 0x8000_0000; // Extended
+		
+		// EAX=4000000H: Paravirtualization leaves
+		
+		if (cpu.MaximumVirtLeaf) {
+			l = 0x4000_0000;
+			do {
+				do { printc(l, s); } while (++s <= opt_subleaf);
+				s = 0;
+			} while (++l <= cpu.MaximumVirtLeaf);
+		}
+		
+		// EAX=80000000H: Extended leaves
+		
+		l = 0x8000_0000;
 		do {
 			do { printc(l, s); } while (++s <= opt_subleaf);
 			s = 0;

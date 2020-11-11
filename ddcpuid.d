@@ -678,7 +678,7 @@ int main(int argc, char **argv) {
 	printf(" APIC-ID=%u", cpu.InitialAPICID);
 	if (cpu.MaxIDs) printf(" MAX-ID=%u", cpu.MaxIDs);
 
-	printf("\nVirt.       :");
+	printf("\nVirtual     :");
 	if (cpu.VIRT & F_VIRT_VME) printf(" VME");
 	if (cpu.MaximumVirtLeaf >= 0x4000_0000) {
 		if (cpu.virt_vendor_id)

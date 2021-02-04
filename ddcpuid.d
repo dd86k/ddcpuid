@@ -324,6 +324,7 @@ char []CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
 
 const(char) *[]PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];
 
+/// print help page
 void clih() {
 	puts(
 	"x86/AMD64 CPUID information tool\n"~
@@ -339,11 +340,12 @@ void clih() {
 	);
 }
 
+/// print version page
 void cliv() {
 	import d = std.compiler;
 	printf(
 	"ddcpuid-"~PLATFORM~" v"~VERSION~" ("~__TIMESTAMP__~")\n"~
-	"Copyright (c) dd86k 2016-2020\n"~
+	"Copyright (c) dd86k 2016-2021\n"~
 	"License: MIT License <http://opensource.org/licenses/MIT>\n"~
 	"Project page: <https://git.dd86k.space/dd86k/ddcpuid>, <https://github.com/dd86k/ddcpuid>\n"~
 	"Compiler: "~ __VENDOR__ ~" v%u.%03u\n",

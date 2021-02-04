@@ -8,24 +8,33 @@
  * License: MIT
  */
 
-@system:
-extern (C):
-__gshared:
+//TODO: Redo system with templates
 
 version (X86) enum PLATFORM = "x86";
 else version (X86_64) enum PLATFORM = "amd64";
 else static assert(0, "ddcpuid is only supported on x86 platforms");
 
+@system:
+extern (C):
+__gshared:
+
+enum VERSION = "0.17.1"; /// Program version
+
 int strcmp(scope const char*, scope const char*);
-int printf(scope const char*, ...);
 int puts(scope const char*);
 int putchar(int);
 void* memset(void *, int, size_t);
-long strtol(scope inout(char)*,scope inout(char)**, int);
+long strtol(scope inout(char)*, scope inout(char)**, int);
 
+static if (__VERSION__ >= 2092) {
+	pragma(printf)
+	int printf(scope const char*, ...);
+} else {
+	int printf(scope const char*, ...);
+}
+
+/// Make a bit mask of one bit at n position
 template BIT(int n) { enum { BIT = 1 << n } }
-
-enum VERSION	= "0.17.0"; /// Program version
 
 enum : uint {
 	MAX_LEAF	= 0x20, /// Maximum leaf (-o)
@@ -318,9 +327,10 @@ enum {	// NOTE: CPUINFO structure flags, not actual CPUID bits
 	F_MISC_xTPR	= BIT!(10),
 	F_MISC_IA32_ARCH_CAPABILITIES	= BIT!(11),
 	F_MISC_FSGSBASE	= BIT!(12),
+	F_MISC_UINTR	= BIT!(13),
 }
 
-char []CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
+immutable char []CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
 
 const(char) *[]PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];
 
@@ -347,7 +357,7 @@ void cliv() {
 	"ddcpuid-"~PLATFORM~" v"~VERSION~" ("~__TIMESTAMP__~")\n"~
 	"Copyright (c) dd86k 2016-2021\n"~
 	"License: MIT License <http://opensource.org/licenses/MIT>\n"~
-	"Project page: <https://git.dd86k.space/dd86k/ddcpuid>, <https://github.com/dd86k/ddcpuid>\n"~
+	"Project page: <https://github.com/dd86k/ddcpuid>\n"~
 	"Compiler: "~ __VENDOR__ ~" v%u.%03u\n",
 	d.version_major, d.version_minor
 	);
@@ -856,6 +866,7 @@ int main(int argc, char **argv) {
 	if (cpu.MISC & F_MISC_PCID) printf(" PCID");
 	if (cpu.MISC & F_MISC_IA32_ARCH_CAPABILITIES) printf(" IA32_ARCH_CAPABILITIES");
 	if (cpu.MISC & F_MISC_FSGSBASE) printf(" FSGSBASE");
+	if (cpu.MISC & F_MISC_UINTR) printf(" UINTR");
 
 	putchar('\n');
 
@@ -1372,6 +1383,7 @@ CACHE_AMD_NEWER:
 		// EDX
 		if (d & BIT!(2)) s.AVX    |= F_AVX_AVX512_4VNNIW;
 		if (d & BIT!(3)) s.AVX    |= F_AVX_AVX512_4FMAPS;
+		if (d & BIT!(5)) s.MISC   |= F_MISC_UINTR;
 		if (d & BIT!(8)) s.AVX    |= F_AVX_AVX512_VP2INTERSECT;
 		if (d & BIT!(10)) s.SEC   |= F_SEC_MD_CLEAR;
 		if (d & BIT!(14)) s.EXTRA |= F_EXTRA_SERIALIZE;
@@ -2113,6 +2125,7 @@ struct CPUINFO { align(1):
 	/// Bit 10: xTPR$(BR)
 	/// Bit 11: IA32_ARCH_CAPABILITIES$(BR)
 	/// Bit 12: FSGSBASE$(BR)
+	/// Bit 13: User Interrupts (UINTR)$(BR)
 	uint MISC;
 }
 

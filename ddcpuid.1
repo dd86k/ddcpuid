@@ -2,7 +2,7 @@
 ." Please read man-pages(7) and groff_man(7) about the manual page format.
 ." Don't forget to respect the format of this document!
 ."
-.TH ddcpuid 1 "June 2020" dd86k "User manual"
+.TH ddcpuid 1 "February 2021" dd86k "User manual"
 .SH NAME
 ddcpuid - Simple x86/AMD64 CPUID tool
 
@@ -10,7 +10,7 @@ ddcpuid - Simple x86/AMD64 CPUID tool
 .SY ddcpuid
 .OP \-r
 .OP \-o
-.OP \-s [...]
+.OP \-s SUBLEAF
 .OP \--help
 .OP \--version
 .YS
@@ -61,18 +61,15 @@ Overrides leaves to 20h, 4000_0010h, and 8000_0020h. Affects feature
 scanning and -r.
 
 .IP -r
-Print a raw table of CPUID data.
+Print a raw table of CPUID data. The table is Markdown-compatible.
 
-Note: ECX is always cleared by default.
+Note: Default, the sub-leaf input (ECX) is cleared.
 
 .IP -s
-For -r only: provide maximum sub-leaf to travel.
-
-.SH WARNINGS
-You may encounter incorrect reporting. Please contact me if that happens!
+Provide how many sub-leaves (ECX) to travel. Applies for -r.
 
 .SH NOTES
-This man-page was written for ddcpuid 0.16.0. The full technical manual contains
+This man-page was written for ddcpuid 0.17.1. The full technical manual contains
 more details, such as explanations to intel and amd technologies, as well as
 various extensions in detail.
 

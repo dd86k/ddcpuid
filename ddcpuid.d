@@ -828,7 +828,7 @@ int main(int argc, char **argv) {
 	if (cpu.MEM & F_MEM_PKU) printf(" PKU");
 	if (cpu.MEM & F_MEM_5PL) printf(" 5PL");
 	if (cpu.MEM & F_MEM_FSREPMOV) printf(" FSRM");
-	if (cpu.MEM & F_MEM_LAM) printf(" FSRM");
+	if (cpu.MEM & F_MEM_LAM) printf(" LAM");
 
 	printf("\nDebugging   :");
 	if (cpu.DEBUG & F_DEBUG_MCA) printf(" MCA");

@@ -1,14 +1,25 @@
+# Binaries
 *.obj
 *.exe
 *.dll
 *.lib
 *.o
 *.di
-*.zip
-*.tar
-*.tar.gz
 .vscode
 a.out
+
+# Archives
+*.xz
+*.gz
+*.zip
+*.tar
+
+# =========================
+# Operating System Files
+# =========================
+
+# Windows
+# =========================
 
 # Windows image file caches
 Thumbs.db
@@ -28,10 +39,6 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
-
-# =========================
-# Operating System Files
-# =========================
 
 # OSX
 # =========================

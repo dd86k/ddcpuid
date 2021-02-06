@@ -294,6 +294,7 @@ enum {	// NOTE: CPUINFO structure flags, not actual CPUID bits
 	F_MEM_5PL	= BIT!(14),
 	F_MEM_FSREPMOV	= BIT!(15),
 	F_MEM_TSXLDTRK	= BIT!(16),
+	F_MEM_LAM	= BIT!(17),
 	//
 	// Debug bits
 	//
@@ -319,6 +320,7 @@ enum {	// NOTE: CPUINFO structure flags, not actual CPUID bits
 	F_SEC_L1D_FLUSH	= BIT!(7),
 	F_SEC_MD_CLEAR	= BIT!(8),
 	F_SEC_CET_IBT	= BIT!(9),
+	F_SEC_CET_SS	= BIT!(10),
 	//
 	// Misc. bits
 	//
@@ -826,6 +828,7 @@ int main(int argc, char **argv) {
 	if (cpu.MEM & F_MEM_PKU) printf(" PKU");
 	if (cpu.MEM & F_MEM_5PL) printf(" 5PL");
 	if (cpu.MEM & F_MEM_FSREPMOV) printf(" FSRM");
+	if (cpu.MEM & F_MEM_LAM) printf(" FSRM");
 
 	printf("\nDebugging   :");
 	if (cpu.DEBUG & F_DEBUG_MCA) printf(" MCA");
@@ -849,6 +852,7 @@ int main(int argc, char **argv) {
 		if (cpu.SEC & F_SEC_L1D_FLUSH) printf(" L1D_FLUSH");
 		if (cpu.SEC & F_SEC_MD_CLEAR) printf(" MD_CLEAR");
 		if (cpu.SEC & F_SEC_CET_IBT) printf(" CET_IBT");
+		if (cpu.SEC & F_SEC_CET_SS) printf(" CET_SS");
 		break;
 	case VENDOR_AMD:
 		if (cpu.SEC & F_SEC_IBRS_ON) printf(" IBRS_ON");
@@ -1370,6 +1374,7 @@ CACHE_AMD_NEWER:
 		if (c & BIT!(4)) s.MEM    |= F_MEM_FSREPMOV;
 		if (c & BIT!(5)) s.EXTEN  |= F_EXTEN_WAITPKG;
 		if (c & BIT!(6)) s.AVX    |= F_AVX_AVX512_VBMI2;
+		if (c & BIT!(7)) s.SEC    |= F_SEC_CET_SS;
 		if (c & BIT!(8)) s.AVX    |= F_AVX_AVX512_GFNI;
 		if (c & BIT!(9)) s.AVX    |= F_AVX_AVX512_VAES;
 		if (c & BIT!(11)) s.AVX   |= F_AVX_AVX512_VNNI;
@@ -1430,7 +1435,8 @@ CACHE_AMD_NEWER:
 			mov a, EAX;
 		} // ----- 7H ECX=1h
 		// a
-		if (a & BIT!(5)) s.AVX |= F_AVX_AVX512_BF16;
+		if (a & BIT!(5))  s.AVX |= F_AVX_AVX512_BF16;
+		if (a & BIT!(26)) s.MEM |= F_MEM_LAM;
 		break;
 	default:
 	}
@@ -1965,12 +1971,12 @@ struct CPUINFO { align(1):
 	/// Bit 4: (Intel) SGX: Software Guard Extensions$(BR)
 	/// Bit 24: HTT, Hyper-Threading Technology$(BR)
 	uint TECH;
-	
+
 	//
 	// Cache
 	//
 
-	// 6 levels should be enough (L1-D, L1-I, L2, L3, 0, 0)
+	// 6 levels should be enough (L1-D, L1-I, L2-U, L3-U, 0, 0)
 	/// Caches
 	CACHEINFO [6]caches;
 	/// Cache features$(BR)
@@ -2073,6 +2079,8 @@ struct CPUINFO { align(1):
 	/// Bit 13: PKU$(BR)
 	/// Bit 14: 5PL (5-level paging)$(BR)
 	/// Bit 15: FSRM (fast rep mov)$(BR)
+	/// Bit 16: TSXLDTRK$(BR)
+	/// Bit 17: LAM$(BR)
 	uint MEM;
 	union {
 		ushort b_8000_0008_ax;
@@ -2081,7 +2089,7 @@ struct CPUINFO { align(1):
 			ubyte line_bits;	// EAX[15:8]
 		}
 	}
-			
+
 
 	//
 	// Debugging
@@ -2113,6 +2121,8 @@ struct CPUINFO { align(1):
 	/// Bit 6: SSBD$(BR)
 	/// Bit 7: L1D_FLUSH$(BR)
 	/// Bit 8: MD_CLEAR$(BR)
+	/// Bit 9: CET_IBT$(BR)
+	/// Bit 10: CET_SS$(BR)
 	uint SEC;
 
 	//
@@ -2129,5 +2139,5 @@ struct CPUINFO { align(1):
 	uint MISC;
 }
 
-pragma(msg, "* sizeof CPUINFO: ", CPUINFO.sizeof);
-pragma(msg, "* sizeof CACHE: ", CACHEINFO.sizeof);
+debug pragma(msg, "* sizeof CPUINFO: ", CPUINFO.sizeof);
+debug pragma(msg, "* sizeof CACHE: ", CACHEINFO.sizeof);

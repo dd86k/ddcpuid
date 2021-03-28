@@ -15,6 +15,7 @@ version (X86) enum PLATFORM = "x86";
 else version (X86_64) enum PLATFORM = "amd64";
 else static assert(0, "ddcpuid is only supported on x86 platforms");
 
+private:
 @system:
 extern (C):
 __gshared:
@@ -269,10 +270,20 @@ struct CPUINFO { align(1):
 		uint virt_vendor_id;
 	}
 	
+	// VBox
+	
+	uint vbox_tsc_freq_khz;
+	uint vbox_apic_freq_khz;
+	ushort vbox_guest_vendor_id;
+	ushort vbox_guest_build;
+	ubyte vbox_guest_os;
+	ubyte vbox_guest_major;
+	ubyte vbox_guest_minor;
+	ubyte vbox_guest_service;
+	bool vbox_guest_opensource;
+	
 	// KVM
 	
-	uint kvm_tsc_freq_khz;
-	uint kvm_apic_freq_khz;
 	bool kvm_feature_clocksource;
 	bool kvm_feature_nop_io_delay;
 	bool kvm_feature_mmu_op;
@@ -454,285 +465,6 @@ enum : uint {
 	VIRT_VENDOR_VBOX_MIN = 0, /// VirtualBox: Minimal interface
 }
 
-/*enum {	// NOTE: CPUINFO_OLD structure flags, not actual CPUID bits
-	//
-	// Extension bits
-	//
-	F_EXTEN_FPU	= BIT!(0),
-	F_EXTEN_F16C	= BIT!(1),
-	F_EXTEN_MMX	= BIT!(2),
-	F_EXTEN_MMXEXT	= BIT!(3),
-	F_EXTEN_3DNOW	= BIT!(4),
-	F_EXTEN_3DNOWEXT	= BIT!(5),
-	F_EXTEN_SSE	= BIT!(6),
-	F_EXTEN_SSE2	= BIT!(7),
-	F_EXTEN_SSE3	= BIT!(8),
-	F_EXTEN_SSSE3	= BIT!(9),
-	F_EXTEN_SSE41	= BIT!(10),
-	F_EXTEN_SSE42	= BIT!(11),
-	F_EXTEN_SSE4a	= BIT!(12),
-	F_EXTEN_AES_NI	= BIT!(15),
-	F_EXTEN_SHA	= BIT!(16),
-	F_EXTEN_FMA	= BIT!(17),
-	F_EXTEN_FMA4	= BIT!(18),
-	F_EXTEN_BMI1	= BIT!(19),
-	F_EXTEN_BMI2	= BIT!(20),
-	F_EXTEN_x86_64	= BIT!(21),
-	F_EXTEN_LAHF64	= BIT!(22),
-	F_EXTEN_WAITPKG	= BIT!(23),
-	F_EXTEN_XOP	= BIT!(24),
-	F_EXTEN_TBM	= BIT!(25),
-	F_EXTEN_ADX	= BIT!(26),
-	F_EXTEN_AMX	= BIT!(27),
-	F_EXTEN_AMX_BF16	= BIT!(28),
-	F_EXTEN_AMX_INT8	= BIT!(29),
-	//
-	// AVX
-	//
-	F_AVX_AVX	= BIT!(0),
-	F_AVX_AVX2	= BIT!(1),
-	F_AVX_AVX512F	= BIT!(2),
-	F_AVX_AVX512ER	= BIT!(3),
-	F_AVX_AVX512PF	= BIT!(4),
-	F_AVX_AVX512CD	= BIT!(5),
-	F_AVX_AVX512DQ	= BIT!(6),
-	F_AVX_AVX512BW	= BIT!(7),
-	F_AVX_AVX512VL	= BIT!(8),
-	F_AVX_AVX512_IFMA	= BIT!(9),
-	F_AVX_AVX512_VBMI	= BIT!(10),
-	F_AVX_AVX512_VBMI2	= BIT!(11),
-	F_AVX_AVX512_GFNI	= BIT!(12),
-	F_AVX_AVX512_VAES	= BIT!(13),
-	F_AVX_AVX512_VNNI	= BIT!(14),
-	F_AVX_AVX512_BITALG	= BIT!(15),
-	F_AVX_AVX512_VPOPCNTDQ	= BIT!(16),
-	F_AVX_AVX512_4VNNIW	= BIT!(17),
-	F_AVX_AVX512_4FMAPS	= BIT!(18),
-	F_AVX_AVX512_BF16	= BIT!(19),
-	F_AVX_AVX512_VP2INTERSECT	= BIT!(20),
-	//
-	// Extras
-	//
-	F_EXTRA_MONITOR	= BIT!(0),
-	F_EXTRA_PCLMULQDQ	= BIT!(1),
-	F_EXTRA_CMPXCHG8B	= BIT!(2),
-	F_EXTRA_CMPXCHG16B	= BIT!(3),
-	F_EXTRA_MOVBE	= BIT!(4),
-	F_EXTRA_RDRAND	= BIT!(5),
-	F_EXTRA_RDSEED	= BIT!(6),
-	F_EXTRA_RDMSR	= BIT!(7),
-	F_EXTRA_SYSENTER	= BIT!(8),
-	F_EXTRA_TSC	= BIT!(9),
-	F_EXTRA_TSC_DEADLINE	= BIT!(10),
-	F_EXTRA_TSC_INVARIANT	= BIT!(11),
-	F_EXTRA_RDTSCP	= BIT!(12),
-	F_EXTRA_RDPID	= BIT!(13),
-	F_EXTRA_CMOV	= BIT!(14),
-	F_EXTRA_LZCNT	= BIT!(15),
-	F_EXTRA_POPCNT	= BIT!(16),
-	F_EXTRA_XSAVE	= BIT!(17),
-	F_EXTRA_OSXSAVE	= BIT!(18),
-	F_EXTRA_FXSR	= BIT!(19),
-	F_EXTRA_PCONFIG	= BIT!(20),
-	F_EXTRA_CLDEMOTE	= BIT!(22),
-	F_EXTRA_MOVDIRI	= BIT!(23),
-	F_EXTRA_MOVDIR64B	= BIT!(24),
-	F_EXTRA_ENQCMD	= BIT!(25),
-	F_EXTRA_SYSCALL	= BIT!(26),
-	F_EXTRA_MONITORX	= BIT!(27),
-	F_EXTRA_SKINIT	= BIT!(28),
-	F_EXTRA_CLFLUSHOPT	= BIT!(29),
-	F_EXTRA_SERIALIZE	= BIT!(30),
-	//
-	// Technology bits
-	//
-	F_TECH_EIST	= BIT!(0),
-	F_TECH_TURBOBOOST	= BIT!(1),
-	F_TECH_TURBOBOOST30	= BIT!(2),
-	F_TECH_SMX	= BIT!(3),
-	F_TECH_SGX	= BIT!(4),
-	F_TECH_HTT	= BIT!(24),
-	//
-	// Cache bits
-	//
-	F_CACHE_CLFLUSH	= BIT!(8),
-	F_CACHE_CNXT_ID	= BIT!(9),
-	F_CACHE_SS	= BIT!(10),
-	F_CACHE_PREFETCHW	= BIT!(11),
-	F_CACHE_INVPCID	= BIT!(12),
-	F_CACHE_WBNOINVD	= BIT!(13),
-	//
-	// ACPI bits
-	//
-	F_ACPI_ACPI	= BIT!(0),
-	F_ACPI_APIC	= BIT!(0),
-	F_ACPI_x2APIC	= BIT!(0),
-	F_ACPI_ARAT	= BIT!(0),
-	F_ACPI_TM	= BIT!(0),
-	F_ACPI_TM2	= BIT!(0),
-	//
-	// Virt bits
-	//
-	F_VIRT_VIRT	= BIT!(8),
-	F_VIRT_VME	= BIT!(9),
-	//
-	// KVM interface bits
-	//
-	F_KVM_FEATURE_CLOCKSOURCE	= BIT!(0),
-	F_KVM_FEATURE_NOP_IO_DELAY	= BIT!(1),
-	F_KVM_FEATURE_MMU_OP	= BIT!(2),
-	F_KVM_FEATURE_CLOCKSOURCE2	= BIT!(3),
-	F_KVM_FEATURE_ASYNC_PF	= BIT!(4),
-	F_KVM_FEATURE_STEAL_TIME	= BIT!(5),
-	F_KVM_FEATURE_PV_EOI	= BIT!(6),
-	F_KVM_FEATURE_PV_UNHAULT	= BIT!(7),
-	F_KVM_FEATURE_PV_TLB_FLUSH	= BIT!(9),
-	F_KVM_FEATURE_ASYNC_PF_VMEXIT	= BIT!(10),
-	F_KVM_FEATURE_PV_SEND_IPI	= BIT!(11),
-	F_KVM_FEATURE_PV_POLL_CONTROL	= BIT!(12),
-	F_KVM_FEATURE_PV_SCHED_YIELD	= BIT!(13),
-	F_KVM_FEATURE_CLOCSOURCE_STABLE_BIT	= BIT!(24),
-	F_KVM_HINTS_REALTIME	= BIT!(25),
-	//
-	// Hyper-V interface bits
-	//
-	HV_BASE_FEAT_VP_RUNTIME_MSR                  = BIT!(0), // Pair A,-
-	HV_BASE_FEAT_PART_TIME_REF_COUNT_MSR         = BIT!(1),
-	HV_BASE_FEAT_BASIC_SYNIC_MSRS                = BIT!(2),
-	HV_BASE_FEAT_STIMER_MSRS                     = BIT!(3),
-	HV_BASE_FEAT_APIC_ACCESS_MSRS                = BIT!(4),
-	HV_BASE_FEAT_HYPERCALL_MSRS                  = BIT!(5),
-	HV_BASE_FEAT_VP_ID_MSR                       = BIT!(6),
-	HV_BASE_FEAT_VIRT_SYS_RESET_MSR              = BIT!(7),
-	HV_BASE_FEAT_STAT_PAGES_MSR                  = BIT!(8),
-	HV_BASE_FEAT_PART_REF_TSC_MSR                = BIT!(9),
-	HV_BASE_FEAT_GUEST_IDLE_STATE_MSR            = BIT!(10),
-	HV_BASE_FEAT_TIMER_FREQ_MSRS                 = BIT!(11),
-	HV_BASE_FEAT_DEBUG_MSRS                      = BIT!(12),
-	HV_PART_FLAGS_CREATE_PART                    = BIT!(0), // Pair B,2
-	HV_PART_FLAGS_ACCESS_PART_ID                 = BIT!(1),
-	HV_PART_FLAGS_ACCESS_MEMORY_POOL             = BIT!(2),
-	HV_PART_FLAGS_ADJUST_MSG_BUFFERS             = BIT!(3),
-	HV_PART_FLAGS_POST_MSGS                      = BIT!(4),
-	HV_PART_FLAGS_SIGNAL_EVENTS                  = BIT!(5),
-	HV_PART_FLAGS_CREATE_PORT                    = BIT!(6),
-	HV_PART_FLAGS_CONNECT_PORT                   = BIT!(7),
-	HV_PART_FLAGS_ACCESS_STATS                   = BIT!(8),
-	HV_PART_FLAGS_DEBUGGING                      = BIT!(11),
-	HV_PART_FLAGS_CPU_MGMT                       = BIT!(12),
-	HV_PART_FLAGS_CPU_PROFILER                   = BIT!(13),
-	HV_PART_FLAGS_EXPANDED_STACK_WALK            = BIT!(14),
-	HV_PART_FLAGS_ACCESS_VSM                     = BIT!(16),
-	HV_PART_FLAGS_ACCESS_VP_REGS                 = BIT!(17),
-	HV_PART_FLAGS_EXTENDED_HYPERCALLS            = BIT!(20),
-	HV_PART_FLAGS_START_VP                       = BIT!(21),
-	HV_PM_MAX_CPU_POWER_STATE_C0                 = BIT!(0) << 24, // Pair C,3
-	HV_PM_MAX_CPU_POWER_STATE_C1                 = BIT!(1) << 24,
-	HV_PM_MAX_CPU_POWER_STATE_C2                 = BIT!(2) << 24,
-	HV_PM_MAX_CPU_POWER_STATE_C3                 = BIT!(3) << 24,
-	HV_PM_HPET_REQD_FOR_C3                       = BIT!(4) << 24,
-	HV_MISC_FEAT_MWAIT                           = BIT!(0),
-	HV_MISC_FEAT_GUEST_DEBUGGING                 = BIT!(1),
-	HV_MISC_FEAT_PERF_MON                        = BIT!(2),
-	HV_MISC_FEAT_PCPU_DYN_PART_EVENT             = BIT!(3),
-	HV_MISC_FEAT_XMM_HYPERCALL_INPUT             = BIT!(4),
-	HV_MISC_FEAT_GUEST_IDLE_STATE                = BIT!(5),
-	HV_MISC_FEAT_HYPERVISOR_SLEEP_STATE          = BIT!(6),
-	HV_MISC_FEAT_QUERY_NUMA_DISTANCE             = BIT!(7),
-	HV_MISC_FEAT_TIMER_FREQ                      = BIT!(8),
-	HV_MISC_FEAT_INJECT_SYNMC_XCPT               = BIT!(9),
-	HV_MISC_FEAT_GUEST_CRASH_MSRS                = BIT!(10),
-	HV_MISC_FEAT_DEBUG_MSRS                      = BIT!(11),
-	HV_MISC_FEAT_NPIEP1                          = BIT!(12),
-	HV_MISC_FEAT_DISABLE_HYPERVISOR              = BIT!(13),
-	HV_MISC_FEAT_EXT_GVA_RANGE_FOR_FLUSH_VA_LIST = BIT!(14),
-	HV_MISC_FEAT_HYPERCALL_OUTPUT_XMM            = BIT!(15),
-	HV_MISC_FEAT_SINT_POLLING_MODE               = BIT!(17),
-	HV_MISC_FEAT_HYPERCALL_MSR_LOCK              = BIT!(18),
-	HV_MISC_FEAT_USE_DIRECT_SYNTH_MSRS           = BIT!(19),
-	HV_HINT_HYPERCALL_FOR_PROCESS_SWITCH         = BIT!(0), // Pair D,4
-	HV_HINT_HYPERCALL_FOR_TLB_FLUSH              = BIT!(1),
-	HV_HINT_HYPERCALL_FOR_TLB_SHOOTDOWN          = BIT!(2),
-	HV_HINT_MSR_FOR_APIC_ACCESS                  = BIT!(3),
-	HV_HINT_MSR_FOR_SYS_RESET                    = BIT!(4),
-	HV_HINT_RELAX_TIME_CHECKS                    = BIT!(5),
-	HV_HINT_DMA_REMAPPING                        = BIT!(6),
-	HV_HINT_INTERRUPT_REMAPPING                  = BIT!(7),
-	HV_HINT_X2APIC_MSRS                          = BIT!(8),
-	HV_HINT_DEPRECATE_AUTO_EOI                   = BIT!(9),
-	HV_HINT_SYNTH_CLUSTER_IPI_HYPERCALL          = BIT!(10),
-	HV_HINT_EX_PROC_MASKS_INTERFACE              = BIT!(11),
-	HV_HINT_NESTED_HYPERV                        = BIT!(12),
-	HV_HINT_INT_FOR_MBEC_SYSCALLS                = BIT!(13),
-	HV_HINT_NESTED_ENLIGHTENED_VMCS_INTERFACE    = BIT!(14),
-	HV_HOST_FEAT_AVIC                            = BIT!(0) << 16,
-	HV_HOST_FEAT_MSR_BITMAP                      = BIT!(1) << 16,
-	HV_HOST_FEAT_PERF_COUNTER                    = BIT!(2) << 16,
-	HV_HOST_FEAT_NESTED_PAGING                   = BIT!(3) << 16,
-	HV_HOST_FEAT_DMA_REMAPPING                   = BIT!(4) << 16,
-	HV_HOST_FEAT_INTERRUPT_REMAPPING             = BIT!(5) << 16,
-	HV_HOST_FEAT_MEM_PATROL_SCRUBBER             = BIT!(6) << 16,
-	HV_HOST_FEAT_DMA_PROT_IN_USE                 = BIT!(7) << 16,
-	HV_HOST_FEAT_HPET_REQUESTED                  = BIT!(8) << 16,
-	HV_HOST_FEAT_STIMER_VOLATILE                 = BIT!(9) << 16,
-	//
-	// Memory bits
-	//
-	F_MEM_PAE	= BIT!(0),
-	F_MEM_PSE	= BIT!(1),
-	F_MEM_PSE_36	= BIT!(2),
-	F_MEM_PAGE1GB	= BIT!(3),
-	F_MEM_MTRR	= BIT!(4),
-	F_MEM_PAT	= BIT!(5),
-	F_MEM_PGE	= BIT!(6),
-	F_MEM_DCA	= BIT!(7),
-	F_MEM_NX	= BIT!(8),
-	F_MEM_HLE	= BIT!(9),
-	F_MEM_RTM	= BIT!(10),
-	F_MEM_SMEP	= BIT!(11),
-	F_MEM_SMAP	= BIT!(12),
-	F_MEM_PKU	= BIT!(13),
-	F_MEM_5PL	= BIT!(14),
-	F_MEM_FSREPMOV	= BIT!(15),
-	F_MEM_TSXLDTRK	= BIT!(16),
-	F_MEM_LAM	= BIT!(17),
-	//
-	// Debug bits
-	//
-	F_DEBUG_MCA	= BIT!(0),
-	F_DEBUG_MCE	= BIT!(1),
-	F_DEBUG_DE	= BIT!(2),
-	F_DEBUG_DS	= BIT!(3),
-	F_DEBUG_DS_CPL	= BIT!(4),
-	F_DEBUG_DTES64	= BIT!(5),
-	F_DEBUG_PDCM	= BIT!(6),
-	F_DEBUG_SDBG	= BIT!(7),
-	F_DEBUG_PBE	= BIT!(8),
-	//
-	// Security bits
-	//
-	F_SEC_IBPB	= BIT!(0),
-	F_SEC_IBRS	= BIT!(1),
-	F_SEC_IBRS_ON	= BIT!(2),
-	F_SEC_IBRS_PREF	= BIT!(3),
-	F_SEC_STIBP	= BIT!(4),
-	F_SEC_STIBP_ON	= BIT!(5),
-	F_SEC_SSBD	= BIT!(6),
-	F_SEC_L1D_FLUSH	= BIT!(7),
-	F_SEC_MD_CLEAR	= BIT!(8),
-	F_SEC_CET_IBT	= BIT!(9),
-	F_SEC_CET_SS	= BIT!(10),
-	//
-	// Misc. bits
-	//
-	F_MISC_PSN	= BIT!(8),
-	F_MISC_PCID	= BIT!(9),
-	F_MISC_xTPR	= BIT!(10),
-	F_MISC_IA32_ARCH_CAPABILITIES	= BIT!(11),
-	F_MISC_FSGSBASE	= BIT!(12),
-	F_MISC_UINTR	= BIT!(13),
-}*/
-
 immutable char[] CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
 
 const(char)*[] PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];
@@ -847,7 +579,7 @@ int main(int argc, char **argv) {
 		}
 		
 		// Paravirtualization
-		if (info.max_virt_leaf >= 0x4000_0000)
+		if (info.max_virt_leaf > 0x4000_0000)
 		for (l = 0x4000_0000; l <= info.max_virt_leaf; ++l) {
 			s = 0;
 			do { printc(l, s); } while (++s <= opt_subleaf);
@@ -1091,17 +823,25 @@ int main(int argc, char **argv) {
 
 	printf("\nVirtual     :");
 	if (info.vme) printf(" VME");
-	if (info.max_virt_leaf >= 0x4000_0000) {
+	if (info.max_virt_leaf > 0x4000_0000) {
 		if (info.virt_vendor_id)
 			printf(" HOST=%.12s", cast(char*)info.virt_vendor);
 		switch (info.virt_vendor_id) {
 		case VIRT_VENDOR_VBOX_MIN: // VBox Minimal Paravirt
-			if (info.kvm_tsc_freq_khz)
-				printf(" TSC_FREQ_KHZ=%u", info.kvm_tsc_freq_khz);
-			if (info.kvm_apic_freq_khz)
-				printf(" APIC_FREQ_KHZ=%u", info.kvm_apic_freq_khz);
+			if (info.vbox_tsc_freq_khz)
+				printf(" TSC_FREQ_KHZ=%u", info.vbox_tsc_freq_khz);
+			if (info.vbox_apic_freq_khz)
+				printf(" APIC_FREQ_KHZ=%u", info.vbox_apic_freq_khz);
 			break;
 		case VIRT_VENDOR_VBOX_HV: // Hyper-V
+			printf(" OPENSOURCE=%d VENDOR_ID=%d OS=%d MAJOR=%d MINOR=%d SERVICE=%d BUILD=%d",
+				info.vbox_guest_opensource,
+				info.vbox_guest_vendor_id,
+				info.vbox_guest_os,
+				info.vbox_guest_major,
+				info.vbox_guest_minor,
+				info.vbox_guest_service,
+				info.vbox_guest_build);
 			if (info.hv_base_feat_vp_runtime_msr) printf(" HV_BASE_FEAT_VP_RUNTIME_MSR");
 			if (info.hv_base_feat_part_time_ref_count_msr) printf(" HV_BASE_FEAT_PART_TIME_REF_COUNT_MSR");
 			if (info.hv_base_feat_basic_synic_msrs) printf(" HV_BASE_FEAT_BASIC_SYNIC_MSRS");
@@ -1967,26 +1707,71 @@ CACHE_AMD_NEWER:
 	//
 	// Leaf 4000_0001H
 	//
-
-	version (GNU) asm {
-		"mov $0x40000001, %%eax\n"~
-		"mov $0, %%ecx\n"~
-		"cpuid\n"~
-		"mov %%eax, %0\n"~
-		"mov %%edx, %1\n"
-		: "=a" (a), "=d" (d);
-	} else asm {
-		mov EAX, 0x4000_0001;
-		mov ECX, 0;
-		cpuid;
-		mov a, EAX;
-		mov d, EDX;
-	}
-
+	
 	switch (info.virt_vendor_id) {
 	case VIRT_VENDOR_KVM:
-		// s.VIRT_SPECE = a;
+		version (GNU) asm {
+			"mov $0x40000001, %%eax\n"~
+			"mov $0, %%ecx\n"~
+			"cpuid\n"~
+			"mov %%eax, %0\n"~
+			"mov %%edx, %1\n"
+			: "=a" (a), "=d" (d);
+		} else asm {
+			mov EAX, 0x4000_0001;
+			mov ECX, 0;
+			cpuid;
+			mov a, EAX;
+			mov d, EDX;
+		}
+		if (a & BIT!(0)) info.kvm_feature_clocksource	= true;
+		if (a & BIT!(1)) info.kvm_feature_nop_io_delay	= true;
+		if (a & BIT!(2)) info.kvm_feature_mmu_op	= true;
+		if (a & BIT!(3)) info.kvm_feature_clocksource2	= true;
+		if (a & BIT!(4)) info.kvm_feature_async_pf	= true;
+		if (a & BIT!(5)) info.kvm_feature_steal_time	= true;
+		if (a & BIT!(6)) info.kvm_feature_pv_eoi	= true;
+		if (a & BIT!(7)) info.kvm_feature_pv_unhault	= true;
+		if (a & BIT!(9)) info.kvm_feature_pv_tlb_flush	= true;
+		if (a & BIT!(10)) info.kvm_feature_async_pf_vmexit	= true;
+		if (a & BIT!(11)) info.kvm_feature_pv_send_ipi	= true;
+		if (a & BIT!(12)) info.kvm_feature_pv_poll_control	= true;
+		if (a & BIT!(13)) info.kvm_feature_pv_sched_yield	= true;
+		if (a & BIT!(24)) info.kvm_feature_clocsource_stable_bit	= true;
 		if (d & BIT!(0)) info.kvm_hints_realtime	= true;
+		break;
+	default:
+	}
+
+	if (info.max_virt_leaf < 0x4000_0002) goto EXTENDED_LEAVES;
+	
+	//
+	// Leaf 4000_002H
+	//
+
+	switch (info.virt_vendor_id) {
+	case VIRT_VENDOR_VBOX_HV:
+		version (GNU) asm {
+			"mov $0x40000002, %%eax\n"~
+			"mov $0, %%ecx\n"~
+			"cpuid\n"~
+			"mov %%eax, %0\n"~
+			"mov %%edx, %1\n"
+			: "=a" (a), "=d" (d);
+		} else asm {
+			mov EAX, 0x4000_0002;
+			mov ECX, 0;
+			cpuid;
+			mov a, EAX;
+			mov d, EDX;
+		}
+		if (d >= 0x8000_0000) info.vbox_guest_opensource = true;
+		info.vbox_guest_vendor_id = (d >> 16) & 0xFFF;
+		info.vbox_guest_os = cast(ubyte)(d >> 8);
+		info.vbox_guest_major = cast(ubyte)d;
+		info.vbox_guest_minor = cast(ubyte)(a >> 24);
+		info.vbox_guest_service = cast(ubyte)(a >> 16);
+		info.vbox_guest_build = cast(ushort)a;
 		break;
 	default:
 	}
@@ -1996,31 +1781,81 @@ CACHE_AMD_NEWER:
 	//
 	// Leaf 4000_0003H
 	//
-
-	version (GNU) asm {
-		"mov $0x40000003, %%eax\n"~
-		"mov $0, %%ecx\n"~
-		"cpuid\n"~
-		"mov %%eax, %0\n"~
-		"mov %%ebx, %1\n"~
-		"mov %%ecx, %2\n"~
-		"mov %%edx, %3\n"
-		: "=a" (a), "=b" (b), "=c" (c), "=d" (d);
-	} else asm {
-		mov EAX, 0x4000_0003;
-		mov ECX, 0;
-		cpuid;
-		mov a, EAX;
-		mov b, EBX;
-		mov c, ECX;
-		mov d, EDX;
-	}
-
+	
 	switch (info.virt_vendor_id) {
 	case VIRT_VENDOR_VBOX_HV:
-		info.kvm_tsc_freq_khz = a;
-		info.kvm_apic_freq_khz = b;
-//		info.VIRT_SPEC3 = (c << 24) | d;
+		version (GNU) asm {
+			"mov $0x40000003, %%eax\n"~
+			"mov $0, %%ecx\n"~
+			"cpuid\n"~
+			"mov %%eax, %0\n"~
+			"mov %%ebx, %1\n"~
+			"mov %%ecx, %2\n"~
+			"mov %%edx, %3\n"
+			: "=a" (a), "=b" (b), "=c" (c), "=d" (d);
+		} else asm {
+			mov EAX, 0x4000_0003;
+			mov ECX, 0;
+			cpuid;
+			mov a, EAX;
+			mov b, EBX;
+			mov c, ECX;
+			mov d, EDX;
+		}
+		if (a & BIT!(0)) info.hv_base_feat_vp_runtime_msr	= true;
+		if (a & BIT!(1)) info.hv_base_feat_part_time_ref_count_msr	= true;
+		if (a & BIT!(2)) info.hv_base_feat_basic_synic_msrs	= true;
+		if (a & BIT!(3)) info.hv_base_feat_stimer_msrs	= true;
+		if (a & BIT!(4)) info.hv_base_feat_apic_access_msrs	= true;
+		if (a & BIT!(5)) info.hv_base_feat_hypercall_msrs	= true;
+		if (a & BIT!(6)) info.hv_base_feat_vp_id_msr	= true;
+		if (a & BIT!(7)) info.hv_base_feat_virt_sys_reset_msr	= true;
+		if (a & BIT!(8)) info.hv_base_feat_stat_pages_msr	= true;
+		if (a & BIT!(9)) info.hv_base_feat_part_ref_tsc_msr	= true;
+		if (a & BIT!(10)) info.hv_base_feat_guest_idle_state_msr	= true;
+		if (a & BIT!(11)) info.hv_base_feat_timer_freq_msrs	= true;
+		if (a & BIT!(12)) info.hv_base_feat_debug_msrs	= true;
+		if (b & BIT!(0)) info.hv_part_flags_create_part	= true;
+		if (b & BIT!(1)) info.hv_part_flags_access_part_id	= true;
+		if (b & BIT!(2)) info.hv_part_flags_access_memory_pool	= true;
+		if (b & BIT!(3)) info.hv_part_flags_adjust_msg_buffers	= true;
+		if (b & BIT!(4)) info.hv_part_flags_post_msgs	= true;
+		if (b & BIT!(5)) info.hv_part_flags_signal_events	= true;
+		if (b & BIT!(6)) info.hv_part_flags_create_port	= true;
+		if (b & BIT!(7)) info.hv_part_flags_connect_port	= true;
+		if (b & BIT!(8)) info.hv_part_flags_access_stats	= true;
+		if (b & BIT!(11)) info.hv_part_flags_debugging	= true;
+		if (b & BIT!(12)) info.hv_part_flags_cpu_mgmt	= true;
+		if (b & BIT!(13)) info.hv_part_flags_cpu_profiler	= true;
+		if (b & BIT!(14)) info.hv_part_flags_expanded_stack_walk	= true;
+		if (b & BIT!(16)) info.hv_part_flags_access_vsm	= true;
+		if (b & BIT!(17)) info.hv_part_flags_access_vp_regs	= true;
+		if (b & BIT!(20)) info.hv_part_flags_extended_hypercalls	= true;
+		if (b & BIT!(21)) info.hv_part_flags_start_vp	= true;
+		if (c & BIT!(0)) info.hv_pm_max_cpu_power_state_c0	= true;
+		if (c & BIT!(1)) info.hv_pm_max_cpu_power_state_c1	= true;
+		if (c & BIT!(2)) info.hv_pm_max_cpu_power_state_c2	= true;
+		if (c & BIT!(3)) info.hv_pm_max_cpu_power_state_c3	= true;
+		if (c & BIT!(4)) info.hv_pm_hpet_reqd_for_c3	= true;
+		if (a & BIT!(0)) info.hv_misc_feat_mwait	= true;
+		if (a & BIT!(1)) info.hv_misc_feat_guest_debugging	= true;
+		if (a & BIT!(2)) info.hv_misc_feat_perf_mon	= true;
+		if (a & BIT!(3)) info.hv_misc_feat_pcpu_dyn_part_event	= true;
+		if (a & BIT!(4)) info.hv_misc_feat_xmm_hypercall_input	= true;
+		if (a & BIT!(5)) info.hv_misc_feat_guest_idle_state	= true;
+		if (a & BIT!(6)) info.hv_misc_feat_hypervisor_sleep_state	= true;
+		if (a & BIT!(7)) info.hv_misc_feat_query_numa_distance	= true;
+		if (a & BIT!(8)) info.hv_misc_feat_timer_freq	= true;
+		if (a & BIT!(9)) info.hv_misc_feat_inject_synmc_xcpt	= true;
+		if (a & BIT!(10)) info.hv_misc_feat_guest_crash_msrs	= true;
+		if (a & BIT!(11)) info.hv_misc_feat_debug_msrs	= true;
+		if (a & BIT!(12)) info.hv_misc_feat_npiep1	= true;
+		if (a & BIT!(13)) info.hv_misc_feat_disable_hypervisor	= true;
+		if (a & BIT!(14)) info.hv_misc_feat_ext_gva_range_for_flush_va_list	= true;
+		if (a & BIT!(15)) info.hv_misc_feat_hypercall_output_xmm	= true;
+		if (a & BIT!(17)) info.hv_misc_feat_sint_polling_mode	= true;
+		if (a & BIT!(18)) info.hv_misc_feat_hypercall_msr_lock	= true;
+		if (a & BIT!(19)) info.hv_misc_feat_use_direct_synth_msrs	= true;
 		break;
 	default:
 	}
@@ -2030,23 +1865,36 @@ CACHE_AMD_NEWER:
 	//
 	// Leaf 4000_0004H
 	//
-
-	version (GNU) asm {
-		"mov $0x40000004, %%eax\n"~
-		"mov $0, %%ecx\n"~
-		"cpuid\n"~
-		"mov %%eax, %0\n"
-		: "=a" (a);
-	} else asm {
-		mov EAX, 0x4000_0004;
-		mov ECX, 0;
-		cpuid;
-		mov a, EAX;
-	}
-
+	
 	switch (info.virt_vendor_id) {
 	case VIRT_VENDOR_VBOX_HV:
-		//info.VIRT_SPEC4 = a << 16;
+		version (GNU) asm {
+			"mov $0x40000004, %%eax\n"~
+			"mov $0, %%ecx\n"~
+			"cpuid\n"~
+			"mov %%eax, %0\n"
+			: "=a" (a);
+		} else asm {
+			mov EAX, 0x4000_0004;
+			mov ECX, 0;
+			cpuid;
+			mov a, EAX;
+		}
+		if (a & BIT!(0)) info.hv_hint_hypercall_for_process_switch	= true;
+		if (a & BIT!(1)) info.hv_hint_hypercall_for_tlb_flush	= true;
+		if (a & BIT!(2)) info.hv_hint_hypercall_for_tlb_shootdown	= true;
+		if (a & BIT!(3)) info.hv_hint_msr_for_apic_access	= true;
+		if (a & BIT!(4)) info.hv_hint_msr_for_sys_reset	= true;
+		if (a & BIT!(5)) info.hv_hint_relax_time_checks	= true;
+		if (a & BIT!(6)) info.hv_hint_dma_remapping	= true;
+		if (a & BIT!(7)) info.hv_hint_interrupt_remapping	= true;
+		if (a & BIT!(8)) info.hv_hint_x2apic_msrs	= true;
+		if (a & BIT!(9)) info.hv_hint_deprecate_auto_eoi	= true;
+		if (a & BIT!(10)) info.hv_hint_synth_cluster_ipi_hypercall	= true;
+		if (a & BIT!(11)) info.hv_hint_ex_proc_masks_interface	= true;
+		if (a & BIT!(12)) info.hv_hint_nested_hyperv	= true;
+		if (a & BIT!(13)) info.hv_hint_int_for_mbec_syscalls	= true;
+		if (a & BIT!(14)) info.hv_hint_nested_enlightened_vmcs_interface	= true;
 		break;
 	default:
 	}
@@ -2056,23 +1904,31 @@ CACHE_AMD_NEWER:
 	//
 	// Leaf 4000_0006H
 	//
-
-	version (GNU) asm {
-		"mov $0x40000006, %%eax\n"~
-		"mov $0, %%ecx\n"~
-		"cpuid\n"~
-		"mov %%eax, %0\n"
-		: "=a" (a);
-	} else asm {
-		mov EAX, 0x4000_0006;
-		mov ECX, 0;
-		cpuid;
-		mov a, EAX;
-	}
-
+	
 	switch (info.virt_vendor_id) {
 	case VIRT_VENDOR_VBOX_HV:
-		//info.VIRT_SPEC4 |= cast(ushort)a;
+		version (GNU) asm {
+			"mov $0x40000006, %%eax\n"~
+			"mov $0, %%ecx\n"~
+			"cpuid\n"~
+			"mov %%eax, %0\n"
+			: "=a" (a);
+		} else asm {
+			mov EAX, 0x4000_0006;
+			mov ECX, 0;
+			cpuid;
+			mov a, EAX;
+		}
+		if (a & BIT!(0)) info.hv_host_feat_avic	= true;
+		if (a & BIT!(1)) info.hv_host_feat_msr_bitmap	= true;
+		if (a & BIT!(2)) info.hv_host_feat_perf_counter	= true;
+		if (a & BIT!(3)) info.hv_host_feat_nested_paging	= true;
+		if (a & BIT!(4)) info.hv_host_feat_dma_remapping	= true;
+		if (a & BIT!(5)) info.hv_host_feat_interrupt_remapping	= true;
+		if (a & BIT!(6)) info.hv_host_feat_mem_patrol_scrubber	= true;
+		if (a & BIT!(7)) info.hv_host_feat_dma_prot_in_use	= true;
+		if (a & BIT!(8)) info.hv_host_feat_hpet_requested	= true;
+		if (a & BIT!(9)) info.hv_host_feat_stimer_volatile	= true;
 		break;
 	default:
 	}
@@ -2082,26 +1938,25 @@ CACHE_AMD_NEWER:
 	//
 	// Leaf 4000_0010H
 	//
-
-	version (GNU) asm {
-		"mov $0x40000010, %%eax\n"~
-		"mov $0, %%ecx\n"~
-		"cpuid\n"~
-		"mov %%eax, %0\n"~
-		"mov %%ebx, %1\n"
-		: "=a" (a), "=b" (b);
-	} else asm {
-		mov EAX, 0x4000_0010;
-		mov ECX, 0;
-		cpuid;
-		mov a, EAX;
-		mov b, EBX;
-	}
-
+	
 	switch (info.virt_vendor_id) {
 	case VIRT_VENDOR_VBOX_MIN: // VBox Minimal
-		info.kvm_tsc_freq_khz = a;
-		info.kvm_apic_freq_khz = b;
+		version (GNU) asm {
+			"mov $0x40000010, %%eax\n"~
+			"mov $0, %%ecx\n"~
+			"cpuid\n"~
+			"mov %%eax, %0\n"~
+			"mov %%ebx, %1\n"
+			: "=a" (a), "=b" (b);
+		} else asm {
+			mov EAX, 0x4000_0010;
+			mov ECX, 0;
+			cpuid;
+			mov a, EAX;
+			mov b, EBX;
+		}
+		info.vbox_tsc_freq_khz = a;
+		info.vbox_apic_freq_khz = b;
 		break;
 	default:
 	}
@@ -2323,306 +2178,6 @@ void getLeaves(ref CPUINFO info) {
 		}
 	}
 }
-
-/*deprecated
-struct CPUINFO_OLD { align(1):
-	uint MaximumLeaf;
-	uint max_ext_leaf;
-	uint max_virt_leaf;
-
-	union {
-		ubyte [12]vendorString;	// inits to 0
-		uint VendorID;
-	}
-	ubyte [48]cpuString;	// inits to 0
-
-	//
-	// Identifier
-	//
-
-	ubyte Family;
-	ubyte BaseFamily;
-	ubyte ExtendedFamily;
-	ubyte Model;
-	ubyte BaseModel;
-	ubyte ExtendedModel;
-	ubyte Stepping;
-	ubyte ProcessorType;
-
-	//
-	// Extensions
-	//
-
-	/// Processor extensions$(BR)
-	/// Bit 0: FPU/x87$(BR)
-	/// Bit 1: F16C$(BR)
-	/// Bit 2: MMX$(BR)
-	/// Bit 3: MMXExt$(BR)
-	/// Bit 4: 3DNow!$(BR)
-	/// Bit 5: 3DNow!Ext$(BR)
-	/// Bit 6: SSE$(BR)
-	/// Bit 7: SSE2$(BR)
-	/// Bit 8: SSE3$(BR)
-	/// Bit 9: SSSE3$(BR)
-	/// Bit 10: SSE4.1$(BR)
-	/// Bit 11: SSE4.2$(BR)
-	/// Bit 12: SSE4a$(BR)
-	/// Bit 13: $(BR)
-	/// Bit 14: $(BR)
-	/// Bit 15: AES-NI$(BR)
-	/// Bit 16: SHA 1/256$(BR)
-	/// Bit 17: FMA$(BR)
-	/// Bit 18: FMA4$(BR)
-	/// Bit 19: BMI1$(BR)
-	/// Bit 20: BMI2$(BR)
-	/// Bit 21: x86_64 (long mode, EM64T/Intel64)$(BR)
-	/// Bit 22: +LAHF/SAHF in long mode$(BR)
-	/// Bit 23: WAITPKG$(BR)
-	/// Bit 24: (AMD) XOP$(BR)
-	/// Bit 25: (AMD) TBM$(BR)
-	/// Bit 26: ADX$(BR)
-	uint EXTEN;
-
-	/// All AVX extensions$(BR)
-	/// Bit 0: AVX$(BR)
-	/// Bit 1: AVX2$(BR)
-	/// Bit 2: AVX512F$(BR)
-	/// Bit 3: AVX512ER$(BR)
-	/// Bit 4: AVX512PF$(BR)
-	/// Bit 5: AVX512CD$(BR)
-	/// Bit 6: AVX512DQ$(BR)
-	/// Bit 7: AVX512BW$(BR)
-	/// Bit 8: AVX512VL$(BR)
-	/// Bit 9: AVX512_IFMA$(BR)
-	/// Bit 10: AVX512_VBMI$(BR)
-	/// Bit 11: AVX512_VBMI2$(BR)
-	/// Bit 12: AVX512_GFNI$(BR)
-	/// Bit 13: AVX512_VAES$(BR)
-	/// Bit 14: AVX512_VNNI$(BR)
-	/// Bit 15: AVX512_BITALG$(BR)
-	/// Bit 16: AVX512_VPOPCNTDQ$(BR)
-	/// Bit 17: AVX512_4VNNIW$(BR)
-	/// Bit 18: AVX512_4FMAPS$(BR)
-	/// Bit 19: AVX512_BF16$(BR)
-	/// Bit 20: AVX512_VP2INTERSECT$(BR)
-	uint AVX;
-
-	//
-	// Extras
-	//
-
-	/// Processor extra instructions$(BR)
-	/// Bit 0: MONITOR+WAIT$(BR)
-	/// Bit 1: PCLMULQDQ$(BR)
-	/// Bit 2: CMPXCHG8B$(BR)
-	/// Bit 3: CMPXCHG16B$(BR)
-	/// Bit 4: MOVBE$(BR)
-	/// Bit 5: RDRAND$(BR)
-	/// Bit 6: RDSEED$(BR)
-	/// Bit 7: RDMSR+WRMSR, MSR bit$(BR)
-	/// Bit 8: SYSENTER+SYSEXIT$(BR)
-	/// Bit 9: RDTSC, TSC CPUID bit$(BR)
-	/// Bit 10: +TSC-Deadline$(BR)
-	/// Bit 11: +TSC-Invariant$(BR)
-	/// Bit 12: RDTSCP$(BR)
-	/// Bit 13: RDPID$(BR)
-	/// Bit 14: CMOV (+ if FPU: FCOMI+FCMOV)$(BR)
-	/// Bit 15: LZCNT$(BR)
-	/// Bit 16: POPCNT$(BR)
-	/// Bit 17: XSAVE+XRSTOR$(BR)
-	/// Bit 18: XSETBV+XGETBV (OSXSAVE)$(BR)
-	/// Bit 19: FXSAVE+FXRSTOR (FXSR)$(BR)
-	/// Bit 20: PCONFIG$(BR)
-	/// Bit 22: CLDEMOTE$(BR)
-	/// Bit 23: MOVDIRI$(BR)
-	/// Bit 24: MOVDIR64B$(BR)
-	/// Bit 25: ENQCMD$(BR)
-	/// Bit 26: SYSCALL+SYSRET$(BR)
-	/// Bit 27: MONITORX+MWAITX$(BR)
-	/// Bit 28: SKINIT+STGI$(BR)
-	/// Bit 29: CLFLUSHOPT$(BR)
-	/// Bit 30: SERIALIZE$(BR)
-	uint EXTRA;
-
-	//
-	// Technologies
-	//
-
-	/// Processor technologies$(BR)
-	/// Bit 0: (Intel) EIST: Ehanced SpeedStep$(BR)
-	/// Bit 1: (Intel) TurboBoost (AMD) Core Performance Boost$(BR)
-	/// Bit 2: (Intel) TurboBoost 3.0$(BR)
-	/// Bit 3: (Intel) SMX: TPM/TXT$(BR)
-	/// Bit 4: (Intel) SGX: Software Guard Extensions$(BR)
-	/// Bit 24: HTT, Hyper-Threading Technology$(BR)
-	uint TECH;
-
-	//
-	// Cache
-	//
-
-	// 6 levels should be enough (L1-D, L1-I, L2-U, L3-U, 0, 0)
-	/// Caches
-	CACHEINFO [6]caches;
-	/// Cache features$(BR)
-	/// Bit 0-7: CLFLUSH line size (bytes: * 8)$(BR)
-	/// Bit 8: CLFLUSH available$(BR)
-	/// Bit 9: CNXT-ID: L1 Context ID$(BR)
-	/// Bit 10: SS: Self Snoop$(BR)
-	/// Bit 11: PREFETCHW$(BR)
-	/// Bit 12: INVPCID$(BR)
-	/// Bit 13: WBNOINVD$(BR)
-	ushort CACHE;
-
-	//
-	// ACPI
-	//
-
-	/// ACPI features$(BR)
-	// Initial APIC ID and Maximum APIC IDs on dedicated fields$(BR)
-	/// Bit 0: ACPI$(BR)
-	/// Bit 1: APIC$(BR)
-	/// Bit 2: x2APIC$(BR)
-	/// Bit 3: ARAT: Always-Running-APIC-Timer feature$(BR)
-	/// Bit 4: TM$(BR)
-	/// Bit 5: TM2$(BR)
-	uint ACPI;
-	union { // 01h.EBX
-		uint b_01_ebx;
-		struct {
-			ubyte BrandIndex;
-			ubyte CLFLUSHLineSize;
-			ubyte MaxIDs;
-			ubyte InitialAPICID;
-		}
-	}
-	ushort mwait_min;
-	ushort mwait_max;
-
-	//
-	// Virtualization
-	//
-
-	/// Virtualization features$(BR)
-	/// Bit 0-7: (AMD: EAX[7:0]) SVM version$(BR)
-	/// Bit 8: VMX/SVM capable$(BR)
-	/// Bit 9: VME$(BR)
-	union {
-		ubyte virt_ver;
-		uint VIRT;
-	}
-	// Virtualization software vendor name
-	union {
-		char[12] virt_vendor;
-		uint virt_vendor_id;
-	}
-	/// Hypervisor specific features$(BR)
-	/// * KVM $(BR)
-	/// Bit 0: (KVM) KVM_FEATURE_CLOCKSOURCE$(BR)
-	/// Bit 1: (KVM) KVM_FEATURE_NOP_IO_DELAY$(BR)
-	/// Bit 2: (KVM) KVM_FEATURE_MMU_OP$(BR)
-	/// Bit 3: (KVM) KVM_FEATURE_CLOCKSOURCE2$(BR)
-	/// Bit 4: (KVM) KVM_FEATURE_ASYNC_PF$(BR)
-	/// Bit 5: (KVM) KVM_FEATURE_STEAL_TIME$(BR)
-	/// Bit 6: (KVM) KVM_FEATURE_PV_EOI$(BR)
-	/// Bit 7: (KVM) KVM_FEATURE_PV_UNHAULT$(BR)
-	/// Bit 9: (KVM) KVM_FEATURE_PV_TLB_FLUSH$(BR)
-	/// Bit 10: (KVM) KVM_FEATURE_ASYNC_PF_VMEXIT$(BR)
-	/// Bit 11: (KVM) KVM_FEATURE_PV_SEND_IPI$(BR)
-	/// Bit 12: (KVM) KVM_FEATURE_PV_POLL_CONTROL$(BR)
-	/// Bit 13: (KVM) KVM_FEATURE_PV_SCHED_YIELD$(BR)
-	/// Bit 24: (KVM) KVM_FEATURE_CLOCSOURCE_STABLE_BIT$(BR)
-	/// Bit 25: (KVM) KVM_HINTS_REALTIME$(BR)
-	/// * VBox Minimal$(BR)
-	/// SPEC:  TSC_FREQ_KHZ$(BR)
-	/// SPEC2: APIC_FREQ_KHZ$(BR)
-	/// * VBox Hyper-V$(BR)
-	/// 
-	uint kvm_tsc_freq_khz;
-	uint kvm_apic_freq_khz;
-	uint VIRT_SPEC3;
-	uint VIRT_SPEC4;
-
-	//
-	// Memory
-	//
-
-	/// Memory features$(BR)
-	/// Bit 0: PAE$(BR)
-	/// Bit 1: PSE$(BR)
-	/// Bit 2: PSE-36$(BR)
-	/// Bit 3: Page1GB$(BR)
-	/// Bit 4: MTRR$(BR)
-	/// Bit 5: PAT$(BR)
-	/// Bit 6: PGE$(BR)
-	/// Bit 7: DCA$(BR)
-	/// Bit 8: NX (no execute)$(BR)
-	/// Bit 9: HLE$(BR)
-	/// Bit 10: RTM$(BR)
-	/// Bit 11: SMEP$(BR)
-	/// Bit 12: SMAP$(BR)
-	/// Bit 13: PKU$(BR)
-	/// Bit 14: 5PL (5-level paging)$(BR)
-	/// Bit 15: FSRM (fast rep mov)$(BR)
-	/// Bit 16: TSXLDTRK$(BR)
-	/// Bit 17: LAM$(BR)
-	uint MEM;
-	union {
-		ushort b_8000_0008_ax;
-		struct {
-			ubyte phys_bits;	// EAX[7 :0]
-			ubyte line_bits;	// EAX[15:8]
-		}
-	}
-
-
-	//
-	// Debugging
-	//
-
-	/// Debugging features$(BR)
-	/// Bit 0: MCA$(BR)
-	/// Bit 1: MCE$(BR)
-	/// Bit 2: DE (Debugging Extensions)$(BR)
-	/// Bit 3: DS (Debug Store)$(BR)
-	/// Bit 4: DS-CPL (Debug Store CPL branching)$(BR)
-	/// Bit 5: DTES64 (64-bit DS area)$(BR)
-	/// Bit 6: PDCM$(BR)
-	/// Bit 7: SDBG (IA32_DEBUG_INTERFACE silicon debug)$(BR)
-	/// Bit 8: PBE (Pending Break Enable)$(BR)
-	uint DEBUG;
-
-	//
-	// Security
-	//
-
-	/// Security patches$(BR)
-	/// Bit 0: IBPB$(BR)
-	/// Bit 1: IBRS$(BR)
-	/// Bit 2: IBRS_ON$(BR)
-	/// Bit 3: IBRS_PREF$(BR)
-	/// Bit 4: STIBP$(BR)
-	/// Bit 5: STIBP_ON$(BR)
-	/// Bit 6: SSBD$(BR)
-	/// Bit 7: L1D_FLUSH$(BR)
-	/// Bit 8: MD_CLEAR$(BR)
-	/// Bit 9: CET_IBT$(BR)
-	/// Bit 10: CET_SS$(BR)
-	uint SEC;
-
-	//
-	// Misc.
-	//
-
-	/// Miscellaneous$(BR)
-	/// Bit 8: PSN, serial number$(BR)
-	/// Bit 9: PCID$(BR)
-	/// Bit 10: xTPR$(BR)
-	/// Bit 11: IA32_ARCH_CAPABILITIES$(BR)
-	/// Bit 12: FSGSBASE$(BR)
-	/// Bit 13: User Interrupts (UINTR)$(BR)
-	uint MISC;
-}*/
 
 debug pragma(msg, "* CPUINFO.sizeof: ", CPUINFO.sizeof);
 debug pragma(msg, "* CACHE.sizeof: ", CACHEINFO.sizeof);

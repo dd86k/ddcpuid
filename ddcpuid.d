@@ -2104,25 +2104,21 @@ EXTENDED_LEAVES:
 
 void getLeaves(ref CPUINFO info) {
 	version (GNU) { // GDC
-		uint l = void, lv = void, le = void; // @suppress(dscanner.suspicious.unmodified)
 		asm {
 			"mov $0, %%eax\n"~
 			"cpuid"
-			: "=a" (l);
+			: "=a" (info.max_leaf);
 		}
 		asm {
 			"mov $0x40000000, %%eax\n"~
 			"cpuid"
-			: "=a" (lv);
+			: "=a" (info.max_virt_leaf);
 		}
 		asm {
 			"mov $0x80000000, %%eax\n"~
 			"cpuid"
-			: "=a" (le);
+			: "=a" (info.max_ext_leaf);
 		}
-		info.max_leaf = l;
-		info.max_virt_leaf = lv;
-		info.max_ext_leaf = le;
 	} else
 	version (LDC) { // LDC2
 		version (X86) asm {

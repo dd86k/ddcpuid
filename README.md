@@ -8,8 +8,7 @@ _Currently featuring 154 CPUID bits documented and counting!_
 The latest ddcpuid manual is available here:
 [dd86k.space](https://dd86k.space/docs/ddcpuid-manual.pdf) (PDF).
 
-Both the manual and tool is meant to be used together to fully understand
-available features on the processor.
+Both the manual and tool is meant to be used together to better understand x86.
 
 # Compiling
 
@@ -19,33 +18,10 @@ Since ddcpuid is a single file, you simply need to invoke the compiler:
 
 It is highly recommended to use the `-betterC` switch when compiling.
 
-DMD, GDC, and LDC compilers are supported. Best supported by DMD, and best
-optimizations by LDC.
-
-## GDC Notes
-
-GDC support is still experimental. **Compiling above -O1 segfaults at run-time.**
-(tested on GDC 8.3.0-6ubuntu1~18.04.1)
-
-On GDC 10.0, it has been tested that applying any optimization level will break
-results.
-
-## LDC Notes
-
-Since LDC 1.13.0 includes lld-link on Windows platforms, the project may fail
-to link. Using the older linker from Microsoft will likely fail as well. No 
-workarounds has been found up to this date other than using LDC 1.12.x.
-
-**UPDATE**: This has been fixed in 1.15. Linker now includes
-`legacy_stdio_definitions.lib`.
-
-Recent versions of LDC (tested on 1.8.0 and 1.15) may "over-optimize" the hleaf
-function (when compiling with -O), and while it's supposed to return the
-highest cpuid leaf, it may return 0. To test such situation, use the -r switch
-and see if the condition applies.
-
-**UPDATE**: This has been fixed in commit d64fbceb68dbd9135b0c130776e9bb2c13a96237.
-New function receives structure as reference to be populated. `hleaf` removed.
+Compilers supported:
+- DMD (best supported)
+- LDC (best optimizations, but see `LDC Issues`)
+- GDC (experimental, see `GDC Issues`)
 
 ## Makefile
 
@@ -64,3 +40,18 @@ Available actions:
 Examples:
 - `make`: Produce a debug build
 - `make release DC=ldc`: Produce a release build with LDC
+
+## GDC Issues
+
+### Optimizations
+
+Compiling above O0 will yield invalid results, and that's because of my
+incapability to understand the complex extended GCC inline assembler
+format. I very much dislike it.
+
+## LDC Issues
+
+### Legacy stdio Definitions
+
+LDC versions 1.13 and 1.14 do not include `legacy_stdio_definitions.lib`,
+making compilation impossible when using `-betterC`.

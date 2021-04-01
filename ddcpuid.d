@@ -477,8 +477,8 @@ void clih() {
 	"\n"~
 	"OPTIONS\n"~
 	"  -r    Show raw CPUID data in a table\n"~
-	"  -s    (with -r) subleaf to loop to (ECX)\n"~
-	"  -o    Override leaves to 20h, 4000_0002h, and 8000_0020h\n"~
+	"  -s    Set subleaf (ECX) input value with -r\n"~
+	"  -o    Override leaves to 20h, 4000_0010h, and 8000_0020h\n"~
 	"\n"~
 	"  --version    Print version screen and quit\n"~
 	"  --ver        Print version and quit\n"~

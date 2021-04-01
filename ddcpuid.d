@@ -35,7 +35,7 @@ static if (__VERSION__ >= 2092) {
 }
 
 /// Make a bit mask of one bit at n position
-template BIT(int n) { enum { BIT = 1 << n } }
+template BIT(int n) if (n <= 31) { enum uint BIT = 1 << n; }
 
 /// Vendor ID template
 template ID(char[4] c) {
@@ -1183,10 +1183,10 @@ void getInfo(ref CPUINFO info) {
 			mov c, ECX;
 			mov d, EDX;
 		}
-
+		
 		// Fix LDC2 compiling issue (#13)
 		if (a == 0) break;
-
+		
 		ca.type = (a & 0xF);
 		ca.level = cast(ubyte)((a >> 5) & 7);
 		ca.linesize = cast(ubyte)((b & 0x7FF) + 1);
@@ -1366,28 +1366,28 @@ CACHE_AMD_NEWER:
 			info.base_model; // DisplayModel = Model_ID;
 
 		// ECX
-		if (c & BIT!(2)) info.dtes64	= true;
-		if (c & BIT!(4)) info.ds_cpl	= true;
-		if (c & BIT!(5)) info.virt	= true;
-		if (c & BIT!(6)) info.smx	= true;
-		if (c & BIT!(7)) info.eist	= true;
-		if (c & BIT!(8)) info.tm2	= true;
-		if (c & BIT!(10)) info.cnxt_id	= true;
-		if (c & BIT!(11)) info.sdbg	= true;
-		if (c & BIT!(14)) info.xtpr	= true;
-		if (c & BIT!(15)) info.pdcm	= true;
-		if (c & BIT!(17)) info.pcid	= true;
-		if (c & BIT!(18)) info.mca	= true;
-		if (c & BIT!(21)) info.x2apic	= true;
-		if (c & BIT!(24)) info.tsc_deadline	= true;
+		info.dtes64	= (c & BIT!(2)) != 0;
+		info.ds_cpl	= (c & BIT!(4)) != 0;
+		info.virt	= (c & BIT!(5)) != 0;
+		info.smx	= (c & BIT!(6)) != 0;
+		info.eist	= (c & BIT!(7)) != 0;
+		info.tm2	= (c & BIT!(8)) != 0;
+		info.cnxt_id	= (c & BIT!(10)) != 0;
+		info.sdbg	= (c & BIT!(11)) != 0;
+		info.xtpr	= (c & BIT!(14)) != 0;
+		info.pdcm	= (c & BIT!(15)) != 0;
+		info.pcid	= (c & BIT!(17)) != 0;
+		info.mca	= (c & BIT!(18)) != 0;
+		info.x2apic	= (c & BIT!(21)) != 0;
+		info.tsc_deadline	= (c & BIT!(24)) != 0;
 
 		// EDX
-		if (d & BIT!(18)) info.psn	= true;
-		if (d & BIT!(21)) info.ds	= true;
-		if (d & BIT!(22)) info.acpi	= true;
-		if (d & BIT!(27)) info.ss	= true;
-		if (d & BIT!(29)) info.tm	= true;
-		if (d & BIT!(31)) info.pbe	= true;
+		info.psn	= (d & BIT!(18)) != 0;
+		info.ds	= (d & BIT!(21)) != 0;
+		info.acpi	= (d & BIT!(22)) != 0;
+		info.ss	= (d & BIT!(27)) != 0;
+		info.tm	= (d & BIT!(29)) != 0;
+		info.pbe	= d >= BIT!(31);
 		break;
 	case VENDOR_AMD:
 		if (info.base_family < 0xF) {
@@ -1405,47 +1405,47 @@ CACHE_AMD_NEWER:
 	info.b_01_ebx = b; // BrandIndex, CLFLUSHLineSize, MaxIDs, InitialAPICID
 	
 	// ECX
-	if (c & BIT!(0)) info.sse3	= true;
-	if (c & BIT!(1)) info.pclmulqdq	= true;
-	if (c & BIT!(3)) info.monitor	= true;
-	if (c & BIT!(9)) info.ssse3	= true;
-	if (c & BIT!(12)) info.fma3	= true;
-	if (c & BIT!(13)) info.cmpxchg16b	= true;
-	if (c & BIT!(15)) info.sse41	= true;
-	if (c & BIT!(20)) info.sse42	= true;
-	if (c & BIT!(22)) info.movbe	= true;
-	if (c & BIT!(23)) info.popcnt	= true;
-	if (c & BIT!(25)) info.aes_ni	= true;
-	if (c & BIT!(26)) info.xsave	= true;
-	if (c & BIT!(27)) info.osxsave	= true;
-	if (c & BIT!(28)) info.avx	= true;
-	if (c & BIT!(29)) info.f16c	= true;
-	if (c & BIT!(30)) info.rdrand	= true;
+	info.sse3	= (c & BIT!(0)) != 0;
+	info.pclmulqdq	= (c & BIT!(1)) != 0;
+	info.monitor	= (c & BIT!(3)) != 0;
+	info.ssse3	= (c & BIT!(9)) != 0;
+	info.fma3	= (c & BIT!(12)) != 0;
+	info.cmpxchg16b	= (c & BIT!(13)) != 0;
+	info.sse41	= (c & BIT!(15)) != 0;
+	info.sse42	= (c & BIT!(20)) != 0;
+	info.movbe	= (c & BIT!(22)) != 0;
+	info.popcnt	= (c & BIT!(23)) != 0;
+	info.aes_ni	= (c & BIT!(25)) != 0;
+	info.xsave	= (c & BIT!(26)) != 0;
+	info.osxsave	= (c & BIT!(27)) != 0;
+	info.avx	= (c & BIT!(28)) != 0;
+	info.f16c	= (c & BIT!(29)) != 0;
+	info.rdrand	= (c & BIT!(30)) != 0;
 	
 	// EDX
-	if (d & BIT!(0)) info.fpu	= true;
-	if (d & BIT!(1)) info.vme	= true;
-	if (d & BIT!(2)) info.de	= true;
-	if (d & BIT!(3)) info.pse	= true;
-	if (d & BIT!(4)) info.tsc	= true;
-	if (d & BIT!(5)) info.rdmsr	= true;
-	if (d & BIT!(6)) info.pae	= true;
-	if (d & BIT!(7)) info.mce	= true;
-	if (d & BIT!(8)) info.cmpxchg8b	= true;
-	if (d & BIT!(9)) info.apic	= true;
-	if (d & BIT!(11)) info.sysenter	= true;
-	if (d & BIT!(12)) info.mtrr	= true;
-	if (d & BIT!(13)) info.pge	= true;
-	if (d & BIT!(14)) info.mca	= true;
-	if (d & BIT!(15)) info.cmov	= true;
-	if (d & BIT!(16)) info.pat	= true;
-	if (d & BIT!(17)) info.pse_36	= true;
-	if (d & BIT!(19)) info.clflush	= true;
-	if (d & BIT!(23)) info.mmx	= true;
-	if (d & BIT!(24)) info.fxsr	= true;
-	if (d & BIT!(25)) info.sse	= true;
-	if (d & BIT!(26)) info.sse2	= true;
-	if (d & BIT!(28)) info.htt	= true;
+	info.fpu	= (d & BIT!(0)) != 0;
+	info.vme	= (d & BIT!(1)) != 0;
+	info.de	= (d & BIT!(2)) != 0;
+	info.pse	= (d & BIT!(3)) != 0;
+	info.tsc	= (d & BIT!(4)) != 0;
+	info.rdmsr	= (d & BIT!(5)) != 0;
+	info.pae	= (d & BIT!(6)) != 0;
+	info.mce	= (d & BIT!(7)) != 0;
+	info.cmpxchg8b	= (d & BIT!(8)) != 0;
+	info.apic	= (d & BIT!(9)) != 0;
+	info.sysenter	= (d & BIT!(11)) != 0;
+	info.mtrr	= (d & BIT!(12)) != 0;
+	info.pge	= (d & BIT!(13)) != 0;
+	info.mca	= (d & BIT!(14)) != 0;
+	info.cmov	= (d & BIT!(15)) != 0;
+	info.pat	= (d & BIT!(16)) != 0;
+	info.pse_36	= (d & BIT!(17)) != 0;
+	info.clflush	= (d & BIT!(19)) != 0;
+	info.mmx	= (d & BIT!(23)) != 0;
+	info.fxsr	= (d & BIT!(24)) != 0;
+	info.sse	= (d & BIT!(25)) != 0;
+	info.sse2	= (d & BIT!(26)) != 0;
+	info.htt	= (d & BIT!(28)) != 0;
 	
 	if (info.max_leaf < 5) goto EXTENDED_LEAVES;
 	
@@ -1488,13 +1488,13 @@ CACHE_AMD_NEWER:
 
 	switch (info.vendor_id) {
 	case VENDOR_INTEL:
-		if (a & BIT!(1))  info.turboboost	= true;
-		if (a & BIT!(14)) info.turboboost30	= true;
+		 info.turboboost	= (a & BIT!(1)) != 0;
+		info.turboboost30	= (a & BIT!(14)) != 0;
 		break;
 	default:
 	}
 
-	if (a & BIT!(2)) info.arat	= true;
+	info.arat	= (a & BIT!(2)) != 0;
 
 	if (info.max_leaf < 7) goto EXTENDED_LEAVES;
 	
@@ -1522,70 +1522,70 @@ CACHE_AMD_NEWER:
 	switch (info.vendor_id) {
 	case VENDOR_INTEL:
 		// EBX
-		if (b & BIT!(2)) info.sgx	= true;
-		if (b & BIT!(4)) info.hle	= true;
-		if (b & BIT!(10)) info.invpcid	= true;
-		if (b & BIT!(11)) info.rtm	= true;
-		if (b & BIT!(16)) info.avx512f	= true;
-		if (b & BIT!(20)) info.smap	= true;
-		if (b & BIT!(27)) info.avx512er	= true;
-		if (b & BIT!(26)) info.avx512pf	= true;
-		if (b & BIT!(28)) info.avx512cd	= true;
-		if (b & BIT!(17)) info.avx512dq	= true;
-		if (b & BIT!(30)) info.avx512bw	= true;
-		if (b & BIT!(21)) info.avx512_ifma	= true;
-		if (b & BIT!(31)) info.avx512_vbmi	= true;
+		info.sgx	= (b & BIT!(2)) != 0;
+		info.hle	= (b & BIT!(4)) != 0;
+		info.invpcid	= (b & BIT!(10)) != 0;
+		info.rtm	= (b & BIT!(11)) != 0;
+		info.avx512f	= (b & BIT!(16)) != 0;
+		info.smap	= (b & BIT!(20)) != 0;
+		info.avx512er	= (b & BIT!(27)) != 0;
+		info.avx512pf	= (b & BIT!(26)) != 0;
+		info.avx512cd	= (b & BIT!(28)) != 0;
+		info.avx512dq	= (b & BIT!(17)) != 0;
+		info.avx512bw	= (b & BIT!(30)) != 0;
+		info.avx512_ifma	= (b & BIT!(21)) != 0;
+		info.avx512_vbmi	= b >= BIT!(31);
 		// ECX
-		if (c & BIT!(1)) info.avx512vl	= true;
-		if (c & BIT!(3)) info.pku	= true;
-		if (c & BIT!(4)) info.fsrepmov	= true;
-		if (c & BIT!(5)) info.waitpkg	= true;
-		if (c & BIT!(6)) info.avx512_vbmi2	= true;
-		if (c & BIT!(7)) info.cet_ss	= true;
-		if (c & BIT!(8)) info.avx512_gfni	= true;
-		if (c & BIT!(9)) info.avx512_vaes	= true;
-		if (c & BIT!(11)) info.avx512_vnni	= true;
-		if (c & BIT!(12)) info.avx512_bitalg	= true;
-		if (c & BIT!(14)) info.avx512_vpopcntdq	= true;
-		if (c & BIT!(16)) info._5pl	= true;
-		if (c & BIT!(25)) info.cldemote	= true;
-		if (c & BIT!(27)) info.movdiri	= true;
-		if (c & BIT!(28)) info.movdir64b	= true;
-		if (c & BIT!(29)) info.enqcmd	= true;
+		info.avx512vl	= (c & BIT!(1)) != 0;
+		info.pku	= (c & BIT!(3)) != 0;
+		info.fsrepmov	= (c & BIT!(4)) != 0;
+		info.waitpkg	= (c & BIT!(5)) != 0;
+		info.avx512_vbmi2	= (c & BIT!(6)) != 0;
+		info.cet_ss	= (c & BIT!(7)) != 0;
+		info.avx512_gfni	= (c & BIT!(8)) != 0;
+		info.avx512_vaes	= (c & BIT!(9)) != 0;
+		info.avx512_vnni	= (c & BIT!(11)) != 0;
+		info.avx512_bitalg	= (c & BIT!(12)) != 0;
+		info.avx512_vpopcntdq	= (c & BIT!(14)) != 0;
+		info._5pl	= (c & BIT!(16)) != 0;
+		info.cldemote	= (c & BIT!(25)) != 0;
+		info.movdiri	= (c & BIT!(27)) != 0;
+		info.movdir64b	= (c & BIT!(28)) != 0;
+		info.enqcmd	= (c & BIT!(29)) != 0;
 		// EDX
-		if (d & BIT!(2)) info.avx512_4vnniw	= true;
-		if (d & BIT!(3)) info.avx512_4fmaps	= true;
-		if (d & BIT!(5)) info.uintr	= true;
-		if (d & BIT!(8)) info.avx512_vp2intersect	= true;
-		if (d & BIT!(10)) info.md_clear	= true;
-		if (d & BIT!(14)) info.serialize	= true;
-		if (d & BIT!(16)) info.tsxldtrk	= true;
-		if (d & BIT!(18)) info.pconfig	= true;
-		if (d & BIT!(20)) info.cet_ibt	= true;
-		if (d & BIT!(22)) info.amx_bf16	= true;
-		if (d & BIT!(24)) info.amx	= true;
-		if (d & BIT!(25)) info.amx_int8	= true;
-		if (d & BIT!(26)) info.ibrs = info.ibpb = true;
-		if (d & BIT!(27)) info.stibp	= true;
-		if (d & BIT!(28)) info.l1d_flush	= true;
-		if (d & BIT!(29)) info.ia32_arch_capabilities	= true;
-		if (d & BIT!(31)) info.ssbd	= true;
+		info.avx512_4vnniw	= (d & BIT!(2)) != 0;
+		info.avx512_4fmaps	= (d & BIT!(3)) != 0;
+		info.uintr	= (d & BIT!(5)) != 0;
+		info.avx512_vp2intersect	= (d & BIT!(8)) != 0;
+		info.md_clear	= (d & BIT!(10)) != 0;
+		info.serialize	= (d & BIT!(14)) != 0;
+		info.tsxldtrk	= (d & BIT!(16)) != 0;
+		info.pconfig	= (d & BIT!(18)) != 0;
+		info.cet_ibt	= (d & BIT!(20)) != 0;
+		info.amx_bf16	= (d & BIT!(22)) != 0;
+		info.amx	= (d & BIT!(24)) != 0;
+		info.amx_int8	= (d & BIT!(25)) != 0;
+		info.ibrs = (d & BIT!(26)) != 0;
+		info.stibp	= (d & BIT!(27)) != 0;
+		info.l1d_flush	= (d & BIT!(28)) != 0;
+		info.ia32_arch_capabilities	= (d & BIT!(29)) != 0;
+		info.ssbd	= d >= BIT!(31);
 		break;
 	default:
 	}
 
 	// b
-	if (b & BIT!(0)) info.fsgsbase	= true;
-	if (b & BIT!(3)) info.bmi1	= true;
-	if (b & BIT!(5)) info.avx2	= true;
-	if (b & BIT!(7)) info.smep	= true;
-	if (b & BIT!(8)) info.bmi2	= true;
-	if (b & BIT!(18)) info.rdseed	= true;
-	if (b & BIT!(19)) info.adx	= true;
-	if (b & BIT!(23)) info.clflushopt	= true;
-	if (b & BIT!(29)) info.sha	= true;
+	info.fsgsbase	= (b & BIT!(0)) != 0;
+	info.bmi1	= (b & BIT!(3)) != 0;
+	info.avx2	= (b & BIT!(5)) != 0;
+	info.smep	= (b & BIT!(7)) != 0;
+	info.bmi2	= (b & BIT!(8)) != 0;
+	info.rdseed	= (b & BIT!(18)) != 0;
+	info.adx	= (b & BIT!(19)) != 0;
+	info.clflushopt	= (b & BIT!(23)) != 0;
+	info.sha	= (b & BIT!(29)) != 0;
 	// c
-	if (c & BIT!(22)) info.rdpid	= true;
+	info.rdpid	= (c & BIT!(22)) != 0;
 	
 	//
 	// Leaf 7H(ECX=01h)
@@ -1606,8 +1606,8 @@ CACHE_AMD_NEWER:
 			mov a, EAX;
 		}
 		// a
-		if (a & BIT!(5))  info.avx512_bf16	= true;
-		if (a & BIT!(26)) info.lam	= true;
+		info.avx512_bf16	= (a & BIT!(5)) != 0;
+		info.lam	= (a & BIT!(26)) != 0;
 		break;
 	default:
 	}
@@ -1630,8 +1630,8 @@ CACHE_AMD_NEWER:
 			cpuid;
 			mov a, EAX;
 		}
-		if (a & BIT!(17)) info.amx_xtilecfg	= true;
-		if (a & BIT!(18)) info.amx_xtiledata	= true;
+		info.amx_xtilecfg	= (a & BIT!(17)) != 0;
+		info.amx_xtiledata	= (a & BIT!(18)) != 0;
 		break;
 	default:
 	}
@@ -1654,7 +1654,7 @@ CACHE_AMD_NEWER:
 			cpuid;
 			mov a, EAX;
 		}
-		if (a & BIT!(18)) info.amx_xfd	= true;
+		info.amx_xfd	= (a & BIT!(18)) != 0;
 		break;
 	default:
 	}
@@ -1724,21 +1724,21 @@ CACHE_AMD_NEWER:
 			mov a, EAX;
 			mov d, EDX;
 		}
-		if (a & BIT!(0)) info.kvm_feature_clocksource	= true;
-		if (a & BIT!(1)) info.kvm_feature_nop_io_delay	= true;
-		if (a & BIT!(2)) info.kvm_feature_mmu_op	= true;
-		if (a & BIT!(3)) info.kvm_feature_clocksource2	= true;
-		if (a & BIT!(4)) info.kvm_feature_async_pf	= true;
-		if (a & BIT!(5)) info.kvm_feature_steal_time	= true;
-		if (a & BIT!(6)) info.kvm_feature_pv_eoi	= true;
-		if (a & BIT!(7)) info.kvm_feature_pv_unhault	= true;
-		if (a & BIT!(9)) info.kvm_feature_pv_tlb_flush	= true;
-		if (a & BIT!(10)) info.kvm_feature_async_pf_vmexit	= true;
-		if (a & BIT!(11)) info.kvm_feature_pv_send_ipi	= true;
-		if (a & BIT!(12)) info.kvm_feature_pv_poll_control	= true;
-		if (a & BIT!(13)) info.kvm_feature_pv_sched_yield	= true;
-		if (a & BIT!(24)) info.kvm_feature_clocsource_stable_bit	= true;
-		if (d & BIT!(0)) info.kvm_hints_realtime	= true;
+		info.kvm_feature_clocksource	= (a & BIT!(0)) != 0;
+		info.kvm_feature_nop_io_delay	= (a & BIT!(1)) != 0;
+		info.kvm_feature_mmu_op	= (a & BIT!(2)) != 0;
+		info.kvm_feature_clocksource2	= (a & BIT!(3)) != 0;
+		info.kvm_feature_async_pf	= (a & BIT!(4)) != 0;
+		info.kvm_feature_steal_time	= (a & BIT!(5)) != 0;
+		info.kvm_feature_pv_eoi	= (a & BIT!(6)) != 0;
+		info.kvm_feature_pv_unhault	= (a & BIT!(7)) != 0;
+		info.kvm_feature_pv_tlb_flush	= (a & BIT!(9)) != 0;
+		info.kvm_feature_async_pf_vmexit	= (a & BIT!(10)) != 0;
+		info.kvm_feature_pv_send_ipi	= (a & BIT!(11)) != 0;
+		info.kvm_feature_pv_poll_control	= (a & BIT!(12)) != 0;
+		info.kvm_feature_pv_sched_yield	= (a & BIT!(13)) != 0;
+		info.kvm_feature_clocsource_stable_bit	= (a & BIT!(24)) != 0;
+		info.kvm_hints_realtime	= (d & BIT!(0)) != 0;
 		break;
 	default:
 	}
@@ -1765,7 +1765,7 @@ CACHE_AMD_NEWER:
 			mov a, EAX;
 			mov d, EDX;
 		}
-		if (d >= 0x8000_0000) info.vbox_guest_opensource = true;
+		info.vbox_guest_opensource = d >= BIT!(31);
 		info.vbox_guest_vendor_id = (d >> 16) & 0xFFF;
 		info.vbox_guest_os = cast(ubyte)(d >> 8);
 		info.vbox_guest_major = cast(ubyte)d;
@@ -1802,60 +1802,60 @@ CACHE_AMD_NEWER:
 			mov c, ECX;
 			mov d, EDX;
 		}
-		if (a & BIT!(0)) info.hv_base_feat_vp_runtime_msr	= true;
-		if (a & BIT!(1)) info.hv_base_feat_part_time_ref_count_msr	= true;
-		if (a & BIT!(2)) info.hv_base_feat_basic_synic_msrs	= true;
-		if (a & BIT!(3)) info.hv_base_feat_stimer_msrs	= true;
-		if (a & BIT!(4)) info.hv_base_feat_apic_access_msrs	= true;
-		if (a & BIT!(5)) info.hv_base_feat_hypercall_msrs	= true;
-		if (a & BIT!(6)) info.hv_base_feat_vp_id_msr	= true;
-		if (a & BIT!(7)) info.hv_base_feat_virt_sys_reset_msr	= true;
-		if (a & BIT!(8)) info.hv_base_feat_stat_pages_msr	= true;
-		if (a & BIT!(9)) info.hv_base_feat_part_ref_tsc_msr	= true;
-		if (a & BIT!(10)) info.hv_base_feat_guest_idle_state_msr	= true;
-		if (a & BIT!(11)) info.hv_base_feat_timer_freq_msrs	= true;
-		if (a & BIT!(12)) info.hv_base_feat_debug_msrs	= true;
-		if (b & BIT!(0)) info.hv_part_flags_create_part	= true;
-		if (b & BIT!(1)) info.hv_part_flags_access_part_id	= true;
-		if (b & BIT!(2)) info.hv_part_flags_access_memory_pool	= true;
-		if (b & BIT!(3)) info.hv_part_flags_adjust_msg_buffers	= true;
-		if (b & BIT!(4)) info.hv_part_flags_post_msgs	= true;
-		if (b & BIT!(5)) info.hv_part_flags_signal_events	= true;
-		if (b & BIT!(6)) info.hv_part_flags_create_port	= true;
-		if (b & BIT!(7)) info.hv_part_flags_connect_port	= true;
-		if (b & BIT!(8)) info.hv_part_flags_access_stats	= true;
-		if (b & BIT!(11)) info.hv_part_flags_debugging	= true;
-		if (b & BIT!(12)) info.hv_part_flags_cpu_mgmt	= true;
-		if (b & BIT!(13)) info.hv_part_flags_cpu_profiler	= true;
-		if (b & BIT!(14)) info.hv_part_flags_expanded_stack_walk	= true;
-		if (b & BIT!(16)) info.hv_part_flags_access_vsm	= true;
-		if (b & BIT!(17)) info.hv_part_flags_access_vp_regs	= true;
-		if (b & BIT!(20)) info.hv_part_flags_extended_hypercalls	= true;
-		if (b & BIT!(21)) info.hv_part_flags_start_vp	= true;
-		if (c & BIT!(0)) info.hv_pm_max_cpu_power_state_c0	= true;
-		if (c & BIT!(1)) info.hv_pm_max_cpu_power_state_c1	= true;
-		if (c & BIT!(2)) info.hv_pm_max_cpu_power_state_c2	= true;
-		if (c & BIT!(3)) info.hv_pm_max_cpu_power_state_c3	= true;
-		if (c & BIT!(4)) info.hv_pm_hpet_reqd_for_c3	= true;
-		if (a & BIT!(0)) info.hv_misc_feat_mwait	= true;
-		if (a & BIT!(1)) info.hv_misc_feat_guest_debugging	= true;
-		if (a & BIT!(2)) info.hv_misc_feat_perf_mon	= true;
-		if (a & BIT!(3)) info.hv_misc_feat_pcpu_dyn_part_event	= true;
-		if (a & BIT!(4)) info.hv_misc_feat_xmm_hypercall_input	= true;
-		if (a & BIT!(5)) info.hv_misc_feat_guest_idle_state	= true;
-		if (a & BIT!(6)) info.hv_misc_feat_hypervisor_sleep_state	= true;
-		if (a & BIT!(7)) info.hv_misc_feat_query_numa_distance	= true;
-		if (a & BIT!(8)) info.hv_misc_feat_timer_freq	= true;
-		if (a & BIT!(9)) info.hv_misc_feat_inject_synmc_xcpt	= true;
-		if (a & BIT!(10)) info.hv_misc_feat_guest_crash_msrs	= true;
-		if (a & BIT!(11)) info.hv_misc_feat_debug_msrs	= true;
-		if (a & BIT!(12)) info.hv_misc_feat_npiep1	= true;
-		if (a & BIT!(13)) info.hv_misc_feat_disable_hypervisor	= true;
-		if (a & BIT!(14)) info.hv_misc_feat_ext_gva_range_for_flush_va_list	= true;
-		if (a & BIT!(15)) info.hv_misc_feat_hypercall_output_xmm	= true;
-		if (a & BIT!(17)) info.hv_misc_feat_sint_polling_mode	= true;
-		if (a & BIT!(18)) info.hv_misc_feat_hypercall_msr_lock	= true;
-		if (a & BIT!(19)) info.hv_misc_feat_use_direct_synth_msrs	= true;
+		info.hv_base_feat_vp_runtime_msr	= (a & BIT!(0)) != 0;
+		info.hv_base_feat_part_time_ref_count_msr	= (a & BIT!(1)) != 0;
+		info.hv_base_feat_basic_synic_msrs	= (a & BIT!(2)) != 0;
+		info.hv_base_feat_stimer_msrs	= (a & BIT!(3)) != 0;
+		info.hv_base_feat_apic_access_msrs	= (a & BIT!(4)) != 0;
+		info.hv_base_feat_hypercall_msrs	= (a & BIT!(5)) != 0;
+		info.hv_base_feat_vp_id_msr	= (a & BIT!(6)) != 0;
+		info.hv_base_feat_virt_sys_reset_msr	= (a & BIT!(7)) != 0;
+		info.hv_base_feat_stat_pages_msr	= (a & BIT!(8)) != 0;
+		info.hv_base_feat_part_ref_tsc_msr	= (a & BIT!(9)) != 0;
+		info.hv_base_feat_guest_idle_state_msr	= (a & BIT!(10)) != 0;
+		info.hv_base_feat_timer_freq_msrs	= (a & BIT!(11)) != 0;
+		info.hv_base_feat_debug_msrs	= (a & BIT!(12)) != 0;
+		info.hv_part_flags_create_part	= (b & BIT!(0)) != 0;
+		info.hv_part_flags_access_part_id	= (b & BIT!(1)) != 0;
+		info.hv_part_flags_access_memory_pool	= (b & BIT!(2)) != 0;
+		info.hv_part_flags_adjust_msg_buffers	= (b & BIT!(3)) != 0;
+		info.hv_part_flags_post_msgs	= (b & BIT!(4)) != 0;
+		info.hv_part_flags_signal_events	= (b & BIT!(5)) != 0;
+		info.hv_part_flags_create_port	= (b & BIT!(6)) != 0;
+		info.hv_part_flags_connect_port	= (b & BIT!(7)) != 0;
+		info.hv_part_flags_access_stats	= (b & BIT!(8)) != 0;
+		info.hv_part_flags_debugging	= (b & BIT!(11)) != 0;
+		info.hv_part_flags_cpu_mgmt	= (b & BIT!(12)) != 0;
+		info.hv_part_flags_cpu_profiler	= (b & BIT!(13)) != 0;
+		info.hv_part_flags_expanded_stack_walk	= (b & BIT!(14)) != 0;
+		info.hv_part_flags_access_vsm	= (b & BIT!(16)) != 0;
+		info.hv_part_flags_access_vp_regs	= (b & BIT!(17)) != 0;
+		info.hv_part_flags_extended_hypercalls	= (b & BIT!(20)) != 0;
+		info.hv_part_flags_start_vp	= (b & BIT!(21)) != 0;
+		info.hv_pm_max_cpu_power_state_c0	= (c & BIT!(0)) != 0;
+		info.hv_pm_max_cpu_power_state_c1	= (c & BIT!(1)) != 0;
+		info.hv_pm_max_cpu_power_state_c2	= (c & BIT!(2)) != 0;
+		info.hv_pm_max_cpu_power_state_c3	= (c & BIT!(3)) != 0;
+		info.hv_pm_hpet_reqd_for_c3	= (c & BIT!(4)) != 0;
+		info.hv_misc_feat_mwait	= (a & BIT!(0)) != 0;
+		info.hv_misc_feat_guest_debugging	= (a & BIT!(1)) != 0;
+		info.hv_misc_feat_perf_mon	= (a & BIT!(2)) != 0;
+		info.hv_misc_feat_pcpu_dyn_part_event	= (a & BIT!(3)) != 0;
+		info.hv_misc_feat_xmm_hypercall_input	= (a & BIT!(4)) != 0;
+		info.hv_misc_feat_guest_idle_state	= (a & BIT!(5)) != 0;
+		info.hv_misc_feat_hypervisor_sleep_state	= (a & BIT!(6)) != 0;
+		info.hv_misc_feat_query_numa_distance	= (a & BIT!(7)) != 0;
+		info.hv_misc_feat_timer_freq	= (a & BIT!(8)) != 0;
+		info.hv_misc_feat_inject_synmc_xcpt	= (a & BIT!(9)) != 0;
+		info.hv_misc_feat_guest_crash_msrs	= (a & BIT!(10)) != 0;
+		info.hv_misc_feat_debug_msrs	= (a & BIT!(11)) != 0;
+		info.hv_misc_feat_npiep1	= (a & BIT!(12)) != 0;
+		info.hv_misc_feat_disable_hypervisor	= (a & BIT!(13)) != 0;
+		info.hv_misc_feat_ext_gva_range_for_flush_va_list	= (a & BIT!(14)) != 0;
+		info.hv_misc_feat_hypercall_output_xmm	= (a & BIT!(15)) != 0;
+		info.hv_misc_feat_sint_polling_mode	= (a & BIT!(17)) != 0;
+		info.hv_misc_feat_hypercall_msr_lock	= (a & BIT!(18)) != 0;
+		info.hv_misc_feat_use_direct_synth_msrs	= (a & BIT!(19)) != 0;
 		break;
 	default:
 	}
@@ -1880,21 +1880,21 @@ CACHE_AMD_NEWER:
 			cpuid;
 			mov a, EAX;
 		}
-		if (a & BIT!(0)) info.hv_hint_hypercall_for_process_switch	= true;
-		if (a & BIT!(1)) info.hv_hint_hypercall_for_tlb_flush	= true;
-		if (a & BIT!(2)) info.hv_hint_hypercall_for_tlb_shootdown	= true;
-		if (a & BIT!(3)) info.hv_hint_msr_for_apic_access	= true;
-		if (a & BIT!(4)) info.hv_hint_msr_for_sys_reset	= true;
-		if (a & BIT!(5)) info.hv_hint_relax_time_checks	= true;
-		if (a & BIT!(6)) info.hv_hint_dma_remapping	= true;
-		if (a & BIT!(7)) info.hv_hint_interrupt_remapping	= true;
-		if (a & BIT!(8)) info.hv_hint_x2apic_msrs	= true;
-		if (a & BIT!(9)) info.hv_hint_deprecate_auto_eoi	= true;
-		if (a & BIT!(10)) info.hv_hint_synth_cluster_ipi_hypercall	= true;
-		if (a & BIT!(11)) info.hv_hint_ex_proc_masks_interface	= true;
-		if (a & BIT!(12)) info.hv_hint_nested_hyperv	= true;
-		if (a & BIT!(13)) info.hv_hint_int_for_mbec_syscalls	= true;
-		if (a & BIT!(14)) info.hv_hint_nested_enlightened_vmcs_interface	= true;
+		info.hv_hint_hypercall_for_process_switch	= (a & BIT!(0)) != 0;
+		info.hv_hint_hypercall_for_tlb_flush	= (a & BIT!(1)) != 0;
+		info.hv_hint_hypercall_for_tlb_shootdown	= (a & BIT!(2)) != 0;
+		info.hv_hint_msr_for_apic_access	= (a & BIT!(3)) != 0;
+		info.hv_hint_msr_for_sys_reset	= (a & BIT!(4)) != 0;
+		info.hv_hint_relax_time_checks	= (a & BIT!(5)) != 0;
+		info.hv_hint_dma_remapping	= (a & BIT!(6)) != 0;
+		info.hv_hint_interrupt_remapping	= (a & BIT!(7)) != 0;
+		info.hv_hint_x2apic_msrs	= (a & BIT!(8)) != 0;
+		info.hv_hint_deprecate_auto_eoi	= (a & BIT!(9)) != 0;
+		info.hv_hint_synth_cluster_ipi_hypercall	= (a & BIT!(10)) != 0;
+		info.hv_hint_ex_proc_masks_interface	= (a & BIT!(11)) != 0;
+		info.hv_hint_nested_hyperv	= (a & BIT!(12)) != 0;
+		info.hv_hint_int_for_mbec_syscalls	= (a & BIT!(13)) != 0;
+		info.hv_hint_nested_enlightened_vmcs_interface	= (a & BIT!(14)) != 0;
 		break;
 	default:
 	}
@@ -1919,16 +1919,16 @@ CACHE_AMD_NEWER:
 			cpuid;
 			mov a, EAX;
 		}
-		if (a & BIT!(0)) info.hv_host_feat_avic	= true;
-		if (a & BIT!(1)) info.hv_host_feat_msr_bitmap	= true;
-		if (a & BIT!(2)) info.hv_host_feat_perf_counter	= true;
-		if (a & BIT!(3)) info.hv_host_feat_nested_paging	= true;
-		if (a & BIT!(4)) info.hv_host_feat_dma_remapping	= true;
-		if (a & BIT!(5)) info.hv_host_feat_interrupt_remapping	= true;
-		if (a & BIT!(6)) info.hv_host_feat_mem_patrol_scrubber	= true;
-		if (a & BIT!(7)) info.hv_host_feat_dma_prot_in_use	= true;
-		if (a & BIT!(8)) info.hv_host_feat_hpet_requested	= true;
-		if (a & BIT!(9)) info.hv_host_feat_stimer_volatile	= true;
+		info.hv_host_feat_avic	= (a & BIT!(0)) != 0;
+		info.hv_host_feat_msr_bitmap	= (a & BIT!(1)) != 0;
+		info.hv_host_feat_perf_counter	= (a & BIT!(2)) != 0;
+		info.hv_host_feat_nested_paging	= (a & BIT!(3)) != 0;
+		info.hv_host_feat_dma_remapping	= (a & BIT!(4)) != 0;
+		info.hv_host_feat_interrupt_remapping	= (a & BIT!(5)) != 0;
+		info.hv_host_feat_mem_patrol_scrubber	= (a & BIT!(6)) != 0;
+		info.hv_host_feat_dma_prot_in_use	= (a & BIT!(7)) != 0;
+		info.hv_host_feat_hpet_requested	= (a & BIT!(8)) != 0;
+		info.hv_host_feat_stimer_volatile	= (a & BIT!(9)) != 0;
 		break;
 	default:
 	}
@@ -1982,29 +1982,29 @@ EXTENDED_LEAVES:
 
 	switch (info.vendor_id) {
 	case VENDOR_AMD:
-		if (c & BIT!(2)) info.virt	= true;
-		if (c & BIT!(3)) info.x2apic	= true;
-		if (c & BIT!(6)) info.sse4a	= true;
-		if (c & BIT!(11)) info.xop	= true;
-		if (c & BIT!(12)) info.skinit	= true;
-		if (c & BIT!(16)) info.fma4	= true;
-		if (c & BIT!(21)) info.tbm	= true;
-		if (c & BIT!(29)) info.monitorx	= true;
-		if (d & BIT!(22)) info.mmxext	= true;
-		if (d & BIT!(30)) info._3dnowext	= true;
-		if (d & BIT!(31)) info._3dnow	= true;
+		info.virt	= (c & BIT!(2)) != 0;
+		info.x2apic	= (c & BIT!(3)) != 0;
+		info.sse4a	= (c & BIT!(6)) != 0;
+		info.xop	= (c & BIT!(11)) != 0;
+		info.skinit	= (c & BIT!(12)) != 0;
+		info.fma4	= (c & BIT!(16)) != 0;
+		info.tbm	= (c & BIT!(21)) != 0;
+		info.monitorx	= (c & BIT!(29)) != 0;
+		info.mmxext	= (d & BIT!(22)) != 0;
+		info._3dnowext	= (d & BIT!(30)) != 0;
+		info._3dnow	= d >= BIT!(31);
 		break;
 	default:
 	}
 
-	if (c & BIT!(0)) info.lahf64	= true;
-	if (c & BIT!(5)) info.lzcnt	= true;
-	if (c & BIT!(8)) info.prefetchw	= true;
-	if (d & BIT!(11)) info.syscall	= true;
-	if (d & BIT!(20)) info.nx	= true;
-	if (d & BIT!(26)) info.page1gb	= true;
-	if (d & BIT!(27)) info.rdtscp	= true;
-	if (d & BIT!(29)) info.x86_64	= true;
+	info.lahf64	= (c & BIT!(0)) != 0;
+	info.lzcnt	= (c & BIT!(5)) != 0;
+	info.prefetchw	= (c & BIT!(8)) != 0;
+	info.syscall	= (d & BIT!(11)) != 0;
+	info.nx	= (d & BIT!(20)) != 0;
+	info.page1gb	= (d & BIT!(26)) != 0;
+	info.rdtscp	= (d & BIT!(27)) != 0;
+	info.x86_64	= (d & BIT!(29)) != 0;
 
 	if (info.max_ext_leaf < 0x8000_0007) return;
 	
@@ -2027,16 +2027,16 @@ EXTENDED_LEAVES:
 
 	switch (info.vendor_id) {
 	case VENDOR_INTEL:
-		if (b & BIT!(28)) info.rdseed	= true;
+		info.rdseed	= (b & BIT!(28)) != 0;
 		break;
 	case VENDOR_AMD:
-		if (d & BIT!(4)) info.tm	= true;
-		if (d & BIT!(9)) info.turboboost	= true;
+		info.tm	= (d & BIT!(4)) != 0;
+		info.turboboost	= (d & BIT!(9)) != 0;
 		break;
 	default:
 	}
 
-	if (d & BIT!(8)) info.tsc_invariant	= true;
+	info.tsc_invariant	= (d & BIT!(8)) != 0;
 
 	if (info.max_ext_leaf < 0x8000_0008) return;
 	
@@ -2059,16 +2059,16 @@ EXTENDED_LEAVES:
 
 	switch (info.vendor_id) {
 	case VENDOR_INTEL:
-		if (b & BIT!(9)) info.wbnoinvd	= true;
+		info.wbnoinvd	= (b & BIT!(9)) != 0;
 		break;
 	case VENDOR_AMD:
-		if (b & BIT!(12)) info.ibpb	= true;
-		if (b & BIT!(14)) info.ibrs	= true;
-		if (b & BIT!(15)) info.stibp	= true;
-		if (b & BIT!(16)) info.ibrs_on	= true;
-		if (b & BIT!(17)) info.stibp_on	= true;
-		if (b & BIT!(18)) info.ibrs_pref	= true;
-		if (b & BIT!(24)) info.ssbd	= true;
+		info.ibpb	= (b & BIT!(12)) != 0;
+		info.ibrs	= (b & BIT!(14)) != 0;
+		info.stibp	= (b & BIT!(15)) != 0;
+		info.ibrs_on	= (b & BIT!(16)) != 0;
+		info.stibp_on	= (b & BIT!(17)) != 0;
+		info.ibrs_pref	= (b & BIT!(18)) != 0;
+		info.ssbd	= (b & BIT!(24)) != 0;
 		break;
 	default:
 	}

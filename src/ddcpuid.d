@@ -1,8 +1,8 @@
 /**
  * x86 CPU Identification tool
  *
- * Author: dd86k <dd@dax.moe>
- * Copyrights: See LICENSE
+ * Authors: dd86k (dd@dax.moe)
+ * Copyright: See LICENSE
  * License: MIT
  */
 module ddcpuid;
@@ -32,6 +32,7 @@ template ID(char[4] c) {
 	enum uint ID = c[0] | c[1] << 8 | c[2] << 16 | c[3] << 24;
 }
 
+/// CPU cache entry
 struct CACHEINFO {
 	union {
 		uint __bundle1;
@@ -42,9 +43,9 @@ struct CACHEINFO {
 			ubyte _amdsize; // (old AMD) Size in KB
 		}
 	}
-	/// Cache Size in Byte
-	/// (Ways + 1) * (Partitions + 1) * (Line_Size + 1) * (Sets + 1)
-	/// (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
+	/// Cache Size in bytes.
+	// (Ways + 1) * (Partitions + 1) * (Line_Size + 1) * (Sets + 1)
+	// (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
 	uint size;
 	ushort sets;
 	// bit 0, Self Initializing cache
@@ -53,10 +54,11 @@ struct CACHEINFO {
 	// bit 3, Cache Inclusiveness (toggle)
 	// bit 4, Complex Cache Indexing (toggle)
 	ushort feat;
-	char type;	/// data='D', instructions='I', unified='U'
-	ubyte level;	/// L1, L2, etc.
+	ubyte level;	/// Cache level: L1, L2, etc.
+	char type;	/// Type entry character: 'D'=Data, 'I'=Instructions, 'U'=Unified
 }
 
+/// CPU information structure
 struct CPUINFO { align(1):
 	//
 	// Leaf information

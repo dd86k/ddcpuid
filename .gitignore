@@ -20,6 +20,7 @@ ddcpuid
 # Documentation
 *.html
 docs/
+docs.json
 
 # Personal stuff
 NOTES

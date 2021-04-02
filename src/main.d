@@ -4,8 +4,8 @@
  * NOTE: printf is mainly used for two reasons. First, fputs with stdout
  *       crashes on Windows. Secondly, line buffering.
  *
- * Author: dd86k <dd@dax.moe>
- * Copyrights: See LICENSE
+ * Authors: dd86k (dd@dax.moe)
+ * Copyright: See LICENSE
  * License: MIT
  */
 module main;

@@ -248,6 +248,7 @@ struct CPUINFO { align(1):
 	bool virt;	/// VT-x/AMD-V
 	ubyte virt_version;	/// (AMD) Virtualization platform version
 	bool vme;	/// vm8086 enhanced
+	bool apivc;	/// (AMD) APICv
 	
 	union {
 		char[12] virt_vendor;	/// Paravirtualization vendor
@@ -1634,17 +1635,20 @@ EXTENDED_LEAVES:
 	version (GNU) asm {
 		"mov $0x8000000a, %%eax\n"~
 		"cpuid\n"~
-		"mov %%eax, %0"
-		: "=a" (a);
+		"mov %%eax, %0\n"~
+		"mov %%edx, %1"
+		: "=a" (a), "=d" (d);
 	} else asm {
 		mov EAX, 0x8000_000A;
 		cpuid;
 		mov a, EAX;
+		mov d, EDX;
 	}
 
 	switch (info.vendor_id) {
 	case VENDOR_AMD:
-		info.virt_version = cast(ubyte)a; // EAX[7:0]
+		info.virt_version	= cast(ubyte)a; // EAX[7:0]
+		info.apivc	= (d & BIT!(13)) != 0;
 		break;
 	default:
 	}

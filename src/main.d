@@ -401,6 +401,7 @@ int main(int argc, char **argv) {
 
 	printf("\nVirtual     :");
 	if (info.vme) printf(" VME");
+	if (info.apivc) printf(" APICv");
 	if (info.max_virt_leaf > 0x4000_0000) {
 		if (info.virt_vendor_id)
 			printf(" HOST=%.12s", cast(char*)info.virt_vendor);

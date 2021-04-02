@@ -29,7 +29,7 @@ static if (__VERSION__ >= 2092) {
 	int printf(scope const char*, ...);
 }
 
-/// Compiler version template
+/// Compiler version template for betterC usage
 template CVER(int v) {
 	enum CVER =
 		cast(char)((v / 1000) + '0') ~
@@ -52,13 +52,16 @@ enum : uint {
 void clih() {
 	puts(
 	"x86/AMD64 CPUID information tool\n"~
-	"  Usage: ddcpuid [OPTIONS...]\n"~
+	"\n"~
+	"USAGE\n"~
+	"  ddcpuid [OPTIONS...]\n"~
 	"\n"~
 	"OPTIONS\n"~
 	"  -r    Show raw CPUID data in a table\n"~
 	"  -s    Set subleaf (ECX) input value with -r\n"~
-	"  -o    Override leaves to 20h, 4000_0010h, and 8000_0020h\n"~
+	"  -o    Override maximum leaves to 20h, 4000_0010h, and 8000_0020h\n"~
 	"\n"~
+	"PAGES\n"~
 	"  --version    Print version screen and quit\n"~
 	"  --ver        Print version and quit\n"~
 	"  -h, --help   Print this help screen and quit"

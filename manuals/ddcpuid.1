@@ -2,9 +2,9 @@
 ." Please read man-pages(7) and groff_man(7) about the manual page format.
 ." Don't forget to respect the format of this document!
 ."
-.TH ddcpuid 1 "February 2021" dd86k "User manual"
+.TH ddcpuid 1 "April 2021" dd86k "User manual"
 .SH NAME
-ddcpuid - Simple x86/AMD64 CPUID tool
+ddcpuid - x86/AMD64 CPUID information tool
 
 .SH SYNOPSIS
 .SY ddcpuid
@@ -13,6 +13,7 @@ ddcpuid - Simple x86/AMD64 CPUID tool
 .OP \-s SUBLEAF
 .OP \--help
 .OP \--version
+.OP \--ver
 .YS
 
 .SH DESCRIPTION
@@ -56,6 +57,9 @@ Show help screen and exit.
 .IP --version
 Show version screen and exit.
 
+.IP --ver
+Show version only and exit.
+
 .IP -o
 Overrides leaves to 20h, 4000_0010h, and 8000_0020h. Affects feature
 scanning and -r.
@@ -69,7 +73,7 @@ Note: Default, the sub-leaf input (ECX) is cleared.
 Provide how many sub-leaves (ECX) to travel. Applies for -r.
 
 .SH NOTES
-This man-page was written for ddcpuid 0.17.1. The full technical manual contains
+This man-page was written for ddcpuid 0.18.0. The full technical manual contains
 more details, such as explanations to intel and amd technologies, as well as
 various extensions in detail.
 
@@ -81,8 +85,6 @@ Manual:
 While the best supported compiler is DMD, LDC offers superior optimizations.
 
 .SH BUGS
-With GDC, compiling above -O1 segfaults at run-time. Tested on 8.4.0.
-
 May misreport due to human error.
 
 .SH AUTHOR

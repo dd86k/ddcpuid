@@ -93,6 +93,7 @@ struct CPUINFO { align(1):
 	union { align(1):
 		char[12] vendor;	/// Vendor String
 		uint vendor_id;	/// Vendor "ID"
+		uint[3] vendor32;	/// Vendor 32-bit parts
 	}
 	char[48] brand;	/// Processor Brand String
 	
@@ -268,6 +269,7 @@ struct CPUINFO { align(1):
 	union {
 		char[12] virt_vendor;
 		uint virt_vendor_id;
+		uint[3] virt_vendor32;
 	}
 	
 	// VBox
@@ -462,7 +464,7 @@ enum : uint {
 	VENDOR_VIA   = ID!("VIA "),	/// VIA: "VIA ", 0x20414956
 	VIRT_VENDOR_KVM      = ID!("KVMK"), /// KVM: "KVMK", 0x4b4d564b
 	VIRT_VENDOR_VBOX_HV  = ID!("VBox"), /// VirtualBox: "VBox"/Hyper-V interface, 0x786f4256
-	VIRT_VENDOR_VBOX_MIN = 0, /// VirtualBox: Minimal interface
+	VIRT_VENDOR_VBOX_MIN = 0, /// VirtualBox: Minimal interface (zero)
 }
 
 immutable char[] CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
@@ -1151,6 +1153,25 @@ void getInfo(ref CPUINFO info) {
 		}
 	}
 	
+	// Vendor string verification
+	// If the rest of the string doesn't correspond, the id is unset
+	switch (info.vendor_id) {
+	case VENDOR_INTEL:	// "GenuineIntel"
+		if (info.vendor32[1] != ID!("ineI")) goto default;
+		if (info.vendor32[2] != ID!("ntel")) goto default;
+		break;
+	case VENDOR_AMD:	// "AuthenticAMD"
+		if (info.vendor32[1] != ID!("enti")) goto default;
+		if (info.vendor32[2] != ID!("cAMD")) goto default;
+		break;
+	case VENDOR_VIA:	// "VIA VIA VIA "
+		if (info.vendor32[1] != ID!("VIA ")) goto default;
+		if (info.vendor32[2] != ID!("VIA ")) goto default;
+		break;
+	default:
+		info.vendor_id = 0;
+	}
+	
 	//
 	// Cache information
 	//
@@ -1700,6 +1721,21 @@ CACHE_AMD_NEWER:
 			mov [EDI+4], ECX;
 			mov [EDI+8], EDX;
 		}
+	}
+	
+	// Paravirtual vendor string verification
+	// If the rest of the string doesn't correspond, the id is unset
+	switch (info.virt_vendor_id) {
+	case VIRT_VENDOR_KVM:	// "KVMKVMKVMKVM"
+		if (info.virt_vendor32[1] != ID!("VMKV")) goto default;
+		if (info.virt_vendor32[2] != ID!("MKVM")) goto default;
+		break;
+	case VIRT_VENDOR_VBOX_HV:	// "VBoxVBoxVBox"
+		if (info.virt_vendor32[1] != ID!("VBox")) goto default;
+		if (info.virt_vendor32[2] != ID!("VBox")) goto default;
+		break;
+	default:
+		info.vendor_id = 0;
 	}
 
 	if (info.max_virt_leaf < 0x4000_0001) goto EXTENDED_LEAVES;

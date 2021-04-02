@@ -115,138 +115,138 @@ struct CPUINFO { align(1):
 	//
 	
 	//TODO: Consider bit flags for families like mmx, 3dnow, sse
-	bool fpu;	/// 
-	bool f16c;	/// 
-	bool mmx;	/// 
-	bool mmxext;	/// 
-	bool _3dnow;	/// 
-	bool _3dnowext;	/// 
-	bool aes_ni;	/// 
-	bool sha;	/// 
-	bool fma3;	/// 
-	bool fma4;	/// 
-	bool bmi1;	/// 
-	bool bmi2;	/// 
-	bool x86_64;	/// long mode
-	bool lahf64;	/// 
-	bool waitpkg;	/// 
-	bool xop;	/// 
-	bool tbm;	/// 
-	bool adx;	/// 
+	bool fpu;	/// x87 FPU
+	bool f16c;	/// Float16 Conversions
+	bool mmx;	/// MMX
+	bool mmxext;	/// MMX Extended
+	bool _3dnow;	/// 3DNow!
+	bool _3dnowext;	/// 3DNow! Extended
+	bool aes_ni;	/// AES-NI
+	bool sha;	/// SHA1
+	bool fma3;	/// FMA3
+	bool fma4;	/// FMA4
+	bool bmi1;	/// BMI1
+	bool bmi2;	/// BMI2
+	bool x86_64;	/// Long mode
+	bool lahf64;	/// LAHF/SAHF in 64-bit mode
+	bool waitpkg;	/// WAITPKG
+	bool xop;	/// XOP
+	bool tbm;	/// TBM
+	bool adx;	/// ADX
 	
 	// SSE
 	
-	bool sse;	/// 
-	bool sse2;	/// 
-	bool sse3;	/// 
-	bool ssse3;	/// 
-	bool sse41;	/// 
-	bool sse42;	/// 
-	bool sse4a;	/// 
+	bool sse;	/// SSE
+	bool sse2;	/// SSE2
+	bool sse3;	/// SSE3
+	bool ssse3;	/// SSSE3
+	bool sse41;	/// SSE4.1
+	bool sse42;	/// SSE4.2
+	bool sse4a;	/// SSE4a
 	
 	// AVX
 	
-	bool avx;	/// 
-	bool avx2;	/// 
-	bool avx512f;	/// 
-	bool avx512er;	/// 
-	bool avx512pf;	/// 
-	bool avx512cd;	/// 
-	bool avx512dq;	/// 
-	bool avx512bw;	/// 
-	bool avx512vl;	/// 
-	bool avx512_ifma;	/// 
-	bool avx512_vbmi;	/// 
-	bool avx512_vbmi2;	/// 
-	bool avx512_gfni;	/// 
-	bool avx512_vaes;	/// 
-	bool avx512_vnni;	/// 
-	bool avx512_bitalg;	/// 
-	bool avx512_vpopcntdq;	/// 
-	bool avx512_4vnniw;	/// 
-	bool avx512_4fmaps;	/// 
-	bool avx512_bf16;	/// 
-	bool avx512_vp2intersect;	/// 
+	bool avx;	/// AVX
+	bool avx2;	/// AVX-2
+	bool avx512f;	/// AVX-512
+	bool avx512er;	/// AVX-512-ER
+	bool avx512pf;	/// AVX-512-PF
+	bool avx512cd;	/// AVX-512-CD
+	bool avx512dq;	/// AVX-512-DQ
+	bool avx512bw;	/// AVX-512-BW
+	bool avx512vl;	/// AVX-512-VL
+	bool avx512_ifma;	/// AVX-512-IFMA
+	bool avx512_vbmi;	/// AVX-512-VBMI
+	bool avx512_vbmi2;	/// AVX-512-VBMI2
+	bool avx512_gfni;	/// AVX-512-GFNI
+	bool avx512_vaes;	/// AVX-512-VAES
+	bool avx512_vnni;	/// AVX-512-VNNI
+	bool avx512_bitalg;	/// AVX-512-BITALG
+	bool avx512_vpopcntdq;	/// AVX-512-VPOPCNTDQ
+	bool avx512_4vnniw;	/// AVX-512-4VNNIW
+	bool avx512_4fmaps;	/// AVX-512-4FMAPS
+	bool avx512_bf16;	/// AVX-512-BF16
+	bool avx512_vp2intersect;	/// AVX-512-VP2INTERSECT
 	
 	// AMX
 	
-	bool amx;	/// 
-	bool amx_bf16;	/// 
-	bool amx_int8;	/// 
-	bool amx_xtilecfg;	/// 0Dh.EAX[17]
-	bool amx_xtiledata;	/// 0Dh.EAX[18]
-	bool amx_xfd;	/// 0Dh(ECX=01h).EAX[18]
+	bool amx;	/// AMX
+	bool amx_bf16;	/// AMX-BF16
+	bool amx_int8;	/// AMX-INT8
+	bool amx_xtilecfg;	/// AMX-XTILECFG
+	bool amx_xtiledata;	/// AMX-XTILEDATA
+	bool amx_xfd;	/// AMX-XFD
 	
 	//
 	// Extra instructions
 	//
 	
-	bool monitor;	/// 
-	bool pclmulqdq;	/// 
-	bool cmpxchg8b;	/// 
-	bool cmpxchg16b;	/// 
-	bool movbe;	/// 
-	bool rdrand;	/// 
-	bool rdseed;	/// 
-	bool rdmsr;	/// 
-	bool sysenter;	/// 
-	bool tsc;	/// 
-	bool tsc_deadline;	/// 
-	bool tsc_invariant;	/// 
-	bool rdtscp;	/// 
-	bool rdpid;	/// 
-	bool cmov;	/// 
-	bool lzcnt;	/// 
-	bool popcnt;	/// 
-	bool xsave;	/// 
-	bool osxsave;	/// 
-	bool fxsr;	/// 
-	bool pconfig;	/// 
-	bool cldemote;	/// 
-	bool movdiri;	/// 
-	bool movdir64b;	/// 
-	bool enqcmd;	/// 
-	bool syscall;	/// 
-	bool monitorx;	/// 
-	bool skinit;	/// 
-	bool clflushopt;	/// 
-	bool serialize;	/// 
+	bool monitor;	/// MONITOR+MWAIT
+	bool pclmulqdq;	/// PCLMULQDQ
+	bool cmpxchg8b;	/// CMPXCHG8B
+	bool cmpxchg16b;	/// CMPXCHG16B
+	bool movbe;	/// MOVBE
+	bool rdrand;	/// RDRAND
+	bool rdseed;	/// RDSEED
+	bool rdmsr;	/// RDMSR
+	bool sysenter;	/// SYSENTER+SYSEXIT
+	bool rdtsc;	/// RDTSC
+	bool rdtsc_deadline;	/// TSC_DEADLINE
+	bool rdtsc_invariant;	/// TSC_INVARIANT
+	bool rdtscp;	/// RDTSCP
+	bool rdpid;	/// RDPID
+	bool cmov;	/// CMOVcc
+	bool lzcnt;	/// LZCNT
+	bool popcnt;	/// POPCNT
+	bool xsave;	/// XSAVE+XRSTOR
+	bool osxsave;	/// OSXSAVE+XGETBV
+	bool fxsr;	/// FXSAVE+FXRSTOR
+	bool pconfig;	/// PCONFIG
+	bool cldemote;	/// CLDEMOTE
+	bool movdiri;	/// MOVDIRI
+	bool movdir64b;	/// MOVDIR64B
+	bool enqcmd;	/// ENQCMD
+	bool syscall;	/// SYSCALL+SYSRET
+	bool monitorx;	/// MONITORX+MWAITX
+	bool skinit;	/// SKINIT
+	bool clflushopt;	/// CLFLUSHOPT
+	bool serialize;	/// SERIALIZE
 	
 	//
 	// Technologies
 	//
 	
-	bool eist;	/// 
-	bool turboboost;	/// 
-	bool turboboost30;	/// 
-	bool smx;	/// 
-	bool sgx;	/// 
-	bool htt;	/// 
+	bool eist;	/// Intel SpeedStep/AMD PowerNow/AMD Cool'n'Quiet
+	bool turboboost;	/// Intel TurboBoost/AMD CorePerformanceBoost
+	bool turboboost30;	/// Intel TurboBoost 3.0
+	bool smx;	/// Intel SMX
+	bool sgx;	/// Intel SGX
+	bool htt;	/// HyperThreading
 	
 	//
 	// Cache
 	//
 	
-	CACHEINFO [6]cache;
-	bool clflush;	/// 
-	bool cnxt_id;	/// 
-	bool ss;	/// selfsnoop
-	bool prefetchw;	/// 
-	bool invpcid;	/// 
-	bool wbnoinvd;	/// 
+	CACHEINFO [6]cache;	/// Cache information
+	bool clflush;	/// CLFLUSH size
+	bool cnxt_id;	/// L1 Context ID
+	bool ss;	/// SelfSnoop
+	bool prefetchw;	/// PREFETCHW
+	bool invpcid;	/// INVPCID
+	bool wbnoinvd;	/// WBNOINVD
 
 	
 	//
 	// ACPI
 	//
 	
-	bool acpi;
-	bool apic;
-	bool x2apic;
-	bool arat;
-	bool tm;
-	bool tm2;
-	union { // 01h.EBX
+	bool acpi;	/// ACPI
+	bool apic;	/// APIC
+	bool x2apic;	/// x2APIC
+	bool arat;	/// Always-Running-APIC-Timer
+	bool tm;	/// Thermal Monitor
+	bool tm2;	/// Thermal Monitor 2
+	union { // 01h.EBX internal
 		uint b_01_ebx;
 		struct {
 			ubyte brand_index;
@@ -255,34 +255,34 @@ struct CPUINFO { align(1):
 			ubyte apic_id;
 		}
 	}
-	ushort mwait_min;
-	ushort mwait_max;
+	ushort mwait_min;	/// MWAIT minimum size
+	ushort mwait_max;	/// MWAIT maximum size
 	
 	//
 	// Virtualization
 	//
 	
-	bool virt;
-	ubyte virt_version;
-	bool vme;
+	bool virt;	/// VT-x/AMD-V
+	ubyte virt_version;	/// (AMD) Virtualization platform version
+	bool vme;	/// vm8086 enhanced
 	
 	union {
-		char[12] virt_vendor;
+		char[12] virt_vendor;	/// Paravirtualization vendor
 		uint virt_vendor_id;
 		uint[3] virt_vendor32;
 	}
 	
 	// VBox
 	
-	uint vbox_tsc_freq_khz;
-	uint vbox_apic_freq_khz;
-	ushort vbox_guest_vendor_id;
-	ushort vbox_guest_build;
-	ubyte vbox_guest_os;
-	ubyte vbox_guest_major;
-	ubyte vbox_guest_minor;
-	ubyte vbox_guest_service;
-	bool vbox_guest_opensource;
+	uint vbox_tsc_freq_khz;	/// TSC KHz frequency
+	uint vbox_apic_freq_khz;	/// API KHz frequency
+	ushort vbox_guest_vendor_id;	/// VBox Guest Vendor ID
+	ushort vbox_guest_build;	/// VBox Guest Build number
+	ubyte vbox_guest_os;	/// VBox Guest OS ID
+	ubyte vbox_guest_major;	/// VBox Guest OS Major version
+	ubyte vbox_guest_minor;	/// VBox Guest OS Minor version
+	ubyte vbox_guest_service;	/// VBox Guest Service ID
+	bool vbox_guest_opensource;	/// If set: VBox guest additions open-source
 	
 	// KVM
 	
@@ -386,66 +386,66 @@ struct CPUINFO { align(1):
 	
 	// Memory
 	
-	bool pae;	/// 
-	bool pse;	/// 
-	bool pse_36;	/// 
-	bool page1gb;	/// 
-	bool mtrr;	/// 
-	bool pat;	/// 
-	bool pge;	/// 
-	bool dca;	/// 
-	bool nx;	/// 
-	bool hle;	/// 
-	bool rtm;	/// 
-	bool smep;	/// 
-	bool smap;	/// 
-	bool pku;	/// 
-	bool _5pl;	/// 
-	bool fsrepmov;	/// 
-	bool tsxldtrk;	/// 
-	bool lam;	/// 
+	bool pae;	/// PAE
+	bool pse;	/// PSE
+	bool pse_36;	/// PSE-36
+	bool page1gb;	/// 1GiB pages
+	bool mtrr;	/// MTRR
+	bool pat;	/// PAT
+	bool pge;	/// PGE
+	bool dca;	/// DCA
+	bool nx;	/// Intel XD/NX bit
+	bool hle;	/// (TSX) HLE
+	bool rtm;	/// (TSX) RTM
+	bool smep;	/// SMEP
+	bool smap;	/// SMAP
+	bool pku;	/// PKG
+	bool _5pl;	/// 5-level paging
+	bool fsrepmov;	/// FSREPMOV optimization
+	bool tsxldtrk;	/// (TSX) TSKLDTRK
+	bool lam;	/// LAM
 	union {
 		ushort b_8000_0008_ax;
 		struct {
-			ubyte phys_bits;	// EAX[7 :0]
-			ubyte line_bits;	// EAX[15:8]
+			ubyte phys_bits;	/// Memory physical bits
+			ubyte line_bits;	/// Memory linear bits
 		}
 	}
 	
 	// Debugging
 	
-	bool mca;	/// 
-	bool mce;	/// 
-	bool de;	/// 
-	bool ds;	/// 
-	bool ds_cpl;	/// 
-	bool dtes64;	/// 
-	bool pdcm;	/// 
-	bool sdbg;	/// 
-	bool pbe;	/// 
+	bool mca;	/// Machine Check Architecture
+	bool mce;	/// MCE
+	bool de;	/// DE
+	bool ds;	/// DS
+	bool ds_cpl;	/// DS-CPL
+	bool dtes64;	/// DTES64
+	bool pdcm;	/// PDCM
+	bool sdbg;	/// SDBG
+	bool pbe;	/// PBE
 	
 	// Security
 	
-	bool ibpb;	/// 
-	bool ibrs;	/// 
-	bool ibrs_on;	/// 
-	bool ibrs_pref;	/// 
-	bool stibp;	/// 
-	bool stibp_on;	/// 
-	bool ssbd;	/// 
-	bool l1d_flush;	/// 
-	bool md_clear;	/// 
-	bool cet_ibt;	/// 
-	bool cet_ss;	/// 
+	bool ibpb;	/// IPRB
+	bool ibrs;	/// IBRS
+	bool ibrs_on;	/// IBRS_ON
+	bool ibrs_pref;	/// IBRS_PREF
+	bool stibp;	/// STIBP
+	bool stibp_on;	/// STIBP_ON
+	bool ssbd;	/// SSBD
+	bool l1d_flush;	/// L1D_FLUSH
+	bool md_clear;	/// MD_CLEAR
+	bool cet_ibt;	/// CET_IBT
+	bool cet_ss;	/// CET_SS
 	
 	// Misc.
 	
-	bool psn;	/// 
-	bool pcid;	/// 
-	bool xtpr;	/// 
-	bool ia32_arch_capabilities;	/// 
-	bool fsgsbase;	/// 
-	bool uintr;	/// 
+	bool psn;	/// Processor Serial Number (Pentium III only)
+	bool pcid;	/// PCID
+	bool xtpr;	/// xTPR
+	bool ia32_arch_capabilities;	/// IA32_ARCH_CAPABILITIES MSR
+	bool fsgsbase;	/// FS and GS register base
+	bool uintr;	/// User Interrupts
 	
 	align(8) private ubyte marker;
 }
@@ -722,11 +722,11 @@ int main(int argc, char **argv) {
 	if (info.rdmsr) printf(" RDMSR+WRMSR");
 	if (info.sysenter) printf(" SYSENTER+SYSEXIT");
 	if (info.syscall) printf(" SYSCALL+SYSRET");
-	if (info.tsc) {
+	if (info.rdtsc) {
 		printf(" RDTSC");
-		if (info.tsc_deadline)
+		if (info.rdtsc_deadline)
 			printf(" +TSC-Deadline");
-		if (info.tsc_invariant)
+		if (info.rdtsc_invariant)
 			printf(" +TSC-Invariant");
 	}
 	if (info.rdtscp) printf(" RDTSCP");
@@ -1016,6 +1016,8 @@ int main(int argc, char **argv) {
 	return 0;
 } // main
 
+/// Reset CPUINFO fields.
+/// Params: info = CPUINFO structure
 void reset(CPUINFO *info) {
 	size_t left = (CPUINFO.sizeof / size_t.sizeof) - 1;
 	size_t *p = cast(size_t*)info;
@@ -1400,7 +1402,7 @@ CACHE_AMD_NEWER:
 		info.pcid	= (c & BIT!(17)) != 0;
 		info.mca	= (c & BIT!(18)) != 0;
 		info.x2apic	= (c & BIT!(21)) != 0;
-		info.tsc_deadline	= (c & BIT!(24)) != 0;
+		info.rdtsc_deadline	= (c & BIT!(24)) != 0;
 
 		// EDX
 		info.psn	= (d & BIT!(18)) != 0;
@@ -1448,7 +1450,7 @@ CACHE_AMD_NEWER:
 	info.vme	= (d & BIT!(1)) != 0;
 	info.de	= (d & BIT!(2)) != 0;
 	info.pse	= (d & BIT!(3)) != 0;
-	info.tsc	= (d & BIT!(4)) != 0;
+	info.rdtsc	= (d & BIT!(4)) != 0;
 	info.rdmsr	= (d & BIT!(5)) != 0;
 	info.pae	= (d & BIT!(6)) != 0;
 	info.mce	= (d & BIT!(7)) != 0;
@@ -2072,7 +2074,7 @@ EXTENDED_LEAVES:
 	default:
 	}
 
-	info.tsc_invariant	= (d & BIT!(8)) != 0;
+	info.rdtsc_invariant	= (d & BIT!(8)) != 0;
 
 	if (info.max_ext_leaf < 0x8000_0008) return;
 	
@@ -2138,6 +2140,8 @@ EXTENDED_LEAVES:
 	//if (info.max_ext_leaf < ...) return;
 }
 
+/// (Internal) Get CPU leafs
+/// Params: info = CPUINFO structure
 void getLeaves(ref CPUINFO info) {
 	version (GNU) { // GDC
 		asm {

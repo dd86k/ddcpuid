@@ -1,4 +1,4 @@
-# Binaries
+# Project
 *.obj
 *.exe
 *.dll
@@ -6,13 +6,23 @@
 *.o
 *.di
 .vscode
+.dub
+dub.selections.json
 a.out
+ddcpuid
 
 # Archives
 *.xz
 *.gz
 *.zip
 *.tar
+
+# Documentation
+*.html
+docs/
+
+# Personal stuff
+NOTES
 
 # =========================
 # Operating System Files
@@ -64,7 +74,3 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
-ddcpuid
-*.html
-
-NOTES

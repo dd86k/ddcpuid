@@ -1,6 +1,23 @@
 /**
  * x86 CPU Identification tool
  *
+ * This was initially used internally, so there may be some weirder archaic
+ * pieces left.
+ *
+ * The best way to use this module would be:
+ * ---
+ * CPUINFO info = void;
+ * getLeaves(info);
+ * getInfo(info);
+ * ---
+ *
+ * Then checking the corresponding field:
+ * ---
+ * if (info.amx_xfd) {
+ *   // ...
+ * }
+ * ---
+ *
  * Authors: dd86k (dd@dax.moe)
  * Copyright: See LICENSE
  * License: MIT
@@ -14,8 +31,8 @@ module ddcpuid;
 extern (C):
 __gshared:
 
-version (X86) enum DDCPUID_PLATFORM = "x86";
-else version (X86_64) enum DDCPUID_PLATFORM = "amd64";
+version (X86) enum DDCPUID_PLATFORM = "x86"; /// Target platform
+else version (X86_64) enum DDCPUID_PLATFORM = "amd64"; /// Target platform
 else static assert(0, "ddcpuid is only supported on x86 platforms");
 
 version (GNU) pragma(msg, "warning: GDC support is experimental");
@@ -37,17 +54,18 @@ struct CACHEINFO {
 	union {
 		uint __bundle1;
 		struct {
-			ubyte linesize;
-			ubyte partitions; // or "lines per tag" (AMD)
-			ubyte ways; // n-way
-			ubyte _amdsize; // (old AMD) Size in KB
+			ubyte linesize; /// Size of the line in bytes
+			ubyte partitions;	/// Number of partitions
+			ubyte ways;	/// Number of ways per line
+			ubyte _amdsize;	/// (Legacy AMD) Size in KiB
 		}
 	}
-	/// Cache Size in bytes.
+	/// Cache Size in bytes
 	// (Ways + 1) * (Partitions + 1) * (Line_Size + 1) * (Sets + 1)
 	// (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
 	uint size;
 	ushort sets;
+	/// Feature bits
 	// bit 0, Self Initializing cache
 	// bit 1, Fully Associative cache
 	// bit 2, No Write-Back Invalidation (toggle)
@@ -83,15 +101,17 @@ struct CPUINFO { align(1):
 	// Identifier
 	//
 
-	ubyte family;	/// 
-	ubyte base_family;	/// 
-	ubyte ext_family;	/// 
-	ubyte model;	/// 
-	ubyte base_model;	/// 
-	ubyte ext_model;	/// 
-	ubyte stepping;	/// 
-//	ubyte type;	/// Processor type
-	const(char) *type;	/// Processor type, no longer used so it's simply a string
+	ubyte family;	/// Effective family identifier
+	ubyte base_family;	/// Base family identifier
+	ubyte ext_family;	/// Extended family identifier
+	ubyte model;	/// Effective model identifier
+	ubyte base_model;	/// Base model identifier
+	ubyte ext_model;	/// Extended model identifier
+	ubyte stepping;	/// Stepping revision
+	ubyte type;	/// Processor type number
+	/// Processor type string.
+	/// No longer used by modern processors.
+	const(char) *type_string;
 	
 	//
 	// Extensions
@@ -232,14 +252,14 @@ struct CPUINFO { align(1):
 	union { // 01h.EBX internal
 		uint b_01_ebx;
 		struct {
-			ubyte brand_index;
-			ubyte clflush_linesize;
-			ubyte max_apic_id;
-			ubyte apic_id;
+			ubyte brand_index;	/// Processor brand index. No longer used.
+			ubyte clflush_linesize;	/// Linesize of CLFLUSH in bits
+			ubyte max_apic_id;	/// Maximum APIC ID
+			ubyte apic_id;	/// Initial APIC ID (running core where CPUID was called)
 		}
 	}
-	ushort mwait_min;	/// MWAIT minimum size
-	ushort mwait_max;	/// MWAIT maximum size
+	ushort mwait_min;	/// MWAIT minimum size in bytes
+	ushort mwait_max;	/// MWAIT maximum size in bytes
 	
 	//
 	// Virtualization
@@ -433,7 +453,7 @@ struct CPUINFO { align(1):
 	bool fsgsbase;	/// FS and GS register base
 	bool uintr;	/// User Interrupts
 	
-	align(8) private ubyte marker;
+	align(8) private ubyte padding;
 }
 
 // Self-made vendor "IDs" for faster look-ups, LSB-based.
@@ -541,7 +561,7 @@ void getLeaves(ref CPUINFO info) {
 /// Fetch CPU info
 /// Params: info = CPUINFO structure
 void getInfo(ref CPUINFO info) {
-	reset(info);
+	reset(info); // failsafe
 	
 	// Position Independant Code compliant
 	size_t __A = cast(size_t)&info.vendor;
@@ -698,7 +718,7 @@ void getInfo(ref CPUINFO info) {
 	
 	uint a = void, b = void, c = void, d = void; // EAX to EDX
 	
-	switch (info.vendor_id) { // CACHE INFORMATION
+	switch (info.vendor_id) {
 	case VENDOR_INTEL:
 		version (GNU) asm {
 			"mov $4, %%eax\n"~
@@ -887,7 +907,8 @@ CACHE_AMD_NEWER:
 	info.stepping    = a & 0xF;        // EAX[3:0]
 	info.base_model  = a >>  4 &  0xF; // EAX[7:4]
 	info.base_family = a >>  8 &  0xF; // EAX[11:8]
-	info.type        = PROCESSOR_TYPE[a >> 12 & 0b11]; // EAX[13:12]
+	info.type        = a >> 12 & 0b11; // EAX[13:12]
+	info.type_string = PROCESSOR_TYPE[info.type];
 	info.ext_model   = a >> 16 &  0xF; // EAX[19:16]
 	info.ext_family  = cast(ubyte)(a >> 20); // EAX[27:20]
 

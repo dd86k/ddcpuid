@@ -583,7 +583,7 @@ int main(int argc, char **argv) {
 
 	printf("\nMisc.       : HLeaf=%Xh HVLeaf=%Xh HELeaf=%Xh Type=%s Index=%u",
 		info.max_leaf, info.max_virt_leaf, info.max_ext_leaf,
-		info.type, info.brand_index);
+		info.type_string, info.brand_index);
 	if (info.xtpr) printf(" xTPR");
 	if (info.psn) printf(" PSN");
 	if (info.pcid) printf(" PCID");

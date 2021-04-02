@@ -7,3 +7,11 @@ version "0.18.0"
 
 dflags "-betterC" platform="dmd"
 dflags "-betterC" platform="ldc"
+
+buildType "debugv" {
+	versions "PrintTargetInfo"
+	buildOptions "debugMode" "debugInfo"
+	dflags "-vgc" "-vtls" platform="dmd"
+	dflags "--vgc" platform="ldc"
+	dflags "-ftransition=nogc" "-ftransition=tls" platform="gdc"
+}

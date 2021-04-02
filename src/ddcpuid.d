@@ -53,7 +53,7 @@ struct CACHEINFO {
 	// bit 3, Cache Inclusiveness (toggle)
 	// bit 4, Complex Cache Indexing (toggle)
 	ushort feat;
-	ubyte type;	/// data=1, instructions=2, unified=3
+	char type;	/// data='D', instructions='I', unified='U'
 	ubyte level;	/// L1, L2, etc.
 }
 
@@ -88,7 +88,8 @@ struct CPUINFO { align(1):
 	ubyte base_model;	/// 
 	ubyte ext_model;	/// 
 	ubyte stepping;	/// 
-	ubyte type;	/// processor type
+//	ubyte type;	/// Processor type
+	const(char) *type;	/// Processor type, no longer used so it's simply a string
 	
 	//
 	// Extensions
@@ -443,22 +444,102 @@ enum : uint {
 	VIRT_VENDOR_VBOX_MIN = 0, /// VirtualBox: Minimal interface (zero)
 }
 
+private
 immutable char[] CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
 
+private
 const(char)*[] PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];
 
 /// Reset CPUINFO fields.
 /// Params: info = CPUINFO structure
-void reset(CPUINFO *info) {
+private
+void reset(ref CPUINFO info) {
 	size_t left = (CPUINFO.sizeof / size_t.sizeof) - 1;
-	size_t *p = cast(size_t*)info;
+	size_t *p = cast(size_t*)&info;
 	for (; left > 0; --left)
 		p[left] = 0;
+}
+
+/// (Internal) Get CPU leafs
+/// Params: info = CPUINFO structure
+void getLeaves(ref CPUINFO info) {
+	version (GNU) { // GDC
+		asm {
+			"mov $0, %%eax\n"~
+			"cpuid"
+			: "=a" (info.max_leaf);
+		}
+		asm {
+			"mov $0x40000000, %%eax\n"~
+			"cpuid"
+			: "=a" (info.max_virt_leaf);
+		}
+		asm {
+			"mov $0x80000000, %%eax\n"~
+			"cpuid"
+			: "=a" (info.max_ext_leaf);
+		}
+	} else
+	version (LDC) { // LDC2
+		version (X86) asm {
+			lea EDI, info;
+			mov EAX, 0;
+			cpuid;
+			mov [EDI + info.max_leaf.offsetof], EAX;
+			mov EAX, 0x4000_0000;
+			cpuid;
+			mov [EDI + info.max_virt_leaf.offsetof], EAX;
+			mov EAX, 0x8000_0000;
+			cpuid;
+			mov [EDI + info.max_ext_leaf.offsetof], EAX;
+		}
+		else
+		version (X86_64) asm {
+			lea RDI, info;
+			mov EAX, 0;
+			cpuid;
+			mov [RDI + info.max_leaf.offsetof], EAX;
+			mov EAX, 0x4000_0000;
+			cpuid;
+			mov [RDI + info.max_virt_leaf.offsetof], EAX;
+			mov EAX, 0x8000_0000;
+			cpuid;
+			mov [RDI + info.max_ext_leaf.offsetof], EAX;
+		}
+	} else { // DMD
+		version (X86) asm {
+			mov EDI, info;
+			mov EAX, 0;
+			cpuid;
+			mov [EDI + info.max_leaf.offsetof], EAX;
+			mov EAX, 0x4000_0000;
+			cpuid;
+			mov [EDI + info.max_virt_leaf.offsetof], EAX;
+			mov EAX, 0x8000_0000;
+			cpuid;
+			mov [EDI + info.max_ext_leaf.offsetof], EAX;
+		}
+		else
+		version (X86_64) asm {
+			mov RDI, info;
+			mov EAX, 0;
+			cpuid;
+			mov [RDI + info.max_leaf.offsetof], EAX;
+			mov EAX, 0x4000_0000;
+			cpuid;
+			mov [RDI + info.max_virt_leaf.offsetof], EAX;
+			mov EAX, 0x8000_0000;
+			cpuid;
+			mov [RDI + info.max_ext_leaf.offsetof], EAX;
+		}
+	}
 }
 
 /// Fetch CPU info
 /// Params: info = CPUINFO structure
 void getInfo(ref CPUINFO info) {
+	reset(info);
+	
 	// Position Independant Code compliant
 	size_t __A = cast(size_t)&info.vendor;
 	size_t __B = cast(size_t)&info.brand;
@@ -641,7 +722,7 @@ void getInfo(ref CPUINFO info) {
 		// Fix LDC2 compiling issue (#13)
 		if (a == 0) break;
 		
-		ca.type = (a & 0xF);
+		ca.type = CACHE_TYPE[a & 3]; // 0xF
 		ca.level = cast(ubyte)((a >> 5) & 7);
 		ca.linesize = cast(ubyte)((b & 0x7FF) + 1);
 		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
@@ -673,7 +754,7 @@ void getInfo(ref CPUINFO info) {
 				mov d, EDX;
 			}
 			info.cache[0].level = info.cache[1].level = 1; // L1
-			info.cache[0].type = 1; // data
+			info.cache[0].type = 'D'; // data
 			info.cache[0].__bundle1 = c;
 			info.cache[0].size = info.cache[0]._amdsize;
 			info.cache[1].__bundle1 = d;
@@ -717,7 +798,7 @@ void getInfo(ref CPUINFO info) {
 			_amd_ways_l2 = (c >> 12) & 7;
 			if (_amd_ways_l2) {
 				info.cache[2].level = 2; // L2
-				info.cache[2].type = 3; // unified
+				info.cache[2].type = 'U'; // unified
 				info.cache[2].ways = _amd_ways(_amd_ways_l2);
 				info.cache[2].size = c >> 16;
 				info.cache[2].sets = (c >> 8) & 7;
@@ -761,7 +842,7 @@ CACHE_AMD_NEWER:
 		// LDC has some trouble jumping to an exterior label
 		if (a == 0) break;
 
-		ca.type = (a & 0xF); // Same as Intel
+		ca.type = CACHE_TYPE[a & 3]; // 0xF, same as intel
 		ca.level = cast(ubyte)((a >> 5) & 7);
 		ca.linesize = cast(ubyte)((b & 0x7FF) + 1);
 		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
@@ -803,7 +884,7 @@ CACHE_AMD_NEWER:
 	info.stepping    = a & 0xF;        // EAX[3:0]
 	info.base_model  = a >>  4 &  0xF; // EAX[7:4]
 	info.base_family = a >>  8 &  0xF; // EAX[11:8]
-	info.type        = a >> 12 & 0b11; // EAX[13:12]
+	info.type        = PROCESSOR_TYPE[a >> 12 & 0b11]; // EAX[13:12]
 	info.ext_model   = a >> 16 &  0xF; // EAX[19:16]
 	info.ext_family  = cast(ubyte)(a >> 20); // EAX[27:20]
 
@@ -1567,81 +1648,6 @@ EXTENDED_LEAVES:
 	}
 
 	//if (info.max_ext_leaf < ...) return;
-}
-
-/// (Internal) Get CPU leafs
-/// Params: info = CPUINFO structure
-void getLeaves(ref CPUINFO info) {
-	version (GNU) { // GDC
-		asm {
-			"mov $0, %%eax\n"~
-			"cpuid"
-			: "=a" (info.max_leaf);
-		}
-		asm {
-			"mov $0x40000000, %%eax\n"~
-			"cpuid"
-			: "=a" (info.max_virt_leaf);
-		}
-		asm {
-			"mov $0x80000000, %%eax\n"~
-			"cpuid"
-			: "=a" (info.max_ext_leaf);
-		}
-	} else
-	version (LDC) { // LDC2
-		version (X86) asm {
-			lea EDI, info;
-			mov EAX, 0;
-			cpuid;
-			mov [EDI + info.max_leaf.offsetof], EAX;
-			mov EAX, 0x4000_0000;
-			cpuid;
-			mov [EDI + info.max_virt_leaf.offsetof], EAX;
-			mov EAX, 0x8000_0000;
-			cpuid;
-			mov [EDI + info.max_ext_leaf.offsetof], EAX;
-		}
-		else
-		version (X86_64) asm {
-			lea RDI, info;
-			mov EAX, 0;
-			cpuid;
-			mov [RDI + info.max_leaf.offsetof], EAX;
-			mov EAX, 0x4000_0000;
-			cpuid;
-			mov [RDI + info.max_virt_leaf.offsetof], EAX;
-			mov EAX, 0x8000_0000;
-			cpuid;
-			mov [RDI + info.max_ext_leaf.offsetof], EAX;
-		}
-	} else { // DMD
-		version (X86) asm {
-			mov EDI, info;
-			mov EAX, 0;
-			cpuid;
-			mov [EDI + info.max_leaf.offsetof], EAX;
-			mov EAX, 0x4000_0000;
-			cpuid;
-			mov [EDI + info.max_virt_leaf.offsetof], EAX;
-			mov EAX, 0x8000_0000;
-			cpuid;
-			mov [EDI + info.max_ext_leaf.offsetof], EAX;
-		}
-		else
-		version (X86_64) asm {
-			mov RDI, info;
-			mov EAX, 0;
-			cpuid;
-			mov [RDI + info.max_leaf.offsetof], EAX;
-			mov EAX, 0x4000_0000;
-			cpuid;
-			mov [RDI + info.max_virt_leaf.offsetof], EAX;
-			mov EAX, 0x8000_0000;
-			cpuid;
-			mov [RDI + info.max_ext_leaf.offsetof], EAX;
-		}
-	}
 }
 
 debug pragma(msg, "* CPUINFO.sizeof: ", CPUINFO.sizeof);

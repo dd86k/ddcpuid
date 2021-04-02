@@ -135,7 +135,6 @@ int main(int argc, char **argv) {
 	} // for
 
 	CPUINFO info = void;
-	reset(&info);
 
 	if (opt_override) {
 		info.max_leaf = MAX_LEAF;
@@ -379,7 +378,7 @@ int main(int argc, char **argv) {
 			c = 'M';
 		}
 		printf("\n\tL%u-%c: %u %ciB\t%u ways, %u parts, %u B, %u sets",
-			ca.level, CACHE_TYPE[ca.type], ca.size, c,
+			ca.level, ca.type, ca.size, c,
 			ca.ways, ca.partitions, ca.linesize, ca.sets
 		);
 		if (ca.feat & BIT!(0)) printf(" +SI"); // Self Initiative
@@ -580,7 +579,7 @@ int main(int argc, char **argv) {
 
 	printf("\nMisc.       : HLeaf=%Xh HVLeaf=%Xh HELeaf=%Xh Type=%s Index=%u",
 		info.max_leaf, info.max_virt_leaf, info.max_ext_leaf,
-		PROCESSOR_TYPE[info.type], info.brand_index);
+		info.type, info.brand_index);
 	if (info.xtpr) printf(" xTPR");
 	if (info.psn) printf(" PSN");
 	if (info.pcid) printf(" PCID");

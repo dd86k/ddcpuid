@@ -35,12 +35,12 @@ clean:
 
 install: ddcpuid
 	cp ddcpuid $(PREFIX)/bin
-	cp ddcpuid.1 $(PREFIX)/share/man/man1
+	cp manuals/ddcpuid.1 $(PREFIX)/share/man/man1
 
 uninstall: 
 	rm -fv $(PREFIX)/bin/ddcpuid
 	rm -fv $(PREFIX)/share/man/man1/ddcpuid.1
 
-ddcpuid: ddcpuid.d
-	$(DC) $(DFLAGS) ddcpuid.d
+ddcpuid: src/ddcpuid.d src/main.d
+	$(DC) $(DFLAGS) src/ddcpuid.d src/main.d
 

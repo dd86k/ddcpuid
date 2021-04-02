@@ -5,7 +5,7 @@
  *       crashes on Windows. Secondly, line buffering.
  *
  * Author: dd86k <dd@dax.moe>
- * Copyright: See LICENSE
+ * Copyrights: See LICENSE
  * License: MIT
  */
 module main;

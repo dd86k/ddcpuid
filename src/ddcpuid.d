@@ -2,7 +2,7 @@
  * x86 CPU Identification tool
  *
  * Author: dd86k <dd@dax.moe>
- * Copyright: See LICENSE
+ * Copyrights: See LICENSE
  * License: MIT
  */
 module ddcpuid;

@@ -5,7 +5,7 @@
  *
  * The best way to use this module would be:
  * ---
- * CPUINFO info = void;
+ * CPUINFO info;	// Important to let the struct init to zero!
  * getLeaves(info);	// Get maximum CPUID leaves (first mandatory step)
  * getVendor(info);	// Get vendor string (second mandatory step)
  * getInfo(info);	// Fill CPUINFO structure (optional)
@@ -476,6 +476,9 @@ struct CPUINFO { align(1):
 	bool fsgsbase;	/// FS and GS register base
 	bool uintr;	/// User Interrupts
 	
+	// This padding is important for the __initZ function optimization
+	// When initiated, compiler (i.e., GDC) will cram the structure only
+	// using QWORDs (64-bit) numbers on x86-64.
 	align(8) private ubyte padding;
 }
 
@@ -490,17 +493,17 @@ const(char)*[] PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];
 void getLeaves(ref CPUINFO info) {
 	version (GNU) { // GDC
 		asm {
-			"mov $0, %%eax\n"~
+			"mov $0, %%eax\n\t"~
 			"cpuid"
 			: "=a" (info.max_leaf);
 		}
 		asm {
-			"mov $0x40000000, %%eax\n"~
+			"mov $0x40000000, %%eax\n\t"~
 			"cpuid"
 			: "=a" (info.max_virt_leaf);
 		}
 		asm {
-			"mov $0x80000000, %%eax\n"~
+			"mov $0x80000000, %%eax\n\t"~
 			"cpuid"
 			: "=a" (info.max_ext_leaf);
 		}
@@ -568,12 +571,12 @@ void getVendor(ref CPUINFO info) {
 	version (X86_64) {
 		version (GNU) asm {
 			// vendor string
-			"mov %0, %%rdi\n"~
-			"mov $0, %%eax\n"~
-			"cpuid\n"~
-			"mov %%ebx, (%%rdi)\n"~
-			"mov %%edx, 4(%%rdi)\n"~
-			"mov %%ecx, 8(%%rdi)\n"
+			"mov %0, %%rdi\n\t"~
+			"mov $0, %%eax\n\t"~
+			"cpuid\n\t"~
+			"mov %%ebx, (%%rdi)\n\t"~
+			"mov %%edx, 4(%%rdi)\n\t"~
+			"mov %%ecx, 8(%%rdi)"
 			:
 			: "m" (vendor_ptr);
 		} else asm {
@@ -587,12 +590,12 @@ void getVendor(ref CPUINFO info) {
 		}
 	} else { // version X86
 		version (GNU) asm {
-			"mov %0, %%edi\n"~
-			"mov $0, %%eax\n"~
+			"mov %0, %%edi\n\t"~
+			"mov $0, %%eax\n\t"~
 			"cpuid\n"~
-			"mov %%ebx, disp(%%edi)\n"~
-			"mov %%edx, disp(%%edi+4)\n"~
-			"mov %%ecx, disp(%%edi+8)\n"
+			"mov %%ebx, disp(%%edi)\n\t"~
+			"mov %%edx, disp(%%edi+4)\n\t"~
+			"mov %%ecx, disp(%%edi+8)"
 			:
 			: "m" (vendor_ptr);
 		} else asm {
@@ -644,24 +647,24 @@ void getInfo(ref CPUINFO info) {
 	// Get processor brand string
 	version (X86_64) {
 		version (GNU) asm {
-			"mov %0, %%rdi\n"~
-			"mov $0x80000002, %%eax\n"~
-			"cpuid\n"~
-			"mov %%eax, (%%rdi)\n"~
-			"mov %%ebx, 4(%%rdi)\n"~
-			"mov %%ecx, 8(%%rdi)\n"~
-			"mov %%edx, 12(%%rdi)\n"~
-			"mov $0x80000003, %%eax\n"~
-			"cpuid\n"~
-			"mov %%eax, 16(%%rdi)\n"~
-			"mov %%ebx, 20(%%rdi)\n"~
-			"mov %%ecx, 24(%%rdi)\n"~
-			"mov %%edx, 28(%%rdi)\n"~
-			"mov $0x80000004, %%eax\n"~
-			"cpuid\n"~
-			"mov %%eax, 32(%%rdi)\n"~
-			"mov %%ebx, 36(%%rdi)\n"~
-			"mov %%ecx, 40(%%rdi)\n"~
+			"mov %0, %%rdi\n\t"~
+			"mov $0x80000002, %%eax\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, (%%rdi)\n\t"~
+			"mov %%ebx, 4(%%rdi)\n\t"~
+			"mov %%ecx, 8(%%rdi)\n\t"~
+			"mov %%edx, 12(%%rdi)\n\t"~
+			"mov $0x80000003, %%eax\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, 16(%%rdi)\n\t"~
+			"mov %%ebx, 20(%%rdi)\n\t"~
+			"mov %%ecx, 24(%%rdi)\n\t"~
+			"mov %%edx, 28(%%rdi)\n\t"~
+			"mov $0x80000004, %%eax\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, 32(%%rdi)\n\t"~
+			"mov %%ebx, 36(%%rdi)\n\t"~
+			"mov %%ecx, 40(%%rdi)\n\t"~
 			"mov %%edx, 44(%%rdi)"
 			:
 			: "m" (brand_ptr);
@@ -688,24 +691,24 @@ void getInfo(ref CPUINFO info) {
 		}
 	} else { // version X86
 		version (GNU) asm {
-			"mov %0, %%edi\n"~
-			"mov $0x80000002, %%eax\n"~
-			"cpuid\n"~
-			"mov %%eax, disp(%%edi)\n"~
-			"mov %%ebx, disp(%%edi+4)\n"~
-			"mov %%ecx, disp(%%edi+8)\n"~
-			"mov %%edx, disp(%%edi+12)\n"~
-			"mov $0x80000003, %%eax\n"~
-			"cpuid\n"~
-			"mov %%eax, disp(%%edi+16)\n"~
-			"mov %%ebx, disp(%%edi+20)\n"~
-			"mov %%ecx, disp(%%edi+24)\n"~
-			"mov %%edx, disp(%%edi+28)\n"~
-			"mov $0x80000004, %%eax\n"~
-			"cpuid\n"~
-			"mov %%eax, disp(%%edi+32)\n"~
-			"mov %%ebx, disp(%%edi+36)\n"~
-			"mov %%ecx, disp(%%edi+40)\n"~
+			"mov %0, %%edi\n\t"~
+			"mov $0x80000002, %%eax\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, disp(%%edi)\n\t"~
+			"mov %%ebx, disp(%%edi+4)\n\t"~
+			"mov %%ecx, disp(%%edi+8)\n\t"~
+			"mov %%edx, disp(%%edi+12)\n\t"~
+			"mov $0x80000003, %%eax\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, disp(%%edi+16)\n\t"~
+			"mov %%ebx, disp(%%edi+20)\n\t"~
+			"mov %%ecx, disp(%%edi+24)\n\t"~
+			"mov %%edx, disp(%%edi+28)\n\t"~
+			"mov $0x80000004, %%eax\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, disp(%%edi+32)\n\t"~
+			"mov %%ebx, disp(%%edi+36)\n\t"~
+			"mov %%ecx, disp(%%edi+40)\n\t"~
 			"mov %%edx, disp(%%edi+44)"
 			:
 			: "m" (brand_ptr);
@@ -739,11 +742,11 @@ void getInfo(ref CPUINFO info) {
 	//
 
 	version (GNU) asm {
-		"mov $1, %%eax\n"~
-		"cpuid\n"~
-		"mov %%eax, %0\n"~
-		"mov %%ebx, %1\n"~
-		"mov %%ecx, %2\n"~
+		"mov $1, %%eax\n\t"~
+		"cpuid\n\t"~
+		"mov %%eax, %0\n\t"~
+		"mov %%ebx, %1\n\t"~
+		"mov %%ecx, %2\n\t"~
 		"mov %%edx, %3"
 		: "=a" (a), "=b" (b), "=c" (c), "=d" (d);
 	} else asm {
@@ -863,10 +866,10 @@ void getInfo(ref CPUINFO info) {
 	//
 	
 	version (GNU) asm {
-		"mov $5, %%eax\n"~
-		"cpuid\n"~
-		"mov %%eax, %0\n"~
-		"mov %%ebx, %1\n"
+		"mov $5, %%eax\n\t"~
+		"cpuid\n\t"~
+		"mov %%eax, %0\n\t"~
+		"mov %%ebx, %1"
 		: "=a" (a), "=b" (b);
 	} else asm {
 		mov EAX, 5;
@@ -885,8 +888,8 @@ void getInfo(ref CPUINFO info) {
 	//
 	
 	version (GNU) asm {
-		"mov $6, %%eax\n"~
-		"cpuid\n"~
+		"mov $6, %%eax\n\t"~
+		"cpuid\n\t"~
 		"mov %%eax, %0"
 		: "=a" (a);
 	} else asm {
@@ -912,12 +915,12 @@ void getInfo(ref CPUINFO info) {
 	//
 
 	version (GNU) asm {
-		"mov $7, %%eax\n"~
-		"mov $0, %%ecx\n"~
-		"cpuid\n"~
-		"mov %%ebx, %0\n"~
-		"mov %%ecx, %1\n"~
-		"mov %%edx, %2\n"
+		"mov $7, %%eax\n\t"~
+		"mov $0, %%ecx\n\t"~
+		"cpuid\n\t"~
+		"mov %%ebx, %0\n\t"~
+		"mov %%ecx, %1\n\t"~
+		"mov %%edx, %2"
 		: "=b" (b), "=c" (c), "=d" (d);
 	} else asm {
 		mov EAX, 7;
@@ -1003,10 +1006,10 @@ void getInfo(ref CPUINFO info) {
 	switch (info.vendor_id) {
 	case VENDOR_INTEL:
 		version (GNU) asm {
-			"mov $7, %%eax\n"~
-			"mov $1, %%ecx\n"~
-			"cpuid\n"~
-			"mov %%eax, %0\n"
+			"mov $7, %%eax\n\t"~
+			"mov $1, %%ecx\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, %0"
 			: "=a" (a);
 		} else asm {
 			mov EAX, 7;
@@ -1030,10 +1033,10 @@ void getInfo(ref CPUINFO info) {
 	switch (info.vendor_id) {
 	case VENDOR_INTEL:
 		version (GNU) asm {
-			"mov $0xD, %%eax\n"~
-			"mov $0, %%ecx\n"~
-			"cpuid\n"~
-			"mov %%eax, %0\n"
+			"mov $0xD, %%eax\n\t"~
+			"mov $0, %%ecx\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, %0"
 			: "=a" (a);
 		} else asm {
 			mov EAX, 0xD;
@@ -1054,10 +1057,10 @@ void getInfo(ref CPUINFO info) {
 	switch (info.vendor_id) {
 	case VENDOR_INTEL:
 		version (GNU) asm {
-			"mov $0xD, %%eax\n"~
-			"mov $1, %%ecx\n"~
-			"cpuid\n"~
-			"mov %%eax, %0\n"
+			"mov $0xD, %%eax\n\t"~
+			"mov $1, %%ecx\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, %0"
 			: "=a" (a);
 		} else asm {
 			mov EAX, 0xD;
@@ -1081,12 +1084,12 @@ L_VIRT:
 	virt_vendor_ptr = cast(size_t)&info.virt_vendor;
 	version (X86_64) {
 		version (GNU) asm {
-			"mov %0, %%rdi\n"~
-			"mov $0x40000000, %%eax\n"~
-			"cpuid\n"~
-			"mov %%ebx, (%%rdi)\n"~
-			"mov %%ecx, 4(%%rdi)\n"~
-			"mov %%edx, 8(%%rdi)\n"
+			"mov %0, %%rdi\n\t"~
+			"mov $0x40000000, %%eax\n\t"~
+			"cpuid\n\t"~
+			"mov %%ebx, (%%rdi)\n\t"~
+			"mov %%ecx, 4(%%rdi)\n\t"~
+			"mov %%edx, 8(%%rdi)"
 			: "=m" (virt_vendor_ptr);
 		} else asm {
 			mov RDI, virt_vendor_ptr;
@@ -1098,12 +1101,12 @@ L_VIRT:
 		}
 	} else {
 		version (GNU) asm {
-			"mov %0, %%edi\n"~
-			"mov $0x40000000, %%eax\n"~
+			"mov %0, %%edi\n\t"~
+			"mov $0x40000000, %%eax\n\t"~
 			"cpuid\n"~
-			"mov %%ebx, (%%edi)\n"~
-			"mov %%ecx, 4(%%edi)\n"~
-			"mov %%edx, 8(%%edi)\n"
+			"mov %%ebx, (%%edi)\n\t"~
+			"mov %%ecx, 4(%%edi)\n\t"~
+			"mov %%edx, 8(%%edi)"
 			: "m" (virt_vendor_ptr);
 		} else asm {
 			mov EDI, virt_vendor_ptr;
@@ -1139,11 +1142,11 @@ L_VIRT:
 	switch (info.virt_vendor_id) {
 	case VIRT_VENDOR_KVM:
 		version (GNU) asm {
-			"mov $0x40000001, %%eax\n"~
-			"mov $0, %%ecx\n"~
-			"cpuid\n"~
-			"mov %%eax, %0\n"~
-			"mov %%edx, %1\n"
+			"mov $0x40000001, %%eax\n\t"~
+			"mov $0, %%ecx\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, %0\n\t"~
+			"mov %%edx, %1"
 			: "=a" (a), "=d" (d);
 		} else asm {
 			mov EAX, 0x4000_0001;
@@ -1180,11 +1183,11 @@ L_VIRT:
 	switch (info.virt_vendor_id) {
 	case VIRT_VENDOR_VBOX_HV:
 		version (GNU) asm {
-			"mov $0x40000002, %%eax\n"~
-			"mov $0, %%ecx\n"~
-			"cpuid\n"~
-			"mov %%eax, %0\n"~
-			"mov %%edx, %1\n"
+			"mov $0x40000002, %%eax\n\t"~
+			"mov $0, %%ecx\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, %0\n\t"~
+			"mov %%edx, %1"
 			: "=a" (a), "=d" (d);
 		} else asm {
 			mov EAX, 0x4000_0002;
@@ -1213,13 +1216,13 @@ L_VIRT:
 	switch (info.virt_vendor_id) {
 	case VIRT_VENDOR_VBOX_HV:
 		version (GNU) asm {
-			"mov $0x40000003, %%eax\n"~
-			"mov $0, %%ecx\n"~
-			"cpuid\n"~
-			"mov %%eax, %0\n"~
-			"mov %%ebx, %1\n"~
-			"mov %%ecx, %2\n"~
-			"mov %%edx, %3\n"
+			"mov $0x40000003, %%eax\n\t"~
+			"mov $0, %%ecx\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, %0\n\t"~
+			"mov %%ebx, %1\n\t"~
+			"mov %%ecx, %2\n\t"~
+			"mov %%edx, %3"
 			: "=a" (a), "=b" (b), "=c" (c), "=d" (d);
 		} else asm {
 			mov EAX, 0x4000_0003;
@@ -1297,10 +1300,10 @@ L_VIRT:
 	switch (info.virt_vendor_id) {
 	case VIRT_VENDOR_VBOX_HV:
 		version (GNU) asm {
-			"mov $0x40000004, %%eax\n"~
-			"mov $0, %%ecx\n"~
-			"cpuid\n"~
-			"mov %%eax, %0\n"
+			"mov $0x40000004, %%eax\n\t"~
+			"mov $0, %%ecx\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, %0"
 			: "=a" (a);
 		} else asm {
 			mov EAX, 0x4000_0004;
@@ -1336,10 +1339,10 @@ L_VIRT:
 	switch (info.virt_vendor_id) {
 	case VIRT_VENDOR_VBOX_HV:
 		version (GNU) asm {
-			"mov $0x40000006, %%eax\n"~
-			"mov $0, %%ecx\n"~
-			"cpuid\n"~
-			"mov %%eax, %0\n"
+			"mov $0x40000006, %%eax\n\t"~
+			"mov $0, %%ecx\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, %0"
 			: "=a" (a);
 		} else asm {
 			mov EAX, 0x4000_0006;
@@ -1370,11 +1373,11 @@ L_VIRT:
 	switch (info.virt_vendor_id) {
 	case VIRT_VENDOR_VBOX_MIN: // VBox Minimal
 		version (GNU) asm {
-			"mov $0x40000010, %%eax\n"~
-			"mov $0, %%ecx\n"~
-			"cpuid\n"~
-			"mov %%eax, %0\n"~
-			"mov %%ebx, %1\n"
+			"mov $0x40000010, %%eax\n\t"~
+			"mov $0, %%ecx\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, %0\n\t"~
+			"mov %%ebx, %1\n\t"
 			: "=a" (a), "=b" (b);
 		} else asm {
 			mov EAX, 0x4000_0010;
@@ -1395,9 +1398,9 @@ L_VIRT:
 
 L_EXTENDED:
 	version (GNU) asm {
-		"mov $0x80000001, %%eax\n"~
-		"cpuid\n"~
-		"mov %%ecx, %0\n"~
+		"mov $0x80000001, %%eax\n\t"~
+		"cpuid\n\t"~
+		"mov %%ecx, %0\n\t"~
 		"mov %%edx, %1"
 		: "=c" (c), "=d" (d);
 	} else asm {
@@ -1440,9 +1443,9 @@ L_EXTENDED:
 	//
 
 	version (GNU) asm {
-		"mov $0x80000007, %%eax\n"~
-		"cpuid\n"~
-		"mov %%ebx, %0\n"~
+		"mov $0x80000007, %%eax\n\t"~
+		"cpuid\n\t"~
+		"mov %%ebx, %0\n\t"~
 		"mov %%edx, %1"
 		: "=b" (b), "=d" (d);
 	} else asm {
@@ -1472,11 +1475,12 @@ L_EXTENDED:
 	//
 
 	version (GNU) asm {
-		"mov $0x80000008, %%eax\n"~
-		"cpuid\n"~
-		"mov %%eax, %0\n"~
-		"mov %%ebx, %1\n"
-		: "=a" (a), "=b" (b);
+		"mov $0x80000008, %%eax\n\t"~
+		"cpuid\n\t"~
+		"mov %%eax, %0\n\t"~
+		"mov %%ebx, %1\n\t"~
+		"mov %%ecx, %2"
+		: "=a" (a), "=b" (b), "=c" (c);
 	} else asm {
 		mov EAX, 0x8000_0008;
 		cpuid;
@@ -1511,9 +1515,9 @@ L_EXTENDED:
 	//
 
 	version (GNU) asm {
-		"mov $0x8000000a, %%eax\n"~
-		"cpuid\n"~
-		"mov %%eax, %0\n"~
+		"mov $0x8000000a, %%eax\n\t"~
+		"cpuid\n\t"~
+		"mov %%eax, %0\n\t"~
 		"mov %%edx, %1"
 		: "=a" (a), "=d" (d);
 	} else asm {
@@ -1549,12 +1553,12 @@ L_CACHE_INFO:
 	switch (info.vendor_id) {
 	case VENDOR_INTEL:
 		version (GNU) asm {
-			"mov $4, %%eax\n"~
-			"mov %4, %%ecx\n"~
-			"cpuid\n"~
-			"mov %%eax, %0\n"~
-			"mov %%ebx, %1\n"~
-			"mov %%ecx, %2\n"~
+			"mov $4, %%eax\n\t"~
+			"mov %4, %%ecx\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, %0\n\t"~
+			"mov %%ebx, %1\n\t"~
+			"mov %%ecx, %2\n\t"~
 			"mov %%edx, %3"
 			: "=a" (a), "=b" (b), "=c" (c), "=d" (d)
 			: "m" (l);
@@ -1588,7 +1592,7 @@ L_CACHE_INFO:
 		
 		info.cores_logical = (a >> 26) + 1;	// EAX[31:26]
 		crshrd = (((a >> 14) & 2047)+1);	// EAX[25:14]
-		sc = info.cores_logical / crshrd;
+		sc = cast(ushort)(info.cores_logical / crshrd); // cast for ldc 0.17.1
 		ca.sharedCores = sc ? sc : 1;
 		
 		++l; ++ca;
@@ -1603,12 +1607,12 @@ L_CACHE_INFO:
 		
 L_CACHE_AMD_EXT_1DH:
 		version (GNU) asm {
-			"mov $0x8000001d, %%eax\n"~
-			"mov %4, %%ecx\n"~
-			"cpuid\n"~
-			"mov %%eax, %0\n"~
-			"mov %%ebx, %1\n"~
-			"mov %%ecx, %2\n"~
+			"mov $0x8000001d, %%eax\n\t"~
+			"mov %4, %%ecx\n\t"~
+			"cpuid\n\t"~
+			"mov %%eax, %0\n\t"~
+			"mov %%ebx, %1\n\t"~
+			"mov %%ecx, %2\n\t"~
 			"mov %%edx, %3"
 			: "=a" (a), "=b" (b), "=c" (c), "=d" (d)
 			: "m" (l);
@@ -1640,7 +1644,7 @@ L_CACHE_AMD_EXT_1DH:
 		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
 		
 		crshrd = (((a >> 14) & 2047)+1);	// EAX[25:14]
-		sc = info.cores_logical / crshrd;
+		sc = cast(ushort)(info.cores_logical / crshrd); // cast for ldc 0.17.1
 		ca.sharedCores = sc ? sc : 1;
 		
 		++l; ++ca;
@@ -1652,9 +1656,9 @@ L_CACHE_AMD_EXT_1DH:
 
 L_CACHE_AMD_LEGACY:
 		version (GNU) asm {
-			"mov $0x80000005, %%eax\n"~
-			"cpuid\n"~
-			"mov %%ecx, %0\n"~
+			"mov $0x80000005, %%eax\n\t"~
+			"cpuid\n\t"~
+			"mov %%ecx, %0\n\t"~
 			"mov %%edx, %1"
 			: "=c" (c), "=d" (d);
 		} else asm {
@@ -1682,9 +1686,9 @@ L_CACHE_AMD_LEGACY:
 			0, 1, 2, 3, 4, 6, 8, 0, 16, 0, 32, 48, 64, 96, 128, 255 ];
 		
 		version (GNU) asm {
-			"mov $0x80000006, %%eax\n"~
-			"cpuid\n"~
-			"mov %%ecx, %0\n"~
+			"mov $0x80000006, %%eax\n\t"~
+			"cpuid\n\t"~
+			"mov %%ecx, %0\n\t"~
 			"mov %%edx, %1"
 			: "=c" (c), "=d" (d);
 		} else asm {

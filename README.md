@@ -50,8 +50,16 @@ Examples:
 
 ## Manually
 
-Since ddcpuid only consists of two files, both being in the `src` folder, it's
-still easy to perform manual compilations.
+Since ddcpuid only consists of two source files, both being in the `src`
+folder, it's still pretty easy to perform a compilation by hand.
+
+Here's an example that works on any compiler:
+```
+dmd src/ddcpuid.d src/main.d -ofddcpuid
+gdc src/ddcpuid.d src/main.d -oddcpuid
+```
+
+You get the idea.
 
 ## GDC Issues
 
@@ -68,3 +76,8 @@ format. I very much dislike it.
 On Windows, LDC versions 1.13 and 1.14 do not include
 `legacy_stdio_definitions.lib`, making it impossible to compile the project
 using `-betterC`.
+
+### v0.17.1
+
+The `-betterC` flag is not available in version 0.17.1, but
+[manually compiling](#manually) the project is still available.

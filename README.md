@@ -3,7 +3,12 @@
 ddcpuid is a x86 processor information tool. Currently supports Intel and AMD
 processors.
 
-_Currently featuring 240 CPUID bits documented and counting!_
+- Can be used as a stand-alone tool or as a library.
+- BetterC compatible.
+- DUB compatible.
+- Does not rely on either the C runtime nor the D runtime.
+- Surpasses CPU-Z, [Intel's Go CPUID](https://github.com/intel-go/cpuid/) module, and Phobos' `core.cpuid` module.
+- _Currently featuring 240 CPUID bits documented and counting!_
 
 The latest version of the technical ddcpuid manual is available here:
 [dd86k.space](https://dd86k.space/docs/ddcpuid-manual.pdf) (PDF).
@@ -16,8 +21,8 @@ The best way to compile ddcpuid is using DUB.
 
 Compilers supported:
 - DMD (best supported)
-- LDC (best optimizations, but see `LDC Issues`)
-- GDC (experimental, see `GDC Issues`)
+- LDC (best optimizations, but see [LDC Issues](#LDC%20Issues))
+- GDC (experimental, see [GDC Issues](#GDC%20Issues))
 
 ## DUB
 

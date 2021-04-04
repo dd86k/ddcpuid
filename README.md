@@ -20,9 +20,9 @@ Both the manual and tool is meant to be used together to better understand x86.
 The best way to compile ddcpuid is using DUB.
 
 Compilers supported:
-- DMD (best supported)
-- LDC (best optimizations, but see [LDC Issues](#LDC%20Issues))
-- GDC (experimental, see [GDC Issues](#GDC%20Issues))
+- DMD >= 2.068.0 (best supported)
+- LDC >= 0.17.1 (best optimizations, but see [LDC Issues](#ldc-issues))
+- GDC >= 6.0.0 (experimental, see [GDC Issues](#gdc-issues))
 
 ## DUB
 

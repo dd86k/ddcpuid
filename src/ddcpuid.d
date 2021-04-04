@@ -89,7 +89,7 @@ struct CACHEINFO {
 	/// - Bit 4: Complex Cache Indexing (toggle)
 	ushort feat;
 	ubyte level;	/// Cache level: L1, L2, etc.
-	char type;	/// Type entry character: 'D'=Data, 'I'=Instructions, 'U'=Unified
+	char type = 0;	/// Type entry character: 'D'=Data, 'I'=Instructions, 'U'=Unified
 }
 
 /// CPU information structure
@@ -107,11 +107,11 @@ struct CPUINFO { align(1):
 	//
 	
 	union { align(1):
-		char[12] vendor;	/// Vendor String
 		uint[3] vendor32;	/// Vendor 32-bit parts
+		char[12] vendor;	/// Vendor String
 	}
 	uint vendor_id;	/// Vendor "ID"
-	char[48] brand;	/// Processor Brand String
+	char[48] brand = 0;	/// Processor Brand String
 	
 	//
 	// Core
@@ -294,9 +294,9 @@ struct CPUINFO { align(1):
 	bool apivc;	/// (AMD) APICv
 	
 	union {
+		uint[3] virt_vendor32;
 		char[12] virt_vendor;	/// Paravirtualization vendor
 		uint virt_vendor_id;
-		uint[3] virt_vendor32;
 	}
 	
 	// VBox
@@ -485,27 +485,6 @@ immutable char[] CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
 private
 const(char)*[] PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];
 
-/// (Internal) Reset CPUINFO fields.
-/// This is called in the `getInfo` function. It unsets all fields after
-/// the vendor string.
-/// Params: info = CPUINFO structure
-private
-void clear(ref CPUINFO info) {
-	//TODO: A "smart" unset would be aware of the maximum leaf
-	enum HDRSZ = (	// stopper
-		(4 * 3) +	// leaf/virtleaf/extleaf
-		(12) +	// Vendor string
-		(4)	// Vendor ID
-		) / size_t.sizeof;
-	/*size_t left = (CPUINFO.sizeof / size_t.sizeof) - 1;
-	for (size_t *p = cast(size_t*)&info; left > STOP; --left)
-		p[left] = 0;*/
-	size_t *p = cast(size_t*)&info.brand;
-	const size_t end = (CPUINFO.sizeof - HDRSZ) / size_t.sizeof;
-	for (size_t i; i < end; ++i)
-		p[i] = 0;
-}
-
 /// Get CPU leafs
 /// Params: info = CPUINFO structure
 void getLeaves(ref CPUINFO info) {
@@ -658,8 +637,6 @@ void getVendor(ref CPUINFO info) {
 // - Extended leaf information
 // - Cache information
 void getInfo(ref CPUINFO info) {
-	clear(info); // failsafe
-	
 	// PIC compatible
 	size_t brand_ptr = cast(size_t)&info.brand;
 	size_t virt_vendor_ptr = void;
@@ -1194,7 +1171,7 @@ L_VIRT:
 	default:
 	}
 
-	if (info.max_virt_leaf < 0x4000_0002) goto L_VIRT;
+	if (info.max_virt_leaf < 0x4000_0002) goto L_EXTENDED;
 	
 	//
 	// Leaf 4000_002H
@@ -1559,7 +1536,8 @@ L_EXTENDED:
 L_CACHE_INFO:
 	//
 	// Cache information
-	// - Done at the end since we need the local APIC ID
+	// - done at the very end since we may need information
+	//   - e.g. amd cpuid.8000_0008h
 	// - maxleaf < 4 is too old/rare
 	//
 	

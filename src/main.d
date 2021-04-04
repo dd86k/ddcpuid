@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
 		} // else if
 	} // for
 
-	CPUINFO info = void;
+	CPUINFO info;
 
 	if (opt_override == false) {
 		getLeaves(info);
@@ -379,7 +379,7 @@ int main(int argc, char **argv) {
 
 	CACHEINFO *ca = cast(CACHEINFO*)info.cache; /// Caches
 
-	while (ca.type) {
+	while (ca.level) {
 		char c = 'K';
 		if (ca.size >= 1024) {
 			ca.size >>= 10;

@@ -7,7 +7,7 @@ processors.
 - BetterC compatible.
 - DUB compatible.
 - Does not rely on either the C runtime nor the D runtime.
-- Surpasses CPU-Z, [Intel's Go CPUID](https://github.com/intel-go/cpuid/) module, and Phobos' `core.cpuid` module.
+- Surpasses CPU-Z, [Intel's Go CPUID](https://github.com/intel-go/cpuid/) module, and Druntime's `core.cpuid` module.
 - _Currently featuring 240 CPUID bits documented and counting!_
 
 The latest version of the technical ddcpuid manual is available here:

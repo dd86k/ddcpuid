@@ -139,12 +139,13 @@ int main(int argc, char **argv) {
 
 	CPUINFO info = void;
 
-	if (opt_override) {
+	if (opt_override == false) {
+		getLeaves(info);
+	} else {
 		info.max_leaf = MAX_LEAF;
 		info.max_virt_leaf = MAX_VLEAF;
 		info.max_ext_leaf = MAX_ELEAF;
-	} else
-		getLeaves(info);
+	}
 	
 	if (opt_raw) { // -r
 		puts(
@@ -174,21 +175,22 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 	
+	getVendor(info);
 	getInfo(info);
-
+	
 	char* cstring = info.brand.ptr;
-
+	
 	switch (info.vendor_id) {
 	case VENDOR_INTEL: // Common in Intel processor brand strings
 		while (*cstring == ' ') ++cstring; // left trim cpu string
 		break;
 	default:
 	}
-
+	
 	//
 	// ANCHOR Processor basic information
 	//
-
+	
 	printf(
 	"Vendor      : %.12s\n"~
 	"String      : %.48s\n"~
@@ -199,7 +201,7 @@ int main(int argc, char **argv) {
 	info.model, info.model, info.base_model, info.ext_model,
 	info.stepping
 	);
-
+	
 	if (info.fpu) {
 		printf(" x87/FPU");
 		if (info.f16c) printf(" +F16C");
@@ -380,8 +382,8 @@ int main(int argc, char **argv) {
 			ca.size >>= 10;
 			c = 'M';
 		}
-		printf("\n\tL%u-%c: %u %ciB\t%u ways, %u parts, %u B, %u sets",
-			ca.level, ca.type, ca.size, c,
+		printf("\n\tL%u-%c: %u %ciB\tx %u, %u ways, %u parts, %u B, %u sets",
+			ca.level, ca.type, ca.size, c, ca.sharedCores,
 			ca.ways, ca.partitions, ca.linesize, ca.sets
 		);
 		if (ca.feat & BIT!(0)) printf(" +SI"); // Self Initiative

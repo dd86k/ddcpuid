@@ -1,14 +1,15 @@
 /**
  * x86 CPU Identification tool
  *
- * This was initially used internally, so there may be some weirder archaic
- * pieces left.
+ * This was initially used internally, so it's pretty unfriendly.
  *
  * The best way to use this module would be:
  * ---
  * CPUINFO info = void;
- * getLeaves(info);
- * getInfo(info);
+ * getLeaves(info);	// Get maximum CPUID leaves (first mandatory step)
+ * getVendor(info);	// Get vendor string (second mandatory step)
+ * getInfo(info);	// Fill CPUINFO structure (optional)
+ * getLogicalCores(info);	// Get number of cores (optional)
  * ---
  *
  * Then checking the corresponding field:
@@ -18,6 +19,8 @@
  * }
  * ---
  *
+ * Check the CPUINFO structure for more information.
+ *
  * Authors: dd86k (dd@dax.moe)
  * Copyright: See LICENSE
  * License: MIT
@@ -25,7 +28,8 @@
 module ddcpuid;
 
 //TODO: Consider making a template that populates registers on-demand
-// GAS reminder: asm { "asm" : output : input : clobber }
+// GAS syntax reminder
+// asm { "asm;\n" : "constraint" output : "constraint" input : clobbers }
 
 @system:
 extern (C):
@@ -49,6 +53,17 @@ template ID(char[4] c) {
 	enum uint ID = c[0] | c[1] << 8 | c[2] << 16 | c[3] << 24;
 }
 
+// Self-made vendor "IDs" for faster look-ups, LSB-based.
+enum : uint {
+	VENDOR_OTHER = 0,	/// Other/unknown
+	VENDOR_INTEL = ID!("Genu"),	/// Intel: "Genu", 0x756e6547
+	VENDOR_AMD   = ID!("Auth"),	/// AMD: "Auth", 0x68747541
+	VENDOR_VIA   = ID!("VIA "),	/// VIA: "VIA ", 0x20414956
+	VIRT_VENDOR_KVM      = ID!("KVMK"), /// KVM: "KVMK", 0x4b4d564b
+	VIRT_VENDOR_VBOX_HV  = ID!("VBox"), /// VirtualBox: "VBox"/Hyper-V interface, 0x786f4256
+	VIRT_VENDOR_VBOX_MIN = 0, /// VirtualBox: Minimal interface (zero)
+}
+
 /// CPU cache entry
 struct CACHEINFO {
 	union {
@@ -60,17 +75,20 @@ struct CACHEINFO {
 			ubyte _amdsize;	/// (Legacy AMD) Size in KiB
 		}
 	}
-	/// Cache Size in bytes
+	/// Cache Size in bytes.
 	// (Ways + 1) * (Partitions + 1) * (Line_Size + 1) * (Sets + 1)
 	// (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
 	uint size;
+	/// Number of cache sets.
 	ushort sets;
-	/// Feature bits
-	// bit 0, Self Initializing cache
-	// bit 1, Fully Associative cache
-	// bit 2, No Write-Back Invalidation (toggle)
-	// bit 3, Cache Inclusiveness (toggle)
-	// bit 4, Complex Cache Indexing (toggle)
+	/// Number of CPU cores sharing this cache.
+	ushort sharedCores;
+	/// Cache feature, bit flags.
+	/// - Bit 0: Self Initializing cache
+	/// - Bit 1: Fully Associative cache
+	/// - Bit 2: No Write-Back Invalidation (toggle)
+	/// - Bit 3:  Cache Inclusiveness (toggle)
+	/// - Bit 4: Complex Cache Indexing (toggle)
 	ushort feat;
 	ubyte level;	/// Cache level: L1, L2, etc.
 	char type;	/// Type entry character: 'D'=Data, 'I'=Instructions, 'U'=Unified
@@ -92,9 +110,9 @@ struct CPUINFO { align(1):
 	
 	union { align(1):
 		char[12] vendor;	/// Vendor String
-		uint vendor_id;	/// Vendor "ID"
 		uint[3] vendor32;	/// Vendor 32-bit parts
 	}
+	uint vendor_id;	/// Vendor "ID"
 	char[48] brand;	/// Processor Brand String
 	
 	//
@@ -456,34 +474,34 @@ struct CPUINFO { align(1):
 	align(8) private ubyte padding;
 }
 
-// Self-made vendor "IDs" for faster look-ups, LSB-based.
-enum : uint {
-	VENDOR_OTHER = 0,	/// Other/unknown
-	VENDOR_INTEL = ID!("Genu"),	/// Intel: "Genu", 0x756e6547
-	VENDOR_AMD   = ID!("Auth"),	/// AMD: "Auth", 0x68747541
-	VENDOR_VIA   = ID!("VIA "),	/// VIA: "VIA ", 0x20414956
-	VIRT_VENDOR_KVM      = ID!("KVMK"), /// KVM: "KVMK", 0x4b4d564b
-	VIRT_VENDOR_VBOX_HV  = ID!("VBox"), /// VirtualBox: "VBox"/Hyper-V interface, 0x786f4256
-	VIRT_VENDOR_VBOX_MIN = 0, /// VirtualBox: Minimal interface (zero)
-}
-
 private
 immutable char[] CACHE_TYPE = [ '?', 'D', 'I', 'U', '?', '?', '?', '?' ];
 
 private
 const(char)*[] PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];
 
-/// Reset CPUINFO fields.
+/// (Internal) Reset CPUINFO fields.
+/// This is called in the `getInfo` function. It unsets all fields after
+/// the vendor string.
 /// Params: info = CPUINFO structure
 private
-void reset(ref CPUINFO info) {
-	size_t left = (CPUINFO.sizeof / size_t.sizeof) - 1;
-	size_t *p = cast(size_t*)&info;
-	for (; left > 0; --left)
-		p[left] = 0;
+void clear(ref CPUINFO info) {
+	//TODO: A "smart" unset would be aware of the maximum leaf
+	enum HDRSZ = (	// stopper
+		(4 * 3) +	// leaf/virtleaf/extleaf
+		(12) +	// Vendor string
+		(4)	// Vendor ID
+		) / size_t.sizeof;
+	/*size_t left = (CPUINFO.sizeof / size_t.sizeof) - 1;
+	for (size_t *p = cast(size_t*)&info; left > STOP; --left)
+		p[left] = 0;*/
+	size_t *p = cast(size_t*)&info.brand;
+	const size_t end = (CPUINFO.sizeof - HDRSZ) / size_t.sizeof;
+	for (size_t i; i < end; ++i)
+		p[i] = 0;
 }
 
-/// (Internal) Get CPU leafs
+/// Get CPU leafs
 /// Params: info = CPUINFO structure
 void getLeaves(ref CPUINFO info) {
 	version (GNU) { // GDC
@@ -558,16 +576,11 @@ void getLeaves(ref CPUINFO info) {
 	}
 }
 
-/// Fetch CPU info
-/// Params: info = CPUINFO structure
-void getInfo(ref CPUINFO info) {
-	reset(info); // failsafe
+/// Fetch CPU vendor
+void getVendor(ref CPUINFO info) {
+	// PIC compatible
+	size_t vendor_ptr = cast(size_t)&info.vendor;
 	
-	// Position Independant Code compliant
-	size_t __A = cast(size_t)&info.vendor;
-	size_t __B = cast(size_t)&info.brand;
-
-	// Get processor vendor and processor brand string
 	version (X86_64) {
 		version (GNU) asm {
 			// vendor string
@@ -576,9 +589,80 @@ void getInfo(ref CPUINFO info) {
 			"cpuid\n"~
 			"mov %%ebx, (%%rdi)\n"~
 			"mov %%edx, 4(%%rdi)\n"~
-			"mov %%ecx, 8(%%rdi)\n"~
-			// brand string
-			"mov %1, %%rdi\n"~
+			"mov %%ecx, 8(%%rdi)\n"
+			:
+			: "m" (vendor_ptr);
+		} else asm {
+			// vendor string
+			mov RDI, vendor_ptr;
+			mov EAX, 0;
+			cpuid;
+			mov [RDI], EBX;
+			mov [RDI+4], EDX;
+			mov [RDI+8], ECX;
+		}
+	} else { // version X86
+		version (GNU) asm {
+			"mov %0, %%edi\n"~
+			"mov $0, %%eax\n"~
+			"cpuid\n"~
+			"mov %%ebx, disp(%%edi)\n"~
+			"mov %%edx, disp(%%edi+4)\n"~
+			"mov %%ecx, disp(%%edi+8)\n"
+			:
+			: "m" (vendor_ptr);
+		} else asm {
+			mov EDI, vendor_ptr;
+			mov EAX, 0;
+			cpuid;
+			mov [EDI], EBX;
+			mov [EDI+4], EDX;
+			mov [EDI+8], ECX;
+		}
+	}
+	
+	// Vendor string verification
+	// If the rest of the string doesn't correspond, the id is unset
+	switch (info.vendor32[0]) {
+	case VENDOR_INTEL:	// "GenuineIntel"
+		if (info.vendor32[1] != ID!("ineI")) goto default;
+		if (info.vendor32[2] != ID!("ntel")) goto default;
+		break;
+	case VENDOR_AMD:	// "AuthenticAMD"
+		if (info.vendor32[1] != ID!("enti")) goto default;
+		if (info.vendor32[2] != ID!("cAMD")) goto default;
+		break;
+	case VENDOR_VIA:	// "VIA VIA VIA "
+		if (info.vendor32[1] != ID!("VIA ")) goto default;
+		if (info.vendor32[2] != ID!("VIA ")) goto default;
+		break;
+	default: // Unknown
+		info.vendor_id = 0;
+		return;
+	}
+	
+	info.vendor_id = info.vendor32[0];
+}
+
+/// Fetch CPU information.
+/// Params: info = CPUINFO structure
+// There are essentially 5 sections to this function:
+// - Brand String
+// - Normal leaf information
+// - Paravirtualization leaf information
+// - Extended leaf information
+// - Cache information
+void getInfo(ref CPUINFO info) {
+	clear(info); // failsafe
+	
+	// PIC compatible
+	size_t brand_ptr = cast(size_t)&info.brand;
+	size_t virt_vendor_ptr = void;
+
+	// Get processor brand string
+	version (X86_64) {
+		version (GNU) asm {
+			"mov %0, %%rdi\n"~
 			"mov $0x80000002, %%eax\n"~
 			"cpuid\n"~
 			"mov %%eax, (%%rdi)\n"~
@@ -598,17 +682,9 @@ void getInfo(ref CPUINFO info) {
 			"mov %%ecx, 40(%%rdi)\n"~
 			"mov %%edx, 44(%%rdi)"
 			:
-			: "m" (__A), "m" (__B);
+			: "m" (brand_ptr);
 		} else asm {
-			// vendor string
-			mov RDI, __A;
-			mov EAX, 0;
-			cpuid;
-			mov [RDI], EBX;
-			mov [RDI+4], EDX;
-			mov [RDI+8], ECX;
-			// brand string
-			mov RDI, __B;
+			mov RDI, brand_ptr;
 			mov EAX, 0x8000_0002;
 			cpuid;
 			mov [RDI], EAX;
@@ -630,15 +706,7 @@ void getInfo(ref CPUINFO info) {
 		}
 	} else { // version X86
 		version (GNU) asm {
-			// vendor string
 			"mov %0, %%edi\n"~
-			"mov $0, %%eax\n"~
-			"cpuid\n"~
-			"mov %%ebx, disp(%%edi)\n"~
-			"mov %%edx, disp(%%edi+4)\n"~
-			"mov %%ecx, disp(%%edi+8)\n"~
-			// brand string
-			"mov %1, %%edi\n"~
 			"mov $0x80000002, %%eax\n"~
 			"cpuid\n"~
 			"mov %%eax, disp(%%edi)\n"~
@@ -658,17 +726,9 @@ void getInfo(ref CPUINFO info) {
 			"mov %%ecx, disp(%%edi+40)\n"~
 			"mov %%edx, disp(%%edi+44)"
 			:
-			: "m" (__A), "m" (__B);
+			: "m" (brand_ptr);
 		} else asm {
-			// vendor string
-			mov EDI, __A;
-			mov EAX, 0;
-			cpuid;
-			mov [EDI], EBX;
-			mov [EDI+4], EDX;
-			mov [EDI+8], ECX;
-			// brand string
-			mov EDI, __B;
+			mov EDI, brand_ptr;
 			mov EAX, 0x8000_0002;
 			cpuid;
 			mov [EDI], EAX;
@@ -690,197 +750,7 @@ void getInfo(ref CPUINFO info) {
 		}
 	}
 	
-	// Vendor string verification
-	// If the rest of the string doesn't correspond, the id is unset
-	switch (info.vendor_id) {
-	case VENDOR_INTEL:	// "GenuineIntel"
-		if (info.vendor32[1] != ID!("ineI")) goto default;
-		if (info.vendor32[2] != ID!("ntel")) goto default;
-		break;
-	case VENDOR_AMD:	// "AuthenticAMD"
-		if (info.vendor32[1] != ID!("enti")) goto default;
-		if (info.vendor32[2] != ID!("cAMD")) goto default;
-		break;
-	case VENDOR_VIA:	// "VIA VIA VIA "
-		if (info.vendor32[1] != ID!("VIA ")) goto default;
-		if (info.vendor32[2] != ID!("VIA ")) goto default;
-		break;
-	default:
-		info.vendor_id = 0;
-	}
-	
-	//
-	// Cache information
-	//
-	
-	uint l; /// Cache level
-	CACHEINFO *ca = cast(CACHEINFO*)info.cache;
-	
 	uint a = void, b = void, c = void, d = void; // EAX to EDX
-	
-	switch (info.vendor_id) {
-	case VENDOR_INTEL:
-		version (GNU) asm {
-			"mov $4, %%eax\n"~
-			"mov %4, %%ecx\n"~
-			"cpuid\n"~
-			"mov %%eax, %0\n"~
-			"mov %%ebx, %1\n"~
-			"mov %%ecx, %2\n"~
-			"mov %%edx, %3"
-			: "=a" (a), "=b" (b), "=c" (c), "=d" (d)
-			: "m" (l);
-		} else asm {
-			mov EAX, 4;
-			mov ECX, l;
-			cpuid;
-			//cmp EAX, 0; // Check ZF
-			//jz CACHE_DONE; // if EAX=0, get out
-			mov a, EAX;
-			mov b, EBX;
-			mov c, ECX;
-			mov d, EDX;
-		}
-		
-		// Fix LDC2 compiling issue (#13)
-		if (a == 0) break;
-		
-		ca.type = CACHE_TYPE[a & 3]; // 0xF
-		ca.level = cast(ubyte)((a >> 5) & 7);
-		ca.linesize = cast(ubyte)((b & 0x7FF) + 1);
-		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
-		ca.ways = cast(ubyte)((b >> 22) + 1);
-		ca.sets = cast(ushort)(c + 1);
-		if (a & BIT!(8)) ca.feat = 1;
-		if (a & BIT!(9)) ca.feat |= BIT!(1);
-		if (d & BIT!(0)) ca.feat |= BIT!(2);
-		if (d & BIT!(1)) ca.feat |= BIT!(3);
-		if (d & BIT!(2)) ca.feat |= BIT!(4);
-		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
-
-		++l; ++ca;
-		goto case VENDOR_INTEL;
-	case VENDOR_AMD:
-		ubyte _amd_ways_l2 = void; // please the compiler (for further goto)
-
-		if (info.max_ext_leaf < 0x8000_001D) {
-			version (GNU) asm {
-				"mov $0x80000005, %%eax\n"~
-				"cpuid\n"~
-				"mov %%ecx, %0\n"~
-				"mov %%edx, %1"
-				: "=c" (c), "=d" (d);
-			} else asm {
-				mov EAX, 0x8000_0005;
-				cpuid;
-				mov c, ECX;
-				mov d, EDX;
-			}
-			info.cache[0].level = info.cache[1].level = 1; // L1
-			info.cache[0].type = 'D'; // data
-			info.cache[0].__bundle1 = c;
-			info.cache[0].size = info.cache[0]._amdsize;
-			info.cache[1].__bundle1 = d;
-			info.cache[1].size = info.cache[1]._amdsize;
-
-			if (info.max_ext_leaf < 0x8000_0006)
-				break; // No L2/L3
-
-			// Old reference table
-			// See Table E-4. L2/L3 Cache and TLB Associativity Field Encoding
-			// Returns: n-ways
-			extern (C)
-			ubyte _amd_ways(ubyte w) {
-				switch (w) {
-				case 1, 2, 4: return w;
-				case 6: return 8;
-				case 8: return 16;
-				case 0xA: return 32;
-				case 0xB: return 48;
-				case 0xC: return 64;
-				case 0xD: return 96;
-				case 0xE: return 128;
-				case 0xF: return 129; // custom for "fully associative"
-				default: return 0; // reserved
-				}
-			}
-
-			version (GNU) asm {
-				"mov $0x80000006, %%eax\n"~
-				"cpuid\n"~
-				"mov %%ecx, %0\n"~
-				"mov %%edx, %1"
-				: "=c" (c), "=d" (d);
-			} else asm { // AMD olde way
-				mov EAX, 0x8000_0006;
-				cpuid;
-				mov c, ECX;
-				mov d, EDX;
-			}
-
-			_amd_ways_l2 = (c >> 12) & 7;
-			if (_amd_ways_l2) {
-				info.cache[2].level = 2; // L2
-				info.cache[2].type = 'U'; // unified
-				info.cache[2].ways = _amd_ways(_amd_ways_l2);
-				info.cache[2].size = c >> 16;
-				info.cache[2].sets = (c >> 8) & 7;
-				info.cache[2].linesize = cast(ubyte)c;
-
-				ubyte _amd_ways_l3 = (d >> 12) & 0b111;
-				if (_amd_ways_l3) {
-					info.cache[3].level = 3; // L2
-					info.cache[3].type = 3; // unified
-					info.cache[3].ways = _amd_ways(_amd_ways_l3);
-					info.cache[3].size = ((d >> 18) + 1) * 512;
-					info.cache[3].sets = (d >> 8) & 7;
-					info.cache[3].linesize = cast(ubyte)(d & 0x7F);
-				}
-			}
-			break;
-		}
-
-CACHE_AMD_NEWER:
-		version (GNU) asm {
-			"mov $0x8000001d, %%eax\n"~
-			"mov %4, %%ecx\n"~
-			"cpuid\n"~
-			"mov %%eax, %0\n"~
-			"mov %%ebx, %1\n"~
-			"mov %%ecx, %2\n"~
-			"mov %%edx, %3"
-			: "=a" (a), "=b" (b), "=c" (c), "=d" (d)
-			: "m" (l);
-		} else asm {
-			mov EAX, 0x8000_001D;
-			mov ECX, l;
-			cpuid;
-			mov a, EAX;
-			mov b, EBX;
-			mov c, ECX;
-			mov d, EDX;
-		}
-		
-		// Fix LDC2 compiling issue (#13)
-		// LDC has some trouble jumping to an exterior label
-		if (a == 0) break;
-
-		ca.type = CACHE_TYPE[a & 3]; // 0xF, same as intel
-		ca.level = cast(ubyte)((a >> 5) & 7);
-		ca.linesize = cast(ubyte)((b & 0x7FF) + 1);
-		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
-		ca.ways = cast(ubyte)((b >> 22) + 1);
-		ca.sets = cast(ushort)(c + 1);
-		if (a & BIT!(8)) ca.feat = 1;
-		if (a & BIT!(9)) ca.feat |= BIT!(1);
-		if (d & BIT!(0)) ca.feat |= BIT!(2);
-		if (d & BIT!(1)) ca.feat |= BIT!(3);
-		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
-
-		++l; ++ca;
-		goto CACHE_AMD_NEWER;
-	default:
-	}
 	
 	//
 	// Leaf 1H
@@ -1004,7 +874,7 @@ CACHE_AMD_NEWER:
 	info.sse2	= (d & BIT!(26)) != 0;
 	info.htt	= (d & BIT!(28)) != 0;
 	
-	if (info.max_leaf < 5) goto EXTENDED_LEAVES;
+	if (info.max_leaf < 5) goto L_VIRT;
 	
 	//
 	// Leaf 5H
@@ -1026,7 +896,7 @@ CACHE_AMD_NEWER:
 	info.mwait_min = cast(ushort)a;
 	info.mwait_max = cast(ushort)b;
 	
-	if (info.max_leaf < 6) goto EXTENDED_LEAVES;
+	if (info.max_leaf < 6) goto L_VIRT;
 	
 	//
 	// Leaf 6H
@@ -1053,7 +923,7 @@ CACHE_AMD_NEWER:
 
 	info.arat	= (a & BIT!(2)) != 0;
 
-	if (info.max_leaf < 7) goto EXTENDED_LEAVES;
+	if (info.max_leaf < 7) goto L_VIRT;
 	
 	//
 	// Leaf 7H
@@ -1169,6 +1039,8 @@ CACHE_AMD_NEWER:
 	default:
 	}
 	
+	if (info.max_leaf < 0xD) goto L_VIRT;
+	
 	//
 	// Leaf DH
 	//
@@ -1216,13 +1088,15 @@ CACHE_AMD_NEWER:
 	default:
 	}
 	
-	if (info.max_virt_leaf < 0x4000_0000) goto EXTENDED_LEAVES;
+	if (info.max_virt_leaf < 0x4000_0000) goto L_VIRT;
 	
 	//
 	// Leaf 4000_000H
 	//
 
-	__A = cast(size_t)&info.virt_vendor;
+L_VIRT:
+	// PIC compatible
+	virt_vendor_ptr = cast(size_t)&info.virt_vendor;
 	version (X86_64) {
 		version (GNU) asm {
 			"mov %0, %%rdi\n"~
@@ -1231,9 +1105,9 @@ CACHE_AMD_NEWER:
 			"mov %%ebx, (%%rdi)\n"~
 			"mov %%ecx, 4(%%rdi)\n"~
 			"mov %%edx, 8(%%rdi)\n"
-			: "=m" (__A);
+			: "=m" (virt_vendor_ptr);
 		} else asm {
-			mov RDI, __A;
+			mov RDI, virt_vendor_ptr;
 			mov EAX, 0x4000_0000;
 			cpuid;
 			mov [RDI], EBX;
@@ -1248,9 +1122,9 @@ CACHE_AMD_NEWER:
 			"mov %%ebx, (%%edi)\n"~
 			"mov %%ecx, 4(%%edi)\n"~
 			"mov %%edx, 8(%%edi)\n"
-			: "m" (__A);
+			: "m" (virt_vendor_ptr);
 		} else asm {
-			mov EDI, __A;
+			mov EDI, virt_vendor_ptr;
 			mov EAX, 0x4000_0000;
 			cpuid;
 			mov [EDI], EBX;
@@ -1271,10 +1145,10 @@ CACHE_AMD_NEWER:
 		if (info.virt_vendor32[2] != ID!("VBox")) goto default;
 		break;
 	default:
-		info.vendor_id = 0;
+		info.virt_vendor_id = 0;
 	}
 
-	if (info.max_virt_leaf < 0x4000_0001) goto EXTENDED_LEAVES;
+	if (info.max_virt_leaf < 0x4000_0001) goto L_EXTENDED;
 	
 	//
 	// Leaf 4000_0001H
@@ -1315,7 +1189,7 @@ CACHE_AMD_NEWER:
 	default:
 	}
 
-	if (info.max_virt_leaf < 0x4000_0002) goto EXTENDED_LEAVES;
+	if (info.max_virt_leaf < 0x4000_0002) goto L_VIRT;
 	
 	//
 	// Leaf 4000_002H
@@ -1348,7 +1222,7 @@ CACHE_AMD_NEWER:
 	default:
 	}
 
-	if (info.max_virt_leaf < 0x4000_0003) goto EXTENDED_LEAVES;
+	if (info.max_virt_leaf < 0x4000_0003) goto L_EXTENDED;
 	
 	//
 	// Leaf 4000_0003H
@@ -1432,7 +1306,7 @@ CACHE_AMD_NEWER:
 	default:
 	}
 
-	if (info.max_virt_leaf < 0x4000_0004) goto EXTENDED_LEAVES;
+	if (info.max_virt_leaf < 0x4000_0004) goto L_EXTENDED;
 	
 	//
 	// Leaf 4000_0004H
@@ -1471,7 +1345,7 @@ CACHE_AMD_NEWER:
 	default:
 	}
 
-	if (info.max_virt_leaf < 0x4000_0006) goto EXTENDED_LEAVES;
+	if (info.max_virt_leaf < 0x4000_0006) goto L_EXTENDED;
 	
 	//
 	// Leaf 4000_0006H
@@ -1505,7 +1379,7 @@ CACHE_AMD_NEWER:
 	default:
 	}
 
-	if (info.max_virt_leaf < 0x4000_0010) goto EXTENDED_LEAVES;
+	if (info.max_virt_leaf < 0x4000_0010) goto L_EXTENDED;
 	
 	//
 	// Leaf 4000_0010H
@@ -1537,8 +1411,7 @@ CACHE_AMD_NEWER:
 	// Leaf 8000_0001H
 	//
 
-EXTENDED_LEAVES:
-
+L_EXTENDED:
 	version (GNU) asm {
 		"mov $0x80000001, %%eax\n"~
 		"cpuid\n"~
@@ -1578,7 +1451,7 @@ EXTENDED_LEAVES:
 	info.rdtscp	= (d & BIT!(27)) != 0;
 	info.x86_64	= (d & BIT!(29)) != 0;
 
-	if (info.max_ext_leaf < 0x8000_0007) return;
+	if (info.max_ext_leaf < 0x8000_0007) goto L_CACHE_INFO;
 	
 	//
 	// Leaf 8000_0007H
@@ -1610,7 +1483,7 @@ EXTENDED_LEAVES:
 
 	info.rdtsc_invariant	= (d & BIT!(8)) != 0;
 
-	if (info.max_ext_leaf < 0x8000_0008) return;
+	if (info.max_ext_leaf < 0x8000_0008) goto L_CACHE_INFO;
 	
 	//
 	// Leaf 8000_0008H
@@ -1647,7 +1520,7 @@ EXTENDED_LEAVES:
 
 	info.b_8000_0008_ax = cast(ushort)a; // info.addr_phys_bits, info.addr_line_bits
 
-	if (info.max_ext_leaf < 0x8000_000A) return;
+	if (info.max_ext_leaf < 0x8000_000A) goto L_CACHE_INFO;
 	
 	//
 	// Leaf 8000_000AH
@@ -1674,7 +1547,187 @@ EXTENDED_LEAVES:
 	default:
 	}
 
-	//if (info.max_ext_leaf < ...) return;
+	//if (info.max_ext_leaf < ...) goto L_CACHE_INFO;
+	
+L_CACHE_INFO:
+	//
+	// Cache information
+	// - Done at the end since we need the local APIC ID
+	// - maxleaf < 4 is too old/rare
+	//
+	
+	uint l; /// Cache level
+	CACHEINFO *ca = cast(CACHEINFO*)info.cache;
+	
+	switch (info.vendor_id) {
+	case VENDOR_INTEL:
+		version (GNU) asm {
+			"mov $4, %%eax\n"~
+			"mov %4, %%ecx\n"~
+			"cpuid\n"~
+			"mov %%eax, %0\n"~
+			"mov %%ebx, %1\n"~
+			"mov %%ecx, %2\n"~
+			"mov %%edx, %3"
+			: "=a" (a), "=b" (b), "=c" (c), "=d" (d)
+			: "m" (l);
+		} else asm {
+			mov EAX, 4;
+			mov ECX, l;
+			cpuid;
+			//cmp EAX, 0; // Check ZF
+			//jz CACHE_DONE; // if EAX=0, get out
+			mov a, EAX;
+			mov b, EBX;
+			mov c, ECX;
+			mov d, EDX;
+		}
+		
+		// Fix LDC2 compiling issue (#13)
+		if (a == 0) break;
+		
+		ca.type = CACHE_TYPE[a & 3]; // 0xF
+		ca.level = cast(ubyte)((a >> 5) & 7);
+		ca.linesize = cast(ubyte)((b & 0x7FF) + 1);
+		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
+		ca.ways = cast(ubyte)((b >> 22) + 1);
+		ca.sets = cast(ushort)(c + 1);
+		if (a & BIT!(8)) ca.feat = 1;
+		if (a & BIT!(9)) ca.feat |= BIT!(1);
+		if (d & BIT!(0)) ca.feat |= BIT!(2);
+		if (d & BIT!(1)) ca.feat |= BIT!(3);
+		if (d & BIT!(2)) ca.feat |= BIT!(4);
+		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
+		
+		ushort lcores = (a >> 26) + 1;	// EAX[31:26]
+		ushort crshrd = (((a >> 14) & 2047)+1);	// EAX[25:14]
+		ushort sc = lcores / crshrd;
+		ca.sharedCores = sc ? sc : 1;
+		
+		++l; ++ca;
+		goto case VENDOR_INTEL;
+	case VENDOR_AMD:
+		ubyte _amd_ways_l2 = void; // please the compiler (for further goto)
+
+		if (info.max_ext_leaf < 0x8000_001D) {
+			version (GNU) asm {
+				"mov $0x80000005, %%eax\n"~
+				"cpuid\n"~
+				"mov %%ecx, %0\n"~
+				"mov %%edx, %1"
+				: "=c" (c), "=d" (d);
+			} else asm {
+				mov EAX, 0x8000_0005;
+				cpuid;
+				mov c, ECX;
+				mov d, EDX;
+			}
+			info.cache[0].level = info.cache[1].level = 1; // L1
+			info.cache[0].type = 'D'; // data
+			info.cache[0].__bundle1 = c;
+			info.cache[0].size = info.cache[0]._amdsize;
+			info.cache[1].__bundle1 = d;
+			info.cache[1].size = info.cache[1]._amdsize;
+
+			if (info.max_ext_leaf < 0x8000_0006)
+				break; // No L2/L3
+
+			// Old reference table
+			// See Table E-4. L2/L3 Cache and TLB Associativity Field Encoding
+			// Returns: n-ways
+			extern (C)
+			ubyte _amd_ways(ubyte w) {
+				switch (w) {
+				case 1, 2, 4: return w;
+				case 6: return 8;
+				case 8: return 16;
+				case 0xA: return 32;
+				case 0xB: return 48;
+				case 0xC: return 64;
+				case 0xD: return 96;
+				case 0xE: return 128;
+				case 0xF: return 129; // custom for "fully associative"
+				default: return 0; // reserved
+				}
+			}
+
+			version (GNU) asm {
+				"mov $0x80000006, %%eax\n"~
+				"cpuid\n"~
+				"mov %%ecx, %0\n"~
+				"mov %%edx, %1"
+				: "=c" (c), "=d" (d);
+			} else asm { // AMD olde way
+				mov EAX, 0x8000_0006;
+				cpuid;
+				mov c, ECX;
+				mov d, EDX;
+			}
+
+			_amd_ways_l2 = (c >> 12) & 7;
+			if (_amd_ways_l2) {
+				info.cache[2].level = 2; // L2
+				info.cache[2].type = 'U'; // unified
+				info.cache[2].ways = _amd_ways(_amd_ways_l2);
+				info.cache[2].size = c >> 16;
+				info.cache[2].sets = (c >> 8) & 7;
+				info.cache[2].linesize = cast(ubyte)c;
+
+				ubyte _amd_ways_l3 = (d >> 12) & 0b111;
+				if (_amd_ways_l3) {
+					info.cache[3].level = 3; // L2
+					info.cache[3].type = 3; // unified
+					info.cache[3].ways = _amd_ways(_amd_ways_l3);
+					info.cache[3].size = ((d >> 18) + 1) * 512;
+					info.cache[3].sets = (d >> 8) & 7;
+					info.cache[3].linesize = cast(ubyte)(d & 0x7F);
+				}
+			}
+			break;
+		}
+
+CACHE_AMD_NEWER:
+		version (GNU) asm {
+			"mov $0x8000001d, %%eax\n"~
+			"mov %4, %%ecx\n"~
+			"cpuid\n"~
+			"mov %%eax, %0\n"~
+			"mov %%ebx, %1\n"~
+			"mov %%ecx, %2\n"~
+			"mov %%edx, %3"
+			: "=a" (a), "=b" (b), "=c" (c), "=d" (d)
+			: "m" (l);
+		} else asm {
+			mov EAX, 0x8000_001D;
+			mov ECX, l;
+			cpuid;
+			mov a, EAX;
+			mov b, EBX;
+			mov c, ECX;
+			mov d, EDX;
+		}
+		
+		// Fix LDC2 compiling issue (#13)
+		// LDC has some trouble jumping to an exterior label
+		if (a == 0) break;
+		
+		// Almost as same as Intel
+		ca.type = CACHE_TYPE[a & 3];
+		ca.level = cast(ubyte)((a >> 5) & 7);
+		ca.linesize = cast(ubyte)((b & 0x7FF) + 1);
+		ca.partitions = cast(ubyte)(((b >> 12) & 0x7FF) + 1);
+		ca.ways = cast(ubyte)((b >> 22) + 1);
+		ca.sets = cast(ushort)(c + 1);
+		if (a & BIT!(8)) ca.feat = 1;
+		if (a & BIT!(9)) ca.feat |= BIT!(1);
+		if (d & BIT!(0)) ca.feat |= BIT!(2);
+		if (d & BIT!(1)) ca.feat |= BIT!(3);
+		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
+		
+		++l; ++ca;
+		goto CACHE_AMD_NEWER;
+	default:
+	}
 }
 
 debug pragma(msg, "* CPUINFO.sizeof: ", CPUINFO.sizeof);

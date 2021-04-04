@@ -5,23 +5,25 @@
  *
  * The best way to use this module would be:
  * ---
- * CPUINFO info;	// Important to let the struct init to zero!
- * getLeaves(info);	// Get maximum CPUID leaves (first mandatory step)
- * getVendor(info);	// Get vendor string (second mandatory step)
- * getInfo(info);	// Fill CPUINFO structure (optional)
+ * CPUINFO info;     // Important to let the struct init to zero!
+ * getLeaves(info);  // Get maximum CPUID leaves (mandatory step before info)
+ * getVendor(info);  // Get vendor string (mandatory step before info)
+ * getInfo(info);    // Fill CPUINFO structure (optional)
  * ---
  *
  * Then checking the corresponding field:
  * ---
  * if (info.amx_xfd) {
- *   // ...
+ *   // Feature available
+ * } else {
+ *   // Feature unavailable
  * }
  * ---
  *
- * Check the CPUINFO structure for more information.
+ * See the CPUINFO structure for available fields.
  *
  * Authors: dd86k (dd@dax.moe)
- * Copyright: See LICENSE
+ * Copyright: © 2016-2021 dd86k
  * License: MIT
  */
 module ddcpuid;
@@ -37,7 +39,7 @@ version (X86) enum DDCPUID_PLATFORM = "x86"; /// Target platform
 else version (X86_64) enum DDCPUID_PLATFORM = "amd64"; /// Target platform
 else static assert(0, "ddcpuid is only supported on x86 platforms");
 
-version (GNU) pragma(msg, "warning: GDC support is experimental");
+version (GNU) pragma(msg, "* warning: GDC support is experimental");
 
 enum DDCPUID_VERSION = "0.18.0";	/// Library version
 
@@ -53,13 +55,13 @@ template ID(char[4] c) {
 
 // Self-made vendor "IDs" for faster look-ups, LSB-based.
 enum : uint {
-	VENDOR_OTHER = 0,	/// Other/unknown
+	VENDOR_OTHER = 0,	/// Other or unknown (zero)
 	VENDOR_INTEL = ID!("Genu"),	/// "GenuineIntel": Intel
 	VENDOR_AMD   = ID!("Auth"),	/// "AuthenticAMD": AMD
 	VENDOR_VIA   = ID!("VIA "),	/// "VIA VIA VIA ": VIA
 	VIRT_VENDOR_KVM      = ID!("KVMK"), /// "KVMKVMKVM\0\0\0": KVM
 	VIRT_VENDOR_VBOX_HV  = ID!("VBox"), /// "VBoxVBoxVBox": VirtualBox/Hyper-V interface
-	VIRT_VENDOR_VBOX_MIN = 0, /// VirtualBox: Minimal interface (zero)
+	VIRT_VENDOR_VBOX_MIN = 0, /// VirtualBox minimal interface (zero)
 }
 
 /// CPU cache entry
@@ -254,7 +256,7 @@ struct CPUINFO { align(1):
 	//
 	
 	CACHEINFO [6]cache;	/// Cache information
-	bool clflush;	/// CLFLUSH size
+	bool clflush;	/// CLFLUSH instruction
 	bool cnxt_id;	/// L1 Context ID
 	bool ss;	/// SelfSnoop
 	bool prefetchw;	/// PREFETCHW
@@ -276,7 +278,7 @@ struct CPUINFO { align(1):
 		uint b_01_ebx;
 		struct {
 			ubyte brand_index;	/// Processor brand index. No longer used.
-			ubyte clflush_linesize;	/// Linesize of CLFLUSH in bits
+			ubyte clflush_linesize;	/// Linesize of CLFLUSH in bytes
 			ubyte max_apic_id;	/// Maximum APIC ID
 			ubyte apic_id;	/// Initial APIC ID (running core where CPUID was called)
 		}

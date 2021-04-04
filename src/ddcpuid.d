@@ -54,11 +54,11 @@ template ID(char[4] c) {
 // Self-made vendor "IDs" for faster look-ups, LSB-based.
 enum : uint {
 	VENDOR_OTHER = 0,	/// Other/unknown
-	VENDOR_INTEL = ID!("Genu"),	/// Intel: "Genu", 0x756e6547
-	VENDOR_AMD   = ID!("Auth"),	/// AMD: "Auth", 0x68747541
-	VENDOR_VIA   = ID!("VIA "),	/// VIA: "VIA ", 0x20414956
-	VIRT_VENDOR_KVM      = ID!("KVMK"), /// KVM: "KVMK", 0x4b4d564b
-	VIRT_VENDOR_VBOX_HV  = ID!("VBox"), /// VirtualBox: "VBox"/Hyper-V interface, 0x786f4256
+	VENDOR_INTEL = ID!("Genu"),	/// "GenuineIntel": Intel
+	VENDOR_AMD   = ID!("Auth"),	/// "AuthenticAMD": AMD
+	VENDOR_VIA   = ID!("VIA "),	/// "VIA VIA VIA ": VIA
+	VIRT_VENDOR_KVM      = ID!("KVMK"), /// "KVMKVMKVM\0\0\0": KVM
+	VIRT_VENDOR_VBOX_HV  = ID!("VBox"), /// "VBoxVBoxVBox": VirtualBox/Hyper-V interface
 	VIRT_VENDOR_VBOX_MIN = 0, /// VirtualBox: Minimal interface (zero)
 }
 
@@ -296,8 +296,8 @@ struct CPUINFO { align(1):
 	union {
 		uint[3] virt_vendor32;
 		char[12] virt_vendor;	/// Paravirtualization vendor
-		uint virt_vendor_id;
 	}
+	uint virt_vendor_id;
 	
 	// VBox
 	
@@ -593,9 +593,9 @@ void getVendor(ref CPUINFO info) {
 			"mov %0, %%edi\n\t"~
 			"mov $0, %%eax\n\t"~
 			"cpuid\n"~
-			"mov %%ebx, disp(%%edi)\n\t"~
-			"mov %%edx, disp(%%edi+4)\n\t"~
-			"mov %%ecx, disp(%%edi+8)"
+			"mov %%ebx, (%%edi)\n\t"~
+			"mov %%edx, 4(%%edi)\n\t"~
+			"mov %%ecx, 8(%%edi)"
 			:
 			: "m" (vendor_ptr);
 		} else asm {
@@ -694,22 +694,22 @@ void getInfo(ref CPUINFO info) {
 			"mov %0, %%edi\n\t"~
 			"mov $0x80000002, %%eax\n\t"~
 			"cpuid\n\t"~
-			"mov %%eax, disp(%%edi)\n\t"~
-			"mov %%ebx, disp(%%edi+4)\n\t"~
-			"mov %%ecx, disp(%%edi+8)\n\t"~
-			"mov %%edx, disp(%%edi+12)\n\t"~
+			"mov %%eax, (%%edi)\n\t"~
+			"mov %%ebx, 4(%%edi)\n\t"~
+			"mov %%ecx, 8(%%edi)\n\t"~
+			"mov %%edx, 12(%%edi)\n\t"~
 			"mov $0x80000003, %%eax\n\t"~
 			"cpuid\n\t"~
-			"mov %%eax, disp(%%edi+16)\n\t"~
-			"mov %%ebx, disp(%%edi+20)\n\t"~
-			"mov %%ecx, disp(%%edi+24)\n\t"~
-			"mov %%edx, disp(%%edi+28)\n\t"~
+			"mov %%eax, 16(%%edi)\n\t"~
+			"mov %%ebx, 20(%%edi)\n\t"~
+			"mov %%ecx, 24(%%edi)\n\t"~
+			"mov %%edx, 28(%%edi)\n\t"~
 			"mov $0x80000004, %%eax\n\t"~
 			"cpuid\n\t"~
-			"mov %%eax, disp(%%edi+32)\n\t"~
-			"mov %%ebx, disp(%%edi+36)\n\t"~
-			"mov %%ecx, disp(%%edi+40)\n\t"~
-			"mov %%edx, disp(%%edi+44)"
+			"mov %%eax, 32(%%edi)\n\t"~
+			"mov %%ebx, 36(%%edi)\n\t"~
+			"mov %%ecx, 40(%%edi)\n\t"~
+			"mov %%edx, 44(%%edi)"
 			:
 			: "m" (brand_ptr);
 		} else asm {
@@ -1090,7 +1090,8 @@ L_VIRT:
 			"mov %%ebx, (%%rdi)\n\t"~
 			"mov %%ecx, 4(%%rdi)\n\t"~
 			"mov %%edx, 8(%%rdi)"
-			: "=m" (virt_vendor_ptr);
+			:
+			: "m" (virt_vendor_ptr);
 		} else asm {
 			mov RDI, virt_vendor_ptr;
 			mov EAX, 0x4000_0000;
@@ -1107,6 +1108,7 @@ L_VIRT:
 			"mov %%ebx, (%%edi)\n\t"~
 			"mov %%ecx, 4(%%edi)\n\t"~
 			"mov %%edx, 8(%%edi)"
+			:
 			: "m" (virt_vendor_ptr);
 		} else asm {
 			mov EDI, virt_vendor_ptr;
@@ -1120,14 +1122,16 @@ L_VIRT:
 	
 	// Paravirtual vendor string verification
 	// If the rest of the string doesn't correspond, the id is unset
-	switch (info.virt_vendor_id) {
-	case VIRT_VENDOR_KVM:	// "KVMKVMKVMKVM"
+	switch (info.virt_vendor32[0]) {
+	case VIRT_VENDOR_KVM:	// "KVMKVMKVM\0\0\0"
 		if (info.virt_vendor32[1] != ID!("VMKV")) goto default;
-		if (info.virt_vendor32[2] != ID!("MKVM")) goto default;
+		if (info.virt_vendor32[2] != ID!("M\0\0\0")) goto default;
+		info.virt_vendor_id = VIRT_VENDOR_KVM;
 		break;
 	case VIRT_VENDOR_VBOX_HV:	// "VBoxVBoxVBox"
 		if (info.virt_vendor32[1] != ID!("VBox")) goto default;
 		if (info.virt_vendor32[2] != ID!("VBox")) goto default;
+		info.virt_vendor_id = VIRT_VENDOR_VBOX_HV;
 		break;
 	default:
 		info.virt_vendor_id = 0;

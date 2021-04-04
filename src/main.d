@@ -79,11 +79,14 @@ void cliv() {
 	);
 }
 
-/// Print cpuid info
+/// Print cpuid table entry
+/// Params:
+/// 	leaf = EAX input
+/// 	sub = ECX input
 void printc(uint leaf, uint sub) {
 	uint a = void, b = void, c = void, d = void;
 	version (GNU) asm {
-		"cpuid\n"
+		"cpuid"
 		: "=a" (a), "=b" (b), "=c" (c), "=d" (d)
 		: "a" (leaf), "c" (sub);
 	} else asm {
@@ -412,7 +415,7 @@ int main(int argc, char **argv) {
 	if (info.apivc) printf(" APICv");
 	if (info.max_virt_leaf > 0x4000_0000) {
 		if (info.virt_vendor_id)
-			printf(" HOST=%.12s", cast(char*)info.virt_vendor);
+			printf(" HOST=%.12s", info.virt_vendor.ptr);
 		switch (info.virt_vendor_id) {
 		case VIRT_VENDOR_VBOX_MIN: // VBox Minimal Paravirt
 			if (info.vbox_tsc_freq_khz)

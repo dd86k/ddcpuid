@@ -194,9 +194,12 @@ int main(int argc, char **argv) {
 	printf(
 	"Vendor      : %.12s\n"~
 	"String      : %.48s\n"~
+	"Cores       : %u\n"~
 	"Identifier  : Family %u (%Xh) [%Xh:%Xh] Model %u (%Xh) [%Xh:%Xh] Stepping %u\n"~
 	"Extensions  :",
-	cast(char*)info.vendor, cstring,
+	cast(char*)info.vendor,
+	cstring,
+	info.cores_logical,
 	info.family, info.family, info.base_family, info.ext_family,
 	info.model, info.model, info.base_model, info.ext_model,
 	info.stepping

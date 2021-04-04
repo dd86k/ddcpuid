@@ -9,7 +9,6 @@
  * getLeaves(info);	// Get maximum CPUID leaves (first mandatory step)
  * getVendor(info);	// Get vendor string (second mandatory step)
  * getInfo(info);	// Fill CPUINFO structure (optional)
- * getLogicalCores(info);	// Get number of cores (optional)
  * ---
  *
  * Then checking the corresponding field:
@@ -27,7 +26,6 @@
  */
 module ddcpuid;
 
-//TODO: Consider making a template that populates registers on-demand
 // GAS syntax reminder
 // asm { "asm;\n" : "constraint" output : "constraint" input : clobbers }
 
@@ -114,6 +112,13 @@ struct CPUINFO { align(1):
 	}
 	uint vendor_id;	/// Vendor "ID"
 	char[48] brand;	/// Processor Brand String
+	
+	//
+	// Core
+	//
+	
+//	ushort cores_physical;	/// Physical cores in the processor
+	ushort cores_logical;	/// Logical cores in the processor
 	
 	//
 	// Identifier
@@ -1500,6 +1505,7 @@ L_EXTENDED:
 		cpuid;
 		mov a, EAX;
 		mov b, EBX;
+		mov c, ECX;
 	}
 
 	switch (info.vendor_id) {
@@ -1514,6 +1520,7 @@ L_EXTENDED:
 		info.stibp_on	= (b & BIT!(17)) != 0;
 		info.ibrs_pref	= (b & BIT!(18)) != 0;
 		info.ssbd	= (b & BIT!(24)) != 0;
+		info.cores_logical	= (cast(ubyte)c) + 1;
 		break;
 	default:
 	}
@@ -1559,6 +1566,8 @@ L_CACHE_INFO:
 	uint l; /// Cache level
 	CACHEINFO *ca = cast(CACHEINFO*)info.cache;
 	
+	ushort sc = void;	/// raw cores shared accross cache level
+	ushort crshrd = void;	/// actual count of shared cores
 	switch (info.vendor_id) {
 	case VENDOR_INTEL:
 		version (GNU) asm {
@@ -1599,94 +1608,22 @@ L_CACHE_INFO:
 		if (d & BIT!(2)) ca.feat |= BIT!(4);
 		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
 		
-		ushort lcores = (a >> 26) + 1;	// EAX[31:26]
-		ushort crshrd = (((a >> 14) & 2047)+1);	// EAX[25:14]
-		ushort sc = lcores / crshrd;
+		info.cores_logical = (a >> 26) + 1;	// EAX[31:26]
+		crshrd = (((a >> 14) & 2047)+1);	// EAX[25:14]
+		sc = info.cores_logical / crshrd;
 		ca.sharedCores = sc ? sc : 1;
 		
 		++l; ++ca;
 		goto case VENDOR_INTEL;
 	case VENDOR_AMD:
-		ubyte _amd_ways_l2 = void; // please the compiler (for further goto)
-
-		if (info.max_ext_leaf < 0x8000_001D) {
-			version (GNU) asm {
-				"mov $0x80000005, %%eax\n"~
-				"cpuid\n"~
-				"mov %%ecx, %0\n"~
-				"mov %%edx, %1"
-				: "=c" (c), "=d" (d);
-			} else asm {
-				mov EAX, 0x8000_0005;
-				cpuid;
-				mov c, ECX;
-				mov d, EDX;
-			}
-			info.cache[0].level = info.cache[1].level = 1; // L1
-			info.cache[0].type = 'D'; // data
-			info.cache[0].__bundle1 = c;
-			info.cache[0].size = info.cache[0]._amdsize;
-			info.cache[1].__bundle1 = d;
-			info.cache[1].size = info.cache[1]._amdsize;
-
-			if (info.max_ext_leaf < 0x8000_0006)
-				break; // No L2/L3
-
-			// Old reference table
-			// See Table E-4. L2/L3 Cache and TLB Associativity Field Encoding
-			// Returns: n-ways
-			extern (C)
-			ubyte _amd_ways(ubyte w) {
-				switch (w) {
-				case 1, 2, 4: return w;
-				case 6: return 8;
-				case 8: return 16;
-				case 0xA: return 32;
-				case 0xB: return 48;
-				case 0xC: return 64;
-				case 0xD: return 96;
-				case 0xE: return 128;
-				case 0xF: return 129; // custom for "fully associative"
-				default: return 0; // reserved
-				}
-			}
-
-			version (GNU) asm {
-				"mov $0x80000006, %%eax\n"~
-				"cpuid\n"~
-				"mov %%ecx, %0\n"~
-				"mov %%edx, %1"
-				: "=c" (c), "=d" (d);
-			} else asm { // AMD olde way
-				mov EAX, 0x8000_0006;
-				cpuid;
-				mov c, ECX;
-				mov d, EDX;
-			}
-
-			_amd_ways_l2 = (c >> 12) & 7;
-			if (_amd_ways_l2) {
-				info.cache[2].level = 2; // L2
-				info.cache[2].type = 'U'; // unified
-				info.cache[2].ways = _amd_ways(_amd_ways_l2);
-				info.cache[2].size = c >> 16;
-				info.cache[2].sets = (c >> 8) & 7;
-				info.cache[2].linesize = cast(ubyte)c;
-
-				ubyte _amd_ways_l3 = (d >> 12) & 0b111;
-				if (_amd_ways_l3) {
-					info.cache[3].level = 3; // L2
-					info.cache[3].type = 3; // unified
-					info.cache[3].ways = _amd_ways(_amd_ways_l3);
-					info.cache[3].size = ((d >> 18) + 1) * 512;
-					info.cache[3].sets = (d >> 8) & 7;
-					info.cache[3].linesize = cast(ubyte)(d & 0x7F);
-				}
-			}
-			break;
-		}
-
-CACHE_AMD_NEWER:
+		if (info.max_ext_leaf < 0x8000_001D)
+			goto L_CACHE_AMD_LEGACY;
+		
+		//
+		// AMD newer cache method
+		//
+		
+L_CACHE_AMD_EXT_1DH:
 		version (GNU) asm {
 			"mov $0x8000001d, %%eax\n"~
 			"mov %4, %%ecx\n"~
@@ -1724,8 +1661,81 @@ CACHE_AMD_NEWER:
 		if (d & BIT!(1)) ca.feat |= BIT!(3);
 		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
 		
+		crshrd = (((a >> 14) & 2047)+1);	// EAX[25:14]
+		sc = info.cores_logical / crshrd;
+		ca.sharedCores = sc ? sc : 1;
+		
 		++l; ++ca;
-		goto CACHE_AMD_NEWER;
+		goto L_CACHE_AMD_EXT_1DH;
+		
+		//
+		// AMD legacy cache
+		//
+
+L_CACHE_AMD_LEGACY:
+		version (GNU) asm {
+			"mov $0x80000005, %%eax\n"~
+			"cpuid\n"~
+			"mov %%ecx, %0\n"~
+			"mov %%edx, %1"
+			: "=c" (c), "=d" (d);
+		} else asm {
+			mov EAX, 0x8000_0005;
+			cpuid;
+			mov c, ECX;
+			mov d, EDX;
+		}
+		info.cache[0].level = 1; // L1
+		info.cache[0].type = 'D'; // data
+		info.cache[0].__bundle1 = c;
+		info.cache[0].size = info.cache[0]._amdsize;
+		info.cache[1].level = 1; // L1
+		info.cache[1].type = 'I'; // instructions
+		info.cache[1].__bundle1 = d;
+		info.cache[1].size = info.cache[1]._amdsize;
+		
+		if (info.max_ext_leaf < 0x8000_0006)
+			break; // No L2/L3
+		
+		// See Table E-4. L2/L3 Cache and TLB Associativity Field Encoding
+		static immutable ubyte[16] _amd_cache_ways = [
+			// 7h is reserved
+			// 9h mentions 8000_001D but that's taken care of ealier
+			0, 1, 2, 3, 4, 6, 8, 0, 16, 0, 32, 48, 64, 96, 128, 255 ];
+		
+		version (GNU) asm {
+			"mov $0x80000006, %%eax\n"~
+			"cpuid\n"~
+			"mov %%ecx, %0\n"~
+			"mov %%edx, %1"
+			: "=c" (c), "=d" (d);
+		} else asm {
+			mov EAX, 0x8000_0006;
+			cpuid;
+			mov c, ECX;
+			mov d, EDX;
+		}
+		
+		ubyte _amd_ways_l2 = (c >> 12) & 15;
+		if (_amd_ways_l2) {
+			info.cache[2].level = 2; // L2
+			info.cache[2].type = 'U'; // unified
+			info.cache[2].ways = _amd_cache_ways[_amd_ways_l2];
+			info.cache[2].size = c >> 16;
+			info.cache[2].sets = (c >> 8) & 7;
+			info.cache[2].linesize = cast(ubyte)c;
+			
+			ubyte _amd_ways_l3 = (d >> 12) & 15;
+			if (_amd_ways_l3) {
+				info.cache[3].level = 3;  // L3
+				info.cache[3].type = 'U'; // unified
+				info.cache[3].ways = _amd_cache_ways[_amd_ways_l3];
+				info.cache[3].size = ((d >> 18) + 1) * 512;
+				info.cache[3].sets = (d >> 8) & 7;
+				info.cache[3].linesize = cast(ubyte)(d & 0x7F);
+			}
+		}
+		break;
 	default:
 	}
 }

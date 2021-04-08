@@ -861,6 +861,14 @@ void getInfo(ref CPUINFO info) {
 	info.sse2	= (d & BIT!(26)) != 0;
 	info.htt	= (d & BIT!(28)) != 0;
 	
+	switch (info.vendor_id) {
+	case VENDOR_AMD:
+		if (info.htt)
+			info.cores_logical = info.max_apic_id;
+		break;
+	default:
+	}
+	
 	if (info.max_leaf < 5) goto L_VIRT;
 	
 	//
@@ -1613,7 +1621,7 @@ L_CACHE_INFO:
 		
 L_CACHE_AMD_EXT_1DH:
 		version (GNU) asm {
-			"mov $0x8000001d, %%eax\n\t"~
+			"mov $0x8000001D, %%eax\n\t"~
 			"mov %4, %%ecx\n\t"~
 			"cpuid\n\t"~
 			"mov %%eax, %0\n\t"~
@@ -1689,7 +1697,8 @@ L_CACHE_AMD_LEGACY:
 		static immutable ubyte[16] _amd_cache_ways = [
 			// 7h is reserved
 			// 9h mentions 8000_001D but that's taken care of ealier
-			0, 1, 2, 3, 4, 6, 8, 0, 16, 0, 32, 48, 64, 96, 128, 255 ];
+			0, 1, 2, 3, 4, 6, 8, 0, 16, 0, 32, 48, 64, 96, 128, 255
+		];
 		
 		version (GNU) asm {
 			"mov $0x80000006, %%eax\n\t"~

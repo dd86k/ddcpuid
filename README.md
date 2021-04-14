@@ -10,10 +10,8 @@ processors.
 - Surpasses CPU-Z, [Intel's Go CPUID](https://github.com/intel-go/cpuid/) module, and Druntime's `core.cpuid` module.
 - _Currently featuring 240 CPUID bits documented and counting!_
 
-The latest version of the technical ddcpuid manual is available here:
-[dd86k.space](https://dd86k.space/docs/ddcpuid-manual.pdf) (PDF).
-
-Both the manual and tool is meant to be used together to better understand x86.
+Want to better understand x86? There's the
+[ddcpuid Technical Manual](https://dd86k.space/docs/ddcpuid-manual.pdf) (PDF)!
 
 # Compiling
 

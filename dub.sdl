@@ -1,15 +1,18 @@
 name "ddcpuid"
-description "x86 information library using CPUID"
+description "x86 processor information library and executable"
 authors "dd86k <dd@dax.moe>"
 copyright "Copyright © 2016-2021, dd86k"
 license "MIT"
 version "0.18.0"
 
+# Debug build
 buildType "debug" {
 	buildOptions "debugMode" "debugInfo"
 	dflags "-betterC" platform="dmd"
 	dflags "-betterC" platform="ldc"
 }
+
+# Debug build with verbose output
 buildType "debugv" {
 	versions "PrintTargetInfo"
 	buildOptions "debugMode" "debugInfo"
@@ -17,11 +20,24 @@ buildType "debugv" {
 	dflags "-betterC" "--vgc" platform="ldc"
 	dflags "-ftransition=nogc" "-ftransition=tls" platform="gdc"
 }
+
+# For much older compiler versions
+buildType "debugv0" {
+	versions "PrintTargetInfo"
+	buildOptions "debugMode" "debugInfo"
+	dflags "-vgc" "-vtls" platform="dmd"
+	dflags "--vgc" platform="ldc"
+	dflags "-ftransition=nogc" "-ftransition=tls" "-fno-exceptions" "-fno-bounds-check" "-fno-assert" "-fno-builtin" platform="gdc"
+}
+
+# Release build, optimized
 buildType "release" {
 	buildOptions "releaseMode" "optimize" "inline"
 	dflags "-betterC" platform="dmd"
 	dflags "-betterC" platform="ldc"
 }
+
+# Release build, optimized with no bound checking
 buildType "release-nobounds" {
 	buildOptions "releaseMode" "optimize" "inline" "noBoundsCheck"
 	dflags "-betterC" platform="dmd"

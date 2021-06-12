@@ -23,7 +23,7 @@ buildType "debugv" {
 
 # For much older compiler versions
 buildType "debugv0" {
-	versions "PrintTargetInfo"
+	versions "PrintTargetInfo" "Trace"
 	buildOptions "debugMode" "debugInfo"
 	dflags "-vgc" "-vtls" platform="dmd"
 	dflags "--vgc" platform="ldc"

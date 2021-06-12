@@ -15,7 +15,6 @@ import ddcpuid;
 private:
 @system:
 extern (C):
-__gshared:
 
 int strcmp(scope const char*, scope const char*);
 int puts(scope const char*);
@@ -79,45 +78,30 @@ void cliv() {
 	);
 }
 
-/// Print cpuid table entry
+/// Print cpuid table entry into stdout.
 /// Params:
 /// 	leaf = EAX input
 /// 	sub = ECX input
+pragma(inline, false) // ldc optimization thing
 void printc(uint leaf, uint sub) {
-	uint a = void, b = void, c = void, d = void;
-	version (GNU) asm {
-		"cpuid"
-		: "=a" (a), "=b" (b), "=c" (c), "=d" (d)
-		: "a" (leaf), "c" (sub);
-	} else asm {
-		mov EAX, leaf;
-		mov ECX, sub;
-		cpuid;
-		mov a, EAX;
-		mov b, EBX;
-		mov c, ECX;
-		mov d, EDX;
-	}
-	printf("| %8X | %8X | %8X | %8X | %8X | %8X |\n", leaf, sub, a, b, c, d);
+	REGISTERS regs = void;
+	asmcpuid(regs, leaf, sub);
+	with (regs)
+	printf("| %8X | %8X | %8X | %8X | %8X | %8X |\n",
+		leaf, sub, eax, ebx, ecx, edx);
 }
 
 int main(int argc, char **argv) {
 	bool opt_raw;	/// Raw option (-r), table option
 	bool opt_override;	/// opt_override max leaf option (-o)
 	uint opt_subleaf;	/// Max subleaf for -r
-
+	
 	for (size_t argi = 1; argi < argc; ++argi) {
 		if (argv[argi][1] == '-') { // Long arguments
 			char* a = argv[argi] + 2;
-			if (strcmp(a, "help") == 0) {
-				clih; return 0;
-			}
-			if (strcmp(a, "version") == 0) {
-				cliv; return 0;
-			}
-			if (strcmp(a, "ver") == 0) {
-				puts(DDCPUID_VERSION); return 0;
-			}
+			if (strcmp(a, "help") == 0) { clih; return 0; }
+			if (strcmp(a, "version") == 0) { cliv; return 0; }
+			if (strcmp(a, "ver") == 0) { puts(DDCPUID_VERSION); return 0; }
 			printf("Unknown parameter: '%s'\n", argv[argi]);
 			return 1;
 		} else if (argv[argi][0] == '-') { // Short arguments
@@ -132,6 +116,7 @@ int main(int argc, char **argv) {
 					opt_subleaf = cast(uint)strtol(argv[argi + 1], null, 10);
 					continue;
 				case 'h': clih; return 0;
+				case 'V': cliv; return 0;
 				default:
 					printf("Unknown parameter: '-%c'\n", o);
 					return 1;
@@ -139,9 +124,9 @@ int main(int argc, char **argv) {
 			}
 		} // else if
 	} // for
-
+	
 	CPUINFO info;
-
+	
 	if (opt_override == false) {
 		getLeaves(info);
 	} else {
@@ -158,30 +143,27 @@ int main(int argc, char **argv) {
 		
 		// Normal
 		uint l = void, s = void;
-		for (l = 0; l <= info.max_leaf; ++l) {
-			s = 0;
-			do { printc(l, s); } while (++s <= opt_subleaf);
-		}
+		for (l = 0; l <= info.max_leaf; ++l)
+			for (s = 0; s <= opt_subleaf; ++s)
+				printc(l, s);
 		
 		// Paravirtualization
 		if (info.max_virt_leaf > 0x4000_0000)
-		for (l = 0x4000_0000; l <= info.max_virt_leaf; ++l) {
-			s = 0;
-			do { printc(l, s); } while (++s <= opt_subleaf);
-		}
+		for (l = 0x4000_0000; l <= info.max_virt_leaf; ++l)
+			for (s = 0; s <= opt_subleaf; ++s)
+				printc(l, s);
 		
 		// Extended
-		for (l = 0x8000_0000; l <= info.max_ext_leaf; ++l) {
-			s = 0;
-			do { printc(l, s); } while (++s <= opt_subleaf);
-		}
+		for (l = 0x8000_0000; l <= info.max_ext_leaf; ++l)
+			for (s = 0; s <= opt_subleaf; ++s)
+				printc(l, s);
 		return 0;
 	}
 	
-	getVendor(info);
 	getInfo(info);
 	
-	char* cstring = info.brand.ptr;
+	// .ptr crashes @ __strlen_sse2 (printf) when compiled with GDC -O3
+	char* cstring = cast(char*)info.brand;
 	
 	switch (info.vendor_id) {
 	case VENDOR_INTEL: // Common in Intel processor brand strings
@@ -197,7 +179,7 @@ int main(int argc, char **argv) {
 	printf(
 	"Vendor      : %.12s\n"~
 	"String      : %.48s\n"~
-	"Cores       : %u\n"~
+	"Cores       : %u threads\n"~
 	"Identifier  : Family %u (%Xh) [%Xh:%Xh] Model %u (%Xh) [%Xh:%Xh] Stepping %u\n"~
 	"Extensions  :",
 	cast(char*)info.vendor,
@@ -288,11 +270,11 @@ int main(int argc, char **argv) {
 	if (info.amx_xtilecfg) printf(" +XTILECFG");
 	if (info.amx_xtiledata) printf(" +XTILEDATA");
 	if (info.amx_xfd) printf(" +XFD");
-
+	
 	//
 	// ANCHOR Extra/lone instructions
 	//
-
+	
 	printf("\nExtra       :");
 	if (info.monitor) {
 		printf(" MONITOR+MWAIT");
@@ -365,11 +347,11 @@ int main(int argc, char **argv) {
 	default:
 	}
 	if (info.htt) printf(" HTT");
-
+	
 	//
 	// ANCHOR Cache information
 	//
-
+	
 	printf("\nCache       :");
 	if (info.clflush)
 		printf(" CLFLUSH=%uB", info.clflush_linesize << 3);
@@ -379,25 +361,23 @@ int main(int argc, char **argv) {
 	if (info.prefetchw) printf(" PREFETCHW");
 	if (info.invpcid) printf(" INVPCID");
 	if (info.wbnoinvd) printf(" WBNOINVD");
-
-	CACHEINFO *ca = cast(CACHEINFO*)info.cache; /// Caches
-
-	while (ca.level) {
+	
+	for (uint i; i < info.cache_level && i < DDCPUID_CACHE_MAX; ++i) {
+		CACHEINFO *cinfo = &info.cache[i];
 		char c = 'K';
-		if (ca.size >= 1024) {
-			ca.size >>= 10;
+		if (cinfo.size >= 1024) {
+			cinfo.size >>= 10;
 			c = 'M';
 		}
 		printf("\n\tL%u-%c: %u %ciB\tx %u, %u ways, %u parts, %u B, %u sets",
-			ca.level, ca.type, ca.size, c, ca.sharedCores,
-			ca.ways, ca.partitions, ca.linesize, ca.sets
+			cinfo.level, cinfo.type, cinfo.size, c, cinfo.sharedCores,
+			cinfo.ways, cinfo.partitions, cinfo.linesize, cinfo.sets
 		);
-		if (ca.feat & BIT!(0)) printf(" +SI"); // Self Initiative
-		if (ca.feat & BIT!(1)) printf(" +FA"); // Fully Associative
-		if (ca.feat & BIT!(2)) printf(" +NWBV"); // No Write-Back Validation
-		if (ca.feat & BIT!(3)) printf(" +CI"); // Cache Inclusive
-		if (ca.feat & BIT!(4)) printf(" +CCI"); // Complex Cache Indexing
-		++ca;
+		if (cinfo.feat & BIT!(0)) printf(" +SI"); // Self Initiative
+		if (cinfo.feat & BIT!(1)) printf(" +FA"); // Fully Associative
+		if (cinfo.feat & BIT!(2)) printf(" +NWBV"); // No Write-Back Validation
+		if (cinfo.feat & BIT!(3)) printf(" +CI"); // Cache Inclusive
+		if (cinfo.feat & BIT!(4)) printf(" +CCI"); // Complex Cache Indexing
 	}
 
 	printf("\nACPI        :");
@@ -527,7 +507,7 @@ int main(int argc, char **argv) {
 			if (info.kvm_feature_pv_poll_control) printf(" KVM_FEATURE_PV_POLL_CONTROL");
 			if (info.kvm_feature_pv_sched_yield) printf(" KVM_FEATURE_PV_SCHED_YIELD");
 			if (info.kvm_feature_clocsource_stable_bit) printf(" KVM_FEATURE_CLOCSOURCE_STABLE_BIT");
-			if (info.kvm_hints_realtime) printf(" KVM_HINTS_REALTIME");
+			if (info.kvm_hint_realtime) printf(" KVM_HINTS_REALTIME");
 			break;
 		default:
 		}
@@ -589,7 +569,7 @@ int main(int argc, char **argv) {
 	default:
 	}
 
-	printf("\nMisc.       : HLeaf=%Xh HVLeaf=%Xh HELeaf=%Xh Type=%s Index=%u",
+	printf("\nMisc.       : HLeaf=0x%x HVLeaf=0x%x HELeaf=0x%x Type=%s Index=%u",
 		info.max_leaf, info.max_virt_leaf, info.max_ext_leaf,
 		info.type_string, info.brand_index);
 	if (info.xtpr) printf(" xTPR");

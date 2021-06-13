@@ -14,7 +14,6 @@ buildType "debug" {
 
 # Debug build with verbose output
 buildType "debugv" {
-	versions "PrintTargetInfo"
 	buildOptions "debugMode" "debugInfo"
 	dflags "-betterC" "-vgc" "-vtls" platform="dmd"
 	dflags "-betterC" "--vgc" platform="ldc"
@@ -23,7 +22,7 @@ buildType "debugv" {
 
 # For much older compiler versions
 buildType "debugv0" {
-	versions "PrintTargetInfo" "Trace"
+	versions "PrintInfo" "Trace"
 	buildOptions "debugMode" "debugInfo"
 	dflags "-vgc" "-vtls" platform="dmd"
 	dflags "--vgc" platform="ldc"

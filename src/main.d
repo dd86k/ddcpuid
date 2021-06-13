@@ -19,7 +19,7 @@ extern (C):
 int strcmp(scope const char*, scope const char*);
 int puts(scope const char*);
 int putchar(int);
-long strtol(scope inout(char)*, scope inout(char)**, int);
+int atoi(scope const char*);
 
 static if (__VERSION__ >= 2092) {
 	pragma(printf)
@@ -45,6 +45,13 @@ enum : uint {
 	MAX_LEAF	= 0x20, /// Maximum leaf override
 	MAX_VLEAF	= 0x4000_0010, /// Maximum virt leaf override
 	MAX_ELEAF	= 0x8000_0020, /// Maximum extended leaf override
+}
+
+/// Command-line options
+struct options_t {
+	uint maxsub;	/// Maximum subleaf for -r (-s)
+	bool table;	/// Raw table (-r)
+	bool override_;	/// Override leaves (-o)
 }
 
 /// print help page
@@ -74,7 +81,7 @@ void cliv() {
 	"Copyright (c) dd86k 2016-2021\n"~
 	"License: MIT License <http://opensource.org/licenses/MIT>\n"~
 	"Project page: <https://github.com/dd86k/ddcpuid>\n"~
-	"Compiler: "~ __VENDOR__ ~" v"~CVER!(__VERSION__)
+	"Compiler: "~__VENDOR__~" v"~CVER!(__VERSION__)
 	);
 }
 
@@ -91,29 +98,32 @@ void printc(uint leaf, uint sub) {
 		leaf, sub, eax, ebx, ecx, edx);
 }
 
-int main(int argc, char **argv) {
-	bool opt_raw;	/// Raw option (-r), table option
-	bool opt_override;	/// opt_override max leaf option (-o)
-	uint opt_subleaf;	/// Max subleaf for -r
+int main(int argc, const(char) **argv) {
+	options_t opts;	/// Command-line options
 	
-	for (size_t argi = 1; argi < argc; ++argi) {
+	const(char) *arg = void;
+	for (int argi = 1; argi < argc; ++argi) {
 		if (argv[argi][1] == '-') { // Long arguments
-			char* a = argv[argi] + 2;
-			if (strcmp(a, "help") == 0) { clih; return 0; }
-			if (strcmp(a, "version") == 0) { cliv; return 0; }
-			if (strcmp(a, "ver") == 0) { puts(DDCPUID_VERSION); return 0; }
-			printf("Unknown parameter: '%s'\n", argv[argi]);
+			arg = argv[argi] + 2;
+			if (strcmp(arg, "help") == 0) { clih; return 0; }
+			if (strcmp(arg, "version") == 0) { cliv; return 0; }
+			if (strcmp(arg, "ver") == 0) { puts(DDCPUID_VERSION); return 0; }
+			printf("Unknown parameter: '%s'\n", arg);
 			return 1;
 		} else if (argv[argi][0] == '-') { // Short arguments
-			char* a = argv[argi] + 1;
+			arg = argv[argi] + 1;
 			char o = void;
-			while ((o = *a) != 0) {
-				++a;
+			while ((o = *arg) != 0) {
+				++arg;
 				switch (o) {
-				case 'o': opt_override = true; continue;
-				case 'r': opt_raw = true; continue;
+				case 'o': opts.override_ = true; continue;
+				case 'r': opts.table = true; continue;
 				case 's':
-					opt_subleaf = cast(uint)strtol(argv[argi + 1], null, 10);
+					if (argi + 1 >= argc) {
+						puts("Missing parameter: sub-leaf (-s)");
+						return 1;
+					}
+					opts.maxsub = atoi(argv[++argi]);
 					continue;
 				case 'h': clih; return 0;
 				case 'V': cliv; return 0;
@@ -127,7 +137,7 @@ int main(int argc, char **argv) {
 	
 	CPUINFO info;
 	
-	if (opt_override == false) {
+	if (opts.override_ == false) {
 		getLeaves(info);
 	} else {
 		info.max_leaf = MAX_LEAF;
@@ -135,7 +145,7 @@ int main(int argc, char **argv) {
 		info.max_ext_leaf = MAX_ELEAF;
 	}
 	
-	if (opt_raw) { // -r
+	if (opts.table) { // -r
 		puts(
 		"| Leaf     | Sub-leaf | EAX      | EBX      | ECX      | EDX      |\n"~
 		"|----------|----------|----------|----------|----------|----------|"
@@ -144,18 +154,18 @@ int main(int argc, char **argv) {
 		// Normal
 		uint l = void, s = void;
 		for (l = 0; l <= info.max_leaf; ++l)
-			for (s = 0; s <= opt_subleaf; ++s)
+			for (s = 0; s <= opts.maxsub; ++s)
 				printc(l, s);
 		
 		// Paravirtualization
 		if (info.max_virt_leaf > 0x4000_0000)
 		for (l = 0x4000_0000; l <= info.max_virt_leaf; ++l)
-			for (s = 0; s <= opt_subleaf; ++s)
+			for (s = 0; s <= opts.maxsub; ++s)
 				printc(l, s);
 		
 		// Extended
 		for (l = 0x8000_0000; l <= info.max_ext_leaf; ++l)
-			for (s = 0; s <= opt_subleaf; ++s)
+			for (s = 0; s <= opts.maxsub; ++s)
 				printc(l, s);
 		return 0;
 	}

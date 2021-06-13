@@ -569,7 +569,6 @@ void asmcpuid(ref REGISTERS regs, uint level, uint sublevel = 0) {
 
 /// Get CPU leaf levels.
 /// Params: info = CPUINFO structure
-//TODO: Move to a pointer
 void getLeaves(ref CPUINFO info) {
 	version (DMD) {
 		version (X86) asm {
@@ -1453,6 +1452,8 @@ L_CACHE_INFO:
 	//   - e.g. amd cpuid.8000_0008h
 	// - maxleaf < 4 is too old/rare these days (es. for D programs)
 	
+	//TODO: Maybe do physical cores
+	
 	info.cache_level = 0;
 	CACHEINFO *ca = cast(CACHEINFO*)info.cache;
 	
@@ -1579,5 +1580,7 @@ L_CACHE_AMD_LEGACY:
 	}
 }
 
-debug pragma(msg, "* CPUINFO.sizeof: ", CPUINFO.sizeof);
-debug pragma(msg, "* CACHE.sizeof: ", CACHEINFO.sizeof);
+version (PrintInfo) {
+	pragma(msg, "* CPUINFO.sizeof: ", CPUINFO.sizeof);
+	pragma(msg, "* CACHE.sizeof: ", CACHEINFO.sizeof);
+}

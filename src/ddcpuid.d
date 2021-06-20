@@ -14,7 +14,7 @@
  * Then checking the corresponding field:
  * ---
  * if (info.ext.amx_xfd) {
- *   // Feature available
+ *   // Intel AMX is available
  * } else {
  *   // Feature unavailable
  * }
@@ -22,11 +22,18 @@
  *
  * See the CPUINFO structure for available fields.
  *
+ * For more information, it's encouraged to consult the technical manual.
+ *
+ * NOTICE: This is best used with DMD and LDC. Will crash on GDC -O1.
+ *
  * Authors: dd86k (dd@dax.moe)
  * Copyright: © 2016-2021 dd86k
  * License: MIT
  */
 module ddcpuid;
+
+//TODO: Consider moving all lone instructions into extras (again?)
+//      And probs have an argument to show them (to ouput)
 
 // NOTE: Please no naked assembler.
 //       I'd rather deal with a bit of prolog and epilog than slamming
@@ -96,7 +103,7 @@ struct CACHEINFO { align(1):
 			ubyte linesize; /// Size of the line in bytes
 			ubyte partitions;	/// Number of partitions
 			ubyte ways;	/// Number of ways per line
-			ubyte _amdsize;	/// (Legacy AMD) Size in KiB
+			package ubyte _amdsize;	/// (AMD, legacy) Size in KiB
 		}
 	}
 	/// Cache Size in kilobytes.
@@ -131,14 +138,15 @@ struct CPUINFO { align(1):
 		char[12] vendor;	/// Vendor String
 	}
 	union {
-		package uint[12] brand32;
+		package uint[12] brand32;	// For init
 		char[48] brand;	/// Processor Brand String
 	}
 	uint vendor_id;	/// Validated vendor ID
-	ubyte brand_index;	/// Brand string index
+	ubyte brand_index;	/// Brand string index (not used)
 	
 	// Core
 	
+	/// Contains the information on the number of cores.
 	struct Cores {
 		//TODO: Physical cores
 //		ushort physical;	/// Physical cores in this processor
@@ -149,19 +157,22 @@ struct CPUINFO { align(1):
 	// Identifier
 
 	ubyte family;	/// Effective family identifier
-	ubyte base_family;	/// Base family identifier
-	ubyte ext_family;	/// Extended family identifier
+	ubyte family_base;	/// Base family identifier
+	ubyte family_ext;	/// Extended family identifier
 	ubyte model;	/// Effective model identifier
-	ubyte base_model;	/// Base model identifier
-	ubyte ext_model;	/// Extended model identifier
+	ubyte model_base;	/// Base model identifier
+	ubyte model_ext;	/// Extended model identifier
 	ubyte stepping;	/// Stepping revision
 	ubyte type;	/// Processor type number
 	const(char) *type_string;	/// Processor type string.
 	
 	//TODO: Consider bit flags for some families
 	//      Like MMX, SSE, AVX, AMX, you get the gist
+	/// Contains processor extensions.
+	/// Extensions contain a variety of instructions to aid particular
+	/// tasks.
 	struct Extensions {
-		bool fpu;	/// x87 FPU
+		bool fpu;	/// On-Chip x87 FPU
 		bool f16c;	/// Float16 Conversions
 		bool mmx;	/// MMX
 		bool mmxext;	/// MMX Extended
@@ -211,7 +222,6 @@ struct CPUINFO { align(1):
 		bool avx512_4fmaps;	/// AVX-512-4FMAPS
 		bool avx512_bf16;	/// AVX-512-BF16
 		bool avx512_vp2intersect;	/// AVX-512-VP2INTERSECT
-		private bool res_avx;	// for alignment
 		
 		// AMX
 		bool amx;	/// AMX
@@ -223,51 +233,54 @@ struct CPUINFO { align(1):
 	}
 	align(2) Extensions ext;	/// Extensions
 	
+	/// Additional instructions. Often not part of extensions.
 	struct Extras {
-		bool pclmulqdq;	/// PCLMULQDQ
-		bool monitor;	/// MONITOR+MWAIT
-		ushort mwait_min;	/// MWAIT minimum size in bytes
-		ushort mwait_max;	/// MWAIT maximum size in bytes
+		bool pclmulqdq;	/// PCLMULQDQ instruction
+		bool monitor;	/// MONITOR and MWAIT instructions
+		ushort mwait_min;	/// (With MONITOR+MWAIT) MWAIT minimum size in bytes
+		ushort mwait_max;	/// (With MONITOR+MWAIT) MWAIT maximum size in bytes
 		bool cmpxchg8b;	/// CMPXCHG8B
-		bool cmpxchg16b;	/// CMPXCHG16B
-		bool movbe;	/// MOVBE
-		bool rdrand;	/// RDRAND
-		bool rdseed;	/// RDSEED
-		bool rdmsr;	/// RDMSR
-		bool sysenter;	/// SYSENTER+SYSEXIT
-		bool rdtsc;	/// RDTSC
-		bool rdtsc_deadline;	/// TSC_DEADLINE
-		bool rdtsc_invariant;	/// TSC_INVARIANT
-		bool rdtscp;	/// RDTSCP
-		bool rdpid;	/// RDPID
-		bool cmov;	/// CMOVcc
-		bool lzcnt;	/// LZCNT
-		bool popcnt;	/// POPCNT
-		bool xsave;	/// XSAVE+XRSTOR
-		bool osxsave;	/// OSXSAVE+XGETBV
-		bool fxsr;	/// FXSAVE+FXRSTOR
-		bool pconfig;	/// PCONFIG
-		bool cldemote;	/// CLDEMOTE
-		bool movdiri;	/// MOVDIRI
-		bool movdir64b;	/// MOVDIR64B
-		bool enqcmd;	/// ENQCMD
-		bool syscall;	/// SYSCALL+SYSRET
-		bool monitorx;	/// MONITORX+MWAITX
-		bool skinit;	/// SKINIT
-		bool serialize;	/// SERIALIZE
+		bool cmpxchg16b;	/// CMPXCHG16B instruction
+		bool movbe;	/// MOVBE instruction
+		bool rdrand;	/// RDRAND instruction
+		bool rdseed;	/// RDSEED instruction
+		bool rdmsr;	/// RDMSR instruction
+		bool sysenter;	/// SYSENTER and SYSEXIT instructions
+		bool rdtsc;	/// RDTSC instruction
+		bool rdtsc_deadline;	/// (With RDTSC) IA32_TSC_DEADLINE MSR
+		bool rdtsc_invariant;	/// (With RDTSC) Timestamp counter invariant of C/P/T-state
+		bool rdtscp;	/// RDTSCP instruction
+		bool rdpid;	/// RDPID instruction
+		bool cmov;	/// CMOVcc instruction
+		bool lzcnt;	/// LZCNT instruction
+		bool popcnt;	/// POPCNT instruction
+		bool xsave;	/// XSAVE and XRSTOR instructions
+		bool osxsave;	/// OSXSAVE and XGETBV instructions
+		bool fxsr;	/// FXSAVE and FXRSTOR instructions
+		bool pconfig;	/// PCONFIG instruction
+		bool cldemote;	/// CLDEMOTE instruction
+		bool movdiri;	/// MOVDIRI instruction
+		bool movdir64b;	/// MOVDIR64B instruction
+		bool enqcmd;	/// ENQCMD instruction
+		bool syscall;	/// SYSCALL and SYSRET instructions
+		bool monitorx;	/// MONITORX and MWAITX instructions
+		bool skinit;	/// SKINIT instruction
+		bool serialize;	/// SERIALIZE instruction
 	}
 	align(2) Extras extras;	/// Additional instructions
 	
+	/// Processor technologies.
 	struct Technologies {
 		bool eist;	/// Intel SpeedStep/AMD PowerNow/AMD Cool'n'Quiet
 		bool turboboost;	/// Intel TurboBoost/AMD CorePerformanceBoost
 		bool turboboost30;	/// Intel TurboBoost 3.0
-		bool smx;	/// Intel SMX
+		bool smx;	/// Intel TXT
 		bool sgx;	/// Intel SGX
-		bool htt;	/// HyperThreading
+		bool htt;	/// (HTT) HyperThreading Technology
 	}
 	align(2) Technologies tech;	/// Processor technologies
 	
+	/// Cache information.
 	struct CacheInfo {
 		uint levels;
 		CACHEINFO[DDCPUID_CACHE_MAX] level;
@@ -276,12 +289,13 @@ struct CPUINFO { align(1):
 		bool clflushopt;	/// CLFLUSH instruction
 		bool cnxt_id;	/// L1 Context ID
 		bool ss;	/// SelfSnoop
-		bool prefetchw;	/// PREFETCHW
-		bool invpcid;	/// INVPCID
-		bool wbnoinvd;	/// WBNOINVD
+		bool prefetchw;	/// PREFETCHW instruction
+		bool invpcid;	/// INVPCID instruction
+		bool wbnoinvd;	/// WBNOINVD instruction
 	}
 	align(2) CacheInfo cache;	/// Cache information
 	
+	/// ACPI information.
 	struct AcpiInfo {
 		bool available;	/// ACPI
 		bool apic;	/// APIC
@@ -294,160 +308,160 @@ struct CPUINFO { align(1):
 	}
 	align(2) AcpiInfo acpi;	/// ACPI features
 	
+	/// Virtualization features. If a paravirtual interface is available,
+	/// its information will be found here.
 	struct Virtualization {
-		bool available;	/// VT-x/AMD-V
+		bool available;	/// Intel VT-x/AMD-V
 		ubyte version_;	/// (AMD) Virtualization platform version
-		bool vme;	/// vm8086 enhanced
-		bool apivc;	/// (AMD) APICv
+		bool vme;	/// Enhanced vm8086
+		bool apivc;	/// (AMD) APICv. Intel's available via a MSR.
 		union {
 			package uint[3] vendor32;
-			char[12] vendor;	/// Paravirtualization vendor
+			char[12] vendor;	/// Paravirtualization interface vendor string
 		}
-		uint vendor_id;
-	
+		uint vendor_id;	/// Effective paravirtualization vendor id
+		
 		//TODO: Consider bit flags for paravirtualization flags
 		
 		// VBox
 		
-		uint vbox_tsc_freq_khz;	/// TSC KHz frequency
-		uint vbox_apic_freq_khz;	/// API KHz frequency
-		ushort vbox_guest_vendor_id;	/// VBox Guest Vendor ID
-		ushort vbox_guest_build;	/// VBox Guest Build number
-		ubyte vbox_guest_os;	/// VBox Guest OS ID
-		ubyte vbox_guest_major;	/// VBox Guest OS Major version
-		ubyte vbox_guest_minor;	/// VBox Guest OS Minor version
-		ubyte vbox_guest_service;	/// VBox Guest Service ID
-		bool vbox_guest_opensource;	/// If set: VBox guest additions open-source
-		private bool vbox_guest_res;	// for alignment
+		uint vbox_tsc_freq_khz;	/// (VBox) Timestamp counter frequency in KHz
+		uint vbox_apic_freq_khz;	/// (VBox) Paravirtualization API KHz frequency
 		
 		// KVM
 		
-		bool kvm_feature_clocksource;
-		bool kvm_feature_nop_io_delay;
-		bool kvm_feature_mmu_op;
-		bool kvm_feature_clocksource2;
-		bool kvm_feature_async_pf;
-		bool kvm_feature_steal_time;
-		bool kvm_feature_pv_eoi;
-		bool kvm_feature_pv_unhault;
-		bool kvm_feature_pv_tlb_flush;
-		bool kvm_feature_async_pf_vmexit;
-		bool kvm_feature_pv_send_ipi;
-		bool kvm_feature_pv_poll_control;
-		bool kvm_feature_pv_sched_yield;
-		bool kvm_feature_clocsource_stable_bit;
-		bool kvm_hint_realtime;
-		private bool kvm_hint_res;	// for alignment
+		bool kvm_feature_clocksource;	/// (KVM) kvmclock interface
+		bool kvm_feature_nop_io_delay;	/// (KVM) No delays required on I/O operations
+		bool kvm_feature_mmu_op;	/// (KVM) Deprecated
+		bool kvm_feature_clocksource2;	/// (KVM) Remapped kvmclock interface
+		bool kvm_feature_async_pf;	/// (KVM) Asynchronous Page Fault
+		bool kvm_feature_steal_time;	/// (KVM) Steal time
+		bool kvm_feature_pv_eoi;	/// (KVM) Paravirtualized End Of the Interrupt handler
+		bool kvm_feature_pv_unhault;	/// (KVM) Paravirtualized spinlock
+		bool kvm_feature_pv_tlb_flush;	/// (KVM) Paravirtualized TLB flush
+		bool kvm_feature_async_pf_vmexit;	/// (KVM) Asynchronous Page Fault at VM exit
+		bool kvm_feature_pv_send_ipi;	/// (KVM) Paravirtualized SEBD inter-processor-interrupt
+		bool kvm_feature_pv_poll_control;	/// (KVM) Host-side polling on HLT
+		bool kvm_feature_pv_sched_yield;	/// (KVM) paravirtualized scheduler yield
+		bool kvm_feature_clocsource_stable_bit;	/// (KVM) kvmclock warning
+		bool kvm_hint_realtime;	/// (KVM) vCPUs are never preempted for an unlimited amount of time
 		
 		// Hyper-V
 		
-		bool hv_base_feat_vp_runtime_msr;
-		bool hv_base_feat_part_time_ref_count_msr;
-		bool hv_base_feat_basic_synic_msrs;
-		bool hv_base_feat_stimer_msrs;
-		bool hv_base_feat_apic_access_msrs;
-		bool hv_base_feat_hypercall_msrs;
-		bool hv_base_feat_vp_id_msr;
-		bool hv_base_feat_virt_sys_reset_msr;
-		bool hv_base_feat_stat_pages_msr;
-		bool hv_base_feat_part_ref_tsc_msr;
-		bool hv_base_feat_guest_idle_state_msr;
-		bool hv_base_feat_timer_freq_msrs;
-		bool hv_base_feat_debug_msrs;
-		bool hv_part_flags_create_part;
-		bool hv_part_flags_access_part_id;
-		bool hv_part_flags_access_memory_pool;
-		bool hv_part_flags_adjust_msg_buffers;
-		bool hv_part_flags_post_msgs;
-		bool hv_part_flags_signal_events;
-		bool hv_part_flags_create_port;
-		bool hv_part_flags_connect_port;
-		bool hv_part_flags_access_stats;
-		bool hv_part_flags_debugging;
-		bool hv_part_flags_cpu_mgmt;
-		bool hv_part_flags_cpu_profiler;
-		bool hv_part_flags_expanded_stack_walk;
-		bool hv_part_flags_access_vsm;
-		bool hv_part_flags_access_vp_regs;
-		bool hv_part_flags_extended_hypercalls;
-		bool hv_part_flags_start_vp;
-		bool hv_pm_max_cpu_power_state_c0;
-		bool hv_pm_max_cpu_power_state_c1;
-		bool hv_pm_max_cpu_power_state_c2;
-		bool hv_pm_max_cpu_power_state_c3;
-		bool hv_pm_hpet_reqd_for_c3;
-		bool hv_misc_feat_mwait;
-		bool hv_misc_feat_guest_debugging;
-		bool hv_misc_feat_perf_mon;
-		bool hv_misc_feat_pcpu_dyn_part_event;
-		bool hv_misc_feat_xmm_hypercall_input;
-		bool hv_misc_feat_guest_idle_state;
-		bool hv_misc_feat_hypervisor_sleep_state;
-		bool hv_misc_feat_query_numa_distance;
-		bool hv_misc_feat_timer_freq;
-		bool hv_misc_feat_inject_synmc_xcpt;
-		bool hv_misc_feat_guest_crash_msrs;
-		bool hv_misc_feat_debug_msrs;
-		bool hv_misc_feat_npiep1;
-		bool hv_misc_feat_disable_hypervisor;
-		bool hv_misc_feat_ext_gva_range_for_flush_va_list;
-		bool hv_misc_feat_hypercall_output_xmm;
-		bool hv_misc_feat_sint_polling_mode;
-		bool hv_misc_feat_hypercall_msr_lock;
-		bool hv_misc_feat_use_direct_synth_msrs;
-		bool hv_hint_hypercall_for_process_switch;
-		bool hv_hint_hypercall_for_tlb_flush;
-		bool hv_hint_hypercall_for_tlb_shootdown;
-		bool hv_hint_msr_for_apic_access;
-		bool hv_hint_msr_for_sys_reset;
-		bool hv_hint_relax_time_checks;
-		bool hv_hint_dma_remapping;
-		bool hv_hint_interrupt_remapping;
-		bool hv_hint_x2apic_msrs;
-		bool hv_hint_deprecate_auto_eoi;
-		bool hv_hint_synth_cluster_ipi_hypercall;
-		bool hv_hint_ex_proc_masks_interface;
-		bool hv_hint_nested_hyperv;
-		bool hv_hint_int_for_mbec_syscalls;
-		bool hv_hint_nested_enlightened_vmcs_interface;
-		bool hv_host_feat_avic;
-		bool hv_host_feat_msr_bitmap;
-		bool hv_host_feat_perf_counter;
-		bool hv_host_feat_nested_paging;
-		bool hv_host_feat_dma_remapping;
-		bool hv_host_feat_interrupt_remapping;
-		bool hv_host_feat_mem_patrol_scrubber;
-		bool hv_host_feat_dma_prot_in_use;
-		bool hv_host_feat_hpet_requested;
-		bool hv_host_feat_stimer_volatile;
-		private bool hv_host_feat_res;	// for alignment
+		ushort hv_guest_vendor_id;	/// (Hyper-V) Paravirtualization Guest Vendor ID
+		ushort hv_guest_build;	/// (Hyper-V) Paravirtualization Guest Build number
+		ubyte hv_guest_os;	/// (Hyper-V) Paravirtualization Guest OS ID
+		ubyte hv_guest_major;	/// (Hyper-V) Paravirtualization Guest OS Major version
+		ubyte hv_guest_minor;	/// (Hyper-V) Paravirtualization Guest OS Minor version
+		ubyte hv_guest_service;	/// (Hyper-V) Paravirtualization Guest Service ID
+		bool hv_guest_opensource;	/// (Hyper-V) Paravirtualization Guest additions open-source
+		bool hv_base_feat_vp_runtime_msr;	/// (Hyper-V) Virtual processor runtime MSR
+		bool hv_base_feat_part_time_ref_count_msr;	/// (Hyper-V) Partition reference counter MSR
+		bool hv_base_feat_basic_synic_msrs;	/// (Hyper-V) Basic Synthetic Interrupt Controller MSRs
+		bool hv_base_feat_stimer_msrs;	/// (Hyper-V) Synthetic Timer MSRs
+		bool hv_base_feat_apic_access_msrs;	/// (Hyper-V) APIC access MSRs (EOI, ICR, TPR)
+		bool hv_base_feat_hypercall_msrs;	/// (Hyper-V) Hypercalls API MSRs
+		bool hv_base_feat_vp_id_msr;	/// (Hyper-V) vCPU index MSR
+		bool hv_base_feat_virt_sys_reset_msr;	/// (Hyper-V) Virtual system reset MSR
+		bool hv_base_feat_stat_pages_msr;	/// (Hyper-V) Statistic pages MSRs
+		bool hv_base_feat_part_ref_tsc_msr;	/// (Hyper-V) Partition reference timestamp counter MSR
+		bool hv_base_feat_guest_idle_state_msr;	/// (Hyper-V) Virtual guest idle state MSR
+		bool hv_base_feat_timer_freq_msrs;	/// (Hyper-V) Timer frequency MSRs (TSC and APIC)
+		bool hv_base_feat_debug_msrs;	/// (Hyper-V) Debug MSRs
+		bool hv_part_flags_create_part;	/// (Hyper-V) Partitions can be created
+		bool hv_part_flags_access_part_id;	/// (Hyper-V) Partitions IDs can be accessed
+		bool hv_part_flags_access_memory_pool;	/// (Hyper-V) Memory pool can be accessed
+		bool hv_part_flags_adjust_msg_buffers;	/// (Hyper-V) Possible to adjust message buffers
+		bool hv_part_flags_post_msgs;	/// (Hyper-V) Possible to send messages
+		bool hv_part_flags_signal_events;	/// (Hyper-V) Possible to signal events
+		bool hv_part_flags_create_port;	/// (Hyper-V) Possible to create ports
+		bool hv_part_flags_connect_port;	/// (Hyper-V) Possible to connect to ports
+		bool hv_part_flags_access_stats;	/// (Hyper-V) Can access statistics
+		bool hv_part_flags_debugging;	/// (Hyper-V) Debugging features available
+		bool hv_part_flags_cpu_mgmt;	/// (Hyper-V) Processor management available
+		bool hv_part_flags_cpu_profiler;	/// (Hyper-V) Processor profiler available
+		bool hv_part_flags_expanded_stack_walk;	/// (Hyper-V) Extended stack walking available
+		bool hv_part_flags_access_vsm;	/// (Hyper-V) Virtual system monitor available
+		bool hv_part_flags_access_vp_regs;	/// (Hyper-V) Virtual private registers available
+		bool hv_part_flags_extended_hypercalls;	/// (Hyper-V) Extended hypercalls API available
+		bool hv_part_flags_start_vp;	/// (Hyper-V) Virtual processor has started
+		bool hv_pm_max_cpu_power_state_c0;	/// (Hyper-V) Processor C0 is maximum state
+		bool hv_pm_max_cpu_power_state_c1;	/// (Hyper-V) Processor C1 is maximum state
+		bool hv_pm_max_cpu_power_state_c2;	/// (Hyper-V) Processor C2 is maximum state
+		bool hv_pm_max_cpu_power_state_c3;	/// (Hyper-V) Processor C3 is maximum state
+		bool hv_pm_hpet_reqd_for_c3;	/// (Hyper-V) High-precision event timer required for C3 state
+		bool hv_misc_feat_mwait;	/// (Hyper-V) MWAIT instruction available for guest
+		bool hv_misc_feat_guest_debugging;	/// (Hyper-V) Guest supports debugging
+		bool hv_misc_feat_perf_mon;	/// (Hyper-V) Performance monitor support available
+		bool hv_misc_feat_pcpu_dyn_part_event;	/// (Hyper-V) Physicap CPU dynamic partitioning event available
+		bool hv_misc_feat_xmm_hypercall_input;	/// (Hyper-V) Hypercalls via XMM registers available
+		bool hv_misc_feat_guest_idle_state;	/// (Hyper-V) Virtual guest supports idle state
+		bool hv_misc_feat_hypervisor_sleep_state;	/// (Hyper-V) Hypervisor supports sleep
+		bool hv_misc_feat_query_numa_distance;	/// (Hyper-V) NUMA distance query available
+		bool hv_misc_feat_timer_freq;	/// (Hyper-V) Determining timer frequencies available
+		bool hv_misc_feat_inject_synmc_xcpt;	/// (Hyper-V) Support for injecting synthetic machine checks
+		bool hv_misc_feat_guest_crash_msrs;	/// (Hyper-V) Guest crash MSR available
+		bool hv_misc_feat_debug_msrs;	/// (Hyper-V) Debug MSR available
+		bool hv_misc_feat_npiep1;	/// (Hyper-V) Documentation unavailable
+		bool hv_misc_feat_disable_hypervisor;	/// (Hyper-V) Hypervisor can be disabled
+		bool hv_misc_feat_ext_gva_range_for_flush_va_list;	/// (Hyper-V) Extended guest virtual address (GVA) ranges for FlushVirtualAddressList available
+		bool hv_misc_feat_hypercall_output_xmm;	/// (Hyper-V) Returning hypercall output via XMM registers available
+		bool hv_misc_feat_sint_polling_mode;	/// (Hyper-V) Synthetic interrupt source polling mode available
+		bool hv_misc_feat_hypercall_msr_lock;	/// (Hyper-V) Hypercall MISR lock feature available
+		bool hv_misc_feat_use_direct_synth_msrs;	/// (Hyper-V) Possible to directly use synthetic MSRs
+		bool hv_hint_hypercall_for_process_switch;	/// (Hyper-V) Guest should use the Hypercall API for address space switches rather than MOV CR3
+		bool hv_hint_hypercall_for_tlb_flush;	/// (Hyper-V) Guest should use the Hypercall API for local TLB flushes rather than INVLPG/MOV CR3
+		bool hv_hint_hypercall_for_tlb_shootdown;	/// (Hyper-V) Guest should use the Hypercall API for inter-CPU TLB flushes rather than inter-processor-interrupts (IPI)
+		bool hv_hint_msr_for_apic_access;	/// (Hyper-V) Guest should use the MSRs for APIC access (EOI, ICR, TPR) rather than memory-mapped input/output (MMIO)
+		bool hv_hint_msr_for_sys_reset;	/// (Hyper-V) Guest should use the hypervisor-provided MSR for a system reset instead of traditional methods
+		bool hv_hint_relax_time_checks;	/// (Hyper-V) Guest should relax timer-related checks (watchdogs/deadman timeouts) that rely on timely deliver of external interrupts
+		bool hv_hint_dma_remapping;	/// (Hyper-V) Guest should use the direct memory access (DMA) remapping
+		bool hv_hint_interrupt_remapping;	/// (Hyper-V) Guest should use the interrupt remapping
+		bool hv_hint_x2apic_msrs;	/// (Hyper-V) Guest should use the X2APIC MSRs rather than memory mapped input/output (MMIO)
+		bool hv_hint_deprecate_auto_eoi;	/// (Hyper-V) Guest should deprecate Auto EOI (End Of Interrupt) features
+		bool hv_hint_synth_cluster_ipi_hypercall;	/// (Hyper-V) Guest should use the SyntheticClusterIpi Hypercall
+		bool hv_hint_ex_proc_masks_interface;	/// (Hyper-V) Guest should use the newer ExProcessMasks interface over ProcessMasks
+		bool hv_hint_nested_hyperv;	/// (Hyper-V) Hyper-V instance is nested within a Hyper-V partition
+		bool hv_hint_int_for_mbec_syscalls;	/// (Hyper-V) Guest should use the INT instruction for Mode Based Execution Control (MBEC) system calls
+		bool hv_hint_nested_enlightened_vmcs_interface;	/// (Hyper-V) Guest should use enlightened Virtual Machine Control Structure (VMCS) interfaces and nested enlightenment
+		bool hv_host_feat_avic;	/// (Hyper-V) Hypervisor is using the Advanced Virtual Interrupt Controller (AVIC) overlay
+		bool hv_host_feat_msr_bitmap;	/// (Hyper-V) Hypervisor is using MSR bitmaps
+		bool hv_host_feat_perf_counter;	/// (Hyper-V) Hypervisor supports the architectural performance counter
+		bool hv_host_feat_nested_paging;	/// (Hyper-V) Hypervisor is using nested paging
+		bool hv_host_feat_dma_remapping;	/// (Hyper-V) Hypervisor is using direct memory access (DMA) remapping
+		bool hv_host_feat_interrupt_remapping;	/// (Hyper-V) Hypervisor is using interrupt remapping
+		bool hv_host_feat_mem_patrol_scrubber;	/// (Hyper-V) Hypervisor's memory patrol scrubber is present
+		bool hv_host_feat_dma_prot_in_use;	/// (Hyper-V) Hypervisor is using direct memory access (DMA) protection
+		bool hv_host_feat_hpet_requested;	/// (Hyper-V) Hypervisor requires a High Precision Event Timer (HPET)
+		bool hv_host_feat_stimer_volatile;	/// (Hyper-V) Hypervisor's synthetic timers are volatile
 	}
 	align(2) Virtualization virt;	/// Virtualization features
 	
+	/// Memory features.
 	struct Memory {
-		bool pae;	/// PAE
-		bool pse;	/// PSE
-		bool pse_36;	/// PSE-36
-		bool page1gb;	/// 1GiB pages
-		bool mtrr;	/// MTRR
-		bool pat;	/// PAT
-		bool pge;	/// PGE
-		bool dca;	/// DCA
-		bool nx;	/// Intel XD/NX bit
+		bool pae;	/// Physical Address Extension 
+		bool pse;	/// Page Size Extension
+		bool pse_36;	/// 36-bit PSE
+		bool page1gb;	/// 1GiB pages in 4-level paging and higher
+		bool mtrr;	/// Memory Type Range Registers
+		bool pat;	/// Page Attribute Table
+		bool pge;	/// Page Global Bit
+		bool dca;	/// Direct Cache Access
+		bool nx;	/// Intel XD (No eXecute bit)
 		union {
-			ushort tsx;	/// Intel TSX
+			uint tsx;	/// Intel TSX. If set, has one of HLE, RTM, or TSXLDTRK.
 			struct {
-				bool hle;	/// (TSX) HLE
-				bool rtm;	/// (TSX) RTM
+				bool hle;	/// (TSX) Hardware Lock Elision
+				bool rtm;	/// (TSX) Restricted Transactional Memory
+				bool tsxldtrk;	/// (TSX) Suspend Load Address Tracking
 			}
 		}
-		bool smep;	/// SMEP
-		bool smap;	/// SMAP
-		bool pku;	/// PKG
+		bool smep;	/// Supervisor Mode Execution Protection
+		bool smap;	/// Supervisor Mode Access Protection
+		bool pku;	/// Protection Key Units
 		bool _5pl;	/// 5-level paging
-		bool fsrepmov;	/// FSREPMOV optimization
-		bool tsxldtrk;	/// (TSX) TSKLDTRK
-		bool lam;	/// LAM
+		bool fsrepmov;	/// Fast Short REP MOVSB optimization
+		bool lam;	/// Linear Address Masking
 		union {
 			package ushort b_8000_0008_ax;
 			struct {
@@ -458,36 +472,39 @@ struct CPUINFO { align(1):
 	}
 	align (2) Memory mem;	/// Memory features
 	
+	/// Debugging features.
 	struct Debugging {
 		bool mca;	/// Machine Check Architecture
-		bool mce;	/// MCE
-		bool de;	/// DE
-		bool ds;	/// DS
-		bool ds_cpl;	/// DS-CPL
-		bool dtes64;	/// DTES64
-		bool pdcm;	/// PDCM
-		bool sdbg;	/// SDBG
-		bool pbe;	/// PBE
+		bool mce;	/// Machine Check Exception
+		bool de;	/// Degging Extensions
+		bool ds;	/// Debug Store
+		bool ds_cpl;	/// Debug Store - Curernt Privilege Level
+		bool dtes64;	/// 64-bit Debug Store area
+		bool pdcm;	/// Perfmon And Debug Capability
+		bool sdbg;	/// Silicon Debug
+		bool pbe;	/// Pending Break Enable
 	}
 	align(2) Debugging dbg;	/// Debugging feature
 	
+	/// Security features and mitigations.
 	struct Security {
 		bool ia32_arch_capabilities;	/// IA32_ARCH_CAPABILITIES MSR
 		// NOTE: IA32_CORE_CAPABILITIES is currently empty
-		bool ibpb;	/// IPRB
-		bool ibrs;	/// IBRS
-		bool ibrs_on;	/// IBRS_ON
-		bool ibrs_pref;	/// IBRS_PREF
-		bool stibp;	/// STIBP
-		bool stibp_on;	/// STIBP_ON
-		bool ssbd;	/// SSBD
-		bool l1d_flush;	/// L1D_FLUSH
-		bool md_clear;	/// MD_CLEAR
-		bool cet_ibt;	/// CET_IBT
-		bool cet_ss;	/// CET_SS
+		bool ibpb;	/// Indirect Branch Predictor Barrier
+		bool ibrs;	/// Indirect Branch Restricted Speculation
+		bool ibrs_on;	/// IBRS always enabled
+		bool ibrs_pref;	/// IBRS preferred
+		bool stibp;	/// Single Thread Indirect Branch Predictors
+		bool stibp_on;	/// STIBP always enabled
+		bool ssbd;	/// Speculative Store Bypass Disable
+		bool l1d_flush;	/// L1D Cache Flush
+		bool md_clear;	/// MDS mitigation
+		bool cet_ibt;	/// (Control-flow Enforcement Technology) Indirect Branch Tracking 
+		bool cet_ss;	/// (Control-flow Enforcement Technology) Shadow Stack
 	}
-	align(2) Security sec;	// Security features
+	align(2) Security sec;	/// Security features
 	
+	/// Miscellaneous features.
 	struct Miscellaneous {
 		bool psn;	/// Processor Serial Number (Pentium III only)
 		bool pcid;	/// PCID
@@ -498,13 +515,12 @@ struct CPUINFO { align(1):
 	align(2) Miscellaneous misc;	/// Miscellaneous features
 }
 
+// EAX[4:0], 0-31, but there aren't that many
+// So we limit it to 0-7
 private
-immutable char[] CACHE_TYPE = [ // EAX[4:0] -- 0-31
-	'?', 'D', 'I', 'U', '?', '?', '?', '?',
-	'?', '?', '?', '?', '?', '?', '?', '?',
-	'?', '?', '?', '?', '?', '?', '?', '?',
-	'?', '?', '?', '?', '?', '?', '?', '?'
-];
+enum CACHE_MASK = 7; // Max 31
+private
+immutable const(char)* CACHE_TYPE = "?DIU????";
 
 private
 immutable const(char)*[] PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];
@@ -860,22 +876,22 @@ void getInfo(ref CPUINFO info) {
 	
 	// EAX
 	info.stepping    = regs.eax & 0xF;        // EAX[3:0]
-	info.base_model  = regs.eax >>  4 &  0xF; // EAX[7:4]
-	info.base_family = regs.eax >>  8 &  0xF; // EAX[11:8]
+	info.model_base  = regs.eax >>  4 &  0xF; // EAX[7:4]
+	info.family_base = regs.eax >>  8 &  0xF; // EAX[11:8]
 	info.type        = regs.eax >> 12 & 0b11; // EAX[13:12]
 	info.type_string = PROCESSOR_TYPE[info.type];
-	info.ext_model   = regs.eax >> 16 &  0xF; // EAX[19:16]
-	info.ext_family  = cast(ubyte)(regs.eax >> 20); // EAX[27:20]
+	info.model_ext   = regs.eax >> 16 &  0xF; // EAX[19:16]
+	info.family_ext  = cast(ubyte)(regs.eax >> 20); // EAX[27:20]
 	
 	switch (info.vendor_id) {
 	case VENDOR_INTEL:
-		info.family = info.base_family != 0 ?
-			info.base_family :
-			cast(ubyte)(info.ext_family + info.base_family);
+		info.family = info.family_base != 0 ?
+			info.family_base :
+			cast(ubyte)(info.family_ext + info.family_base);
 		
-		info.model = info.base_family == 6 || info.base_family == 0 ?
-			cast(ubyte)((info.ext_model << 4) + info.base_model) :
-			info.base_model; // DisplayModel = Model_ID;
+		info.model = info.family_base == 6 || info.family_base == 0 ?
+			cast(ubyte)((info.model_ext << 4) + info.model_base) :
+			info.model_base; // DisplayModel = Model_ID;
 		
 		// ECX
 		info.dbg.dtes64	= (regs.ecx & BIT!(2)) != 0;
@@ -902,12 +918,12 @@ void getInfo(ref CPUINFO info) {
 		info.dbg.pbe	= regs.edx >= BIT!(31);
 		break;
 	case VENDOR_AMD:
-		if (info.base_family < 0xF) {
-			info.family = info.base_family;
-			info.model = info.base_model;
+		if (info.family_base < 0xF) {
+			info.family = info.family_base;
+			info.model = info.model_base;
 		} else {
-			info.family = cast(ubyte)(info.ext_family + info.base_family);
-			info.model = cast(ubyte)((info.ext_model << 4) + info.base_model);
+			info.family = cast(ubyte)(info.family_ext + info.family_base);
+			info.model = cast(ubyte)((info.model_ext << 4) + info.model_base);
 		}
 		break;
 	default:
@@ -1220,13 +1236,13 @@ L_VIRT:
 	switch (info.virt.vendor_id) {
 	case VIRT_VENDOR_VBOX_HV:
 		asmcpuid(regs, 0x4000_0002);
-		info.virt.vbox_guest_minor	= cast(ubyte)(regs.eax >> 24);
-		info.virt.vbox_guest_service	= cast(ubyte)(regs.eax >> 16);
-		info.virt.vbox_guest_build	= cast(ushort)regs.eax;
-		info.virt.vbox_guest_opensource	= regs.edx >= BIT!(31);
-		info.virt.vbox_guest_vendor_id	= (regs.edx >> 16) & 0xFFF;
-		info.virt.vbox_guest_os	= cast(ubyte)(regs.edx >> 8);
-		info.virt.vbox_guest_major	= cast(ubyte)regs.edx;
+		info.virt.hv_guest_minor	= cast(ubyte)(regs.eax >> 24);
+		info.virt.hv_guest_service	= cast(ubyte)(regs.eax >> 16);
+		info.virt.hv_guest_build	= cast(ushort)regs.eax;
+		info.virt.hv_guest_opensource	= regs.edx >= BIT!(31);
+		info.virt.hv_guest_vendor_id	= (regs.edx >> 16) & 0xFFF;
+		info.virt.hv_guest_os	= cast(ubyte)(regs.edx >> 8);
+		info.virt.hv_guest_major	= cast(ubyte)regs.edx;
 		break;
 	default:
 	}
@@ -1485,7 +1501,7 @@ L_CACHE_INFO:
 	case VENDOR_INTEL:
 		asmcpuid(regs, 4, info.cache.levels);
 		
-		type = regs.eax & 31; // EAX[4:0]
+		type = regs.eax & CACHE_MASK; // EAX[4:0]
 		if (type == 0) break;
 		if (info.cache.levels >= DDCPUID_CACHE_MAX) break;
 		
@@ -1520,7 +1536,7 @@ L_CACHE_INFO:
 L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 		asmcpuid(regs, 0x8000_001D, info.cache.levels);
 		
-		type = regs.eax & 31; // EAX[4:0]
+		type = regs.eax & CACHE_MASK; // EAX[4:0]
 		if (type == 0) break;
 		if (info.cache.levels >= DDCPUID_CACHE_MAX) break;
 		

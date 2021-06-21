@@ -242,7 +242,6 @@ int main(int argc, const(char) **argv) {
 		case VENDOR_VIA: printf(" VIA-VT/VMX"); break;
 		default: printf(" VMX");
 		}
-	if (info.tech.smx) printf(" Intel-TXT/SMX");
 	if (info.ext.aes_ni) printf(" AES-NI");
 	if (info.ext.avx) printf(" AVX");
 	if (info.ext.avx2) printf(" AVX2");
@@ -349,7 +348,7 @@ int main(int argc, const(char) **argv) {
 			if (info.mem.tsxldtrk)
 				printf(" +TSXLDTRK");
 		}
-		if (info.tech.smx) printf(" TXT/SMX");
+		if (info.tech.smx) printf(" Intel-TXT/SMX");
 		if (info.tech.sgx) printf(" SGX");
 		break;
 	case VENDOR_AMD:
@@ -380,8 +379,8 @@ int main(int argc, const(char) **argv) {
 			cache.size >>= 10;
 			c = 'M';
 		}
-		printf("\n\tL%u-%c: %u %ciB\tx %u, %u ways, %u parts, %u B, %u sets",
-			cache.level, cache.type, cache.size, c, cache.sharedCores,
+		printf("\n\tL%u-%c: %ux %4u %ciB, %u ways, %u parts, %u B, %u sets",
+			cache.level, cache.type, cache.sharedCores, cache.size, c,
 			cache.ways, cache.partitions, cache.linesize, cache.sets
 		);
 		if (cache.feat & BIT!(0)) printf(" +SI"); // Self Initiative
@@ -390,7 +389,7 @@ int main(int argc, const(char) **argv) {
 		if (cache.feat & BIT!(3)) printf(" +CI"); // Cache Inclusive
 		if (cache.feat & BIT!(4)) printf(" +CCI"); // Complex Cache Indexing
 	}
-
+	
 	printf("\nACPI        :");
 	if (info.acpi.available) printf(" ACPI");
 	if (info.acpi.apic) printf(" APIC");
@@ -400,7 +399,7 @@ int main(int argc, const(char) **argv) {
 	if (info.acpi.tm2) printf(" TM2");
 	printf(" APIC-ID=%u", info.acpi.apic_id);
 	if (info.acpi.max_apic_id) printf(" MAX-ID=%u", info.acpi.max_apic_id);
-
+	
 	printf("\nVirtual     :");
 	if (info.virt.vme) printf(" VME");
 	if (info.virt.apivc) printf(" APICv");
@@ -523,7 +522,7 @@ int main(int argc, const(char) **argv) {
 		break;
 	default:
 	}
-
+	
 	printf("\nMemory      :");
 	if (info.mem.phys_bits) printf(" P-Bits=%u", info.mem.phys_bits);
 	if (info.mem.line_bits) printf(" L-Bits=%u", info.mem.line_bits);
@@ -547,7 +546,7 @@ int main(int argc, const(char) **argv) {
 	if (info.mem._5pl) printf(" 5PL");
 	if (info.mem.fsrepmov) printf(" FSRM");
 	if (info.mem.lam) printf(" LAM");
-
+	
 	printf("\nDebugging   :");
 	if (info.dbg.mca) printf(" MCA");
 	if (info.dbg.mce) printf(" MCE");
@@ -558,23 +557,21 @@ int main(int argc, const(char) **argv) {
 	if (info.dbg.pdcm) printf(" PDCM");
 	if (info.dbg.sdbg) printf(" SDBG");
 	if (info.dbg.pbe) printf(" PBE");
-
+	
 	printf("\nSecurity    :");
 	if (info.sec.ia32_arch_capabilities) printf(" IA32_ARCH_CAPABILITIES");
 	if (info.sec.ibpb) printf(" IBPB");
 	if (info.sec.ibrs) printf(" IBRS");
+	if (info.sec.ibrs_on) printf(" IBRS_ON");	// AMD
+	if (info.sec.ibrs_pref) printf(" IBRS_PREF");	// AMD
 	if (info.sec.stibp) printf(" STIBP");
+	if (info.sec.stibp_on) printf(" STIBP_ON");	// AMD
 	if (info.sec.ssbd) printf(" SSBD");
-	// Intel
-	if (info.sec.l1d_flush) printf(" L1D_FLUSH");
-	if (info.sec.md_clear) printf(" MD_CLEAR");
-	if (info.sec.cet_ibt) printf(" CET_IBT");
-	if (info.sec.cet_ss) printf(" CET_SS");
-	// AMD
-	if (info.sec.ibrs_on) printf(" IBRS_ON");
-	if (info.sec.ibrs_pref) printf(" IBRS_PREF");
-	if (info.sec.stibp_on) printf(" STIBP_ON");
-
+	if (info.sec.l1d_flush) printf(" L1D_FLUSH");	// Intel
+	if (info.sec.md_clear) printf(" MD_CLEAR");	// Intel
+	if (info.sec.cet_ibt) printf(" CET_IBT");	// Intel
+	if (info.sec.cet_ss) printf(" CET_SS");	// Intel
+	
 	printf("\nMisc.       : HLeaf=0x%x HVLeaf=0x%x HELeaf=0x%x Type=%s Index=%u",
 		info.max_leaf, info.max_virt_leaf, info.max_ext_leaf,
 		info.type_string, info.brand_index);
@@ -583,8 +580,8 @@ int main(int argc, const(char) **argv) {
 	if (info.misc.pcid) printf(" PCID");
 	if (info.misc.fsgsbase) printf(" FSGSBASE");
 	if (info.misc.uintr) printf(" UINTR");
-
+	
 	putchar('\n');
-
+	
 	return 0;
 }

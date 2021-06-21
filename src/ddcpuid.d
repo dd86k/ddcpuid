@@ -178,21 +178,21 @@ struct CPUINFO { align(1):
 		bool mmxext;	/// MMX Extended
 		bool _3dnow;	/// 3DNow!
 		bool _3dnowext;	/// 3DNow! Extended
-		bool aes_ni;	/// AES-NI
-		bool sha;	/// SHA1
-		bool fma3;	/// FMA3
+		bool aes_ni;	/// Advanced Encryption Standard New Instructions
+		bool sha;	/// SHA-1
+		bool fma3;	/// Fused Multiply-Add
 		bool fma4;	/// FMA4
 		bool bmi1;	/// BMI1
 		bool bmi2;	/// BMI2
-		bool x86_64;	/// Long mode
-		bool lahf64;	/// LAHF/SAHF in 64-bit mode
-		bool waitpkg;	/// WAITPKG
-		bool xop;	/// XOP
-		bool tbm;	/// TBM
-		bool adx;	/// ADX
+		bool x86_64;	/// 64-bit mode (Long mode)
+		bool lahf64;	/// LAHF+SAHF in 64-bit mode
+		bool waitpkg;	/// User Level Monitor Wait (UMWAIT)
+		bool xop;	/// AMD eXtended OPerations
+		bool tbm;	/// Trailing Bit Manipulation
+		bool adx;	/// Multi-precision Add-Carry (ADCX+ADOX)
 		
 		// SSE
-		bool sse;	/// SSE
+		bool sse;	/// Streaming SIMD Extensions
 		bool sse2;	/// SSE2
 		bool sse3;	/// SSE3
 		bool ssse3;	/// SSSE3
@@ -201,7 +201,7 @@ struct CPUINFO { align(1):
 		bool sse4a;	/// SSE4a
 		
 		// AVX
-		bool avx;	/// AVX
+		bool avx;	/// Advanced Vector eXtension
 		bool avx2;	/// AVX-2
 		bool avx512f;	/// AVX-512
 		bool avx512er;	/// AVX-512-ER
@@ -224,7 +224,7 @@ struct CPUINFO { align(1):
 		bool avx512_vp2intersect;	/// AVX-512-VP2INTERSECT
 		
 		// AMX
-		bool amx;	/// AMX
+		bool amx;	/// Advanced Matrix eXtension
 		bool amx_bf16;	/// AMX-BF16
 		bool amx_int8;	/// AMX-INT8
 		bool amx_xtilecfg;	/// AMX-XTILECFG

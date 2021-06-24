@@ -3,7 +3,6 @@ description "x86 processor information library and executable"
 authors "dd86k <dd@dax.moe>"
 copyright "Copyright © 2016-2021, dd86k"
 license "MIT"
-version "0.18.0"
 
 # Debug build
 buildType "debug" {

@@ -53,7 +53,6 @@ else static assert(0, "Unsupported platform");
 version (DigitalMars) {
 	version = DMD;
 } else version (GNU) {
-	pragma(msg, "* warning: GDC support is experimental");
 	version = GDC;
 } else version (LDC) {
 	

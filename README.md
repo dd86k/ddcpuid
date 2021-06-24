@@ -66,6 +66,8 @@ You get the idea.
 
 ### Optimizations
 
+**UPDATE**: ddcpuid 0.18.0 is now fully compatible with GDC. No longer an issue!
+
 Compiling above O0 will yield invalid results, and that's because of my
 incapability to understand the complex extended GCC inline assembler
 format. Especially since D has no `volatile` type qualifier.

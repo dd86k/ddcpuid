@@ -46,19 +46,28 @@ module ddcpuid;
 @system:
 extern (C):
 
-version (DigitalMars)
-	version = DMD;
-version (GNU)
-	version = GDC;
-
 version (X86) enum DDCPUID_PLATFORM = "x86"; /// Target platform
 else version (X86_64) enum DDCPUID_PLATFORM = "amd64"; /// Target platform
-else static assert(0, "ddcpuid is only supported on x86 platforms");
+else static assert(0, "Unsupported platform");
 
-version (GDC) pragma(msg, "* warning: GDC support is experimental");
+version (DigitalMars) {
+	version = DMD;
+} else version (GNU) {
+	pragma(msg, "* warning: GDC support is experimental");
+	version = GDC;
+} else version (LDC) {
+	
+} else static assert(0, "Unsupported compiler");
 
-enum DDCPUID_VERSION	= "0.18.0";	/// Library version
-enum DDCPUID_CACHE_MAX	= 6;	/// Cache levels buffer size (and maximum size)
+enum DDCPUID_VERSION   = "0.18.0";	/// Library version
+enum DDCPUID_CACHE_MAX = 6;	/// Cache levels buffer size (and maximum size)
+private enum VENDOR_OFFSET     = CPUINFO.vendor.offsetof;
+private enum BRAND_OFFSET      = CPUINFO.brand.offsetof;
+private enum VIRTVENDOR_OFFSET = CPUINFO.virt.offsetof + CPUINFO.virt.vendor.offsetof;
+
+pragma(msg, "VENDOR_OFFSET\t", VENDOR_OFFSET);
+pragma(msg, "BRAND_OFFSET\t", BRAND_OFFSET);
+pragma(msg, "VIRTVENDOR_OFFSET\t", VIRTVENDOR_OFFSET);
 
 /// Make a bit mask of one bit at n position
 private
@@ -314,7 +323,7 @@ struct CPUINFO { align(1):
 		bool available;	/// Intel VT-x/AMD-V
 		ubyte version_;	/// (AMD) Virtualization platform version
 		bool vme;	/// Enhanced vm8086
-		bool apivc;	/// (AMD) APICv. Intel's available via a MSR.
+		bool apivc;	/// (AMD) APICv. Intel's is available via a MSR.
 		union {
 			package uint[3] vendor32;
 			char[12] vendor;	/// Paravirtualization interface vendor string
@@ -551,8 +560,7 @@ void asmcpuid(ref REGISTERS regs, uint level, uint sublevel = 0) {
 		asm {
 			"cpuid"
 			: "=a" (regs.eax), "=b" (regs.ebx), "=c" (regs.ecx), "=d" (regs.edx)
-			: "a" (level), "c" (sublevel)
-			;
+			: "a" (level), "c" (sublevel);
 		}
 	} else version (LDC) {
 		version (X86) asm {
@@ -574,11 +582,12 @@ void asmcpuid(ref REGISTERS regs, uint level, uint sublevel = 0) {
 			mov [RDI + regs.ecx.offsetof], ECX;
 			mov [RDI + regs.edx.offsetof], EDX;
 		}
-	} else static assert(0, "asmcpuid: Unsupported compiler");
+	}
 }
 
 /// Get CPU leaf levels.
 /// Params: info = CPUINFO structure
+pragma(inline, false)
 void getLeaves(ref CPUINFO info) {
 	version (DMD) {
 		version (X86) asm {
@@ -606,19 +615,19 @@ void getLeaves(ref CPUINFO info) {
 		}
 	} else version (GDC) {
 		asm {
-			"mov $0, %%eax\n\t"~
 			"cpuid"
-			: "=a" (info.max_leaf);
+			: "=a" (info.max_leaf)
+			: "a" (0);
 		}
 		asm {
-			"mov $0x40000000, %%eax\n\t"~
 			"cpuid"
-			: "=a" (info.max_virt_leaf);
+			: "=a" (info.max_virt_leaf)
+			: "a" (0x40000000);
 		}
 		asm {
-			"mov $0x80000000, %%eax\n\t"~
 			"cpuid"
-			: "=a" (info.max_ext_leaf);
+			: "=a" (info.max_ext_leaf)
+			: "a" (0x80000000);
 		}
 	} else version (LDC) {
 		version (X86) asm {
@@ -644,51 +653,65 @@ void getLeaves(ref CPUINFO info) {
 			cpuid;
 			mov [RDI + info.max_ext_leaf.offsetof], EAX;
 		}
-	} else static assert(0, "getLeaves: Unsupported compiler");
+	}
 }
 
 /// Fetch CPU vendor
+pragma(inline, false)
 void getVendor(ref CPUINFO info) {
-	// PIC compatible
-	size_t vendor_ptr = cast(size_t)&info.vendor;
-	
-	version (X86_64) {
-		version (GDC) asm {
-			// vendor string
-			"mov %0, %%rdi\n\t"~
-			"mov $0, %%eax\n\t"~
-			"cpuid\n\t"~
-			"mov %%ebx, (%%rdi)\n\t"~
-			"mov %%edx, 4(%%rdi)\n\t"~
-			"mov %%ecx, 8(%%rdi)"
-			:
-			: "m" (vendor_ptr);
-		} else asm {
-			// vendor string
-			mov RDI, vendor_ptr;
+	version (DMD) {
+		version (X86) asm {
+			mov EDI, info;
 			mov EAX, 0;
 			cpuid;
-			mov [RDI], EBX;
-			mov [RDI+4], EDX;
-			mov [RDI+8], ECX;
+			mov [EDI + VENDOR_OFFSET], EBX;
+			mov [EDI + VENDOR_OFFSET + 4], EDX;
+			mov [EDI + VENDOR_OFFSET + 8], ECX;
+		} else asm { // x86-64
+			mov RDI, info;
+			mov EAX, 0;
+			cpuid;
+			mov [RDI + VENDOR_OFFSET], EBX;
+			mov [RDI + VENDOR_OFFSET + 4], EDX;
+			mov [RDI + VENDOR_OFFSET + 8], ECX;
 		}
-	} else { // version X86
-		version (GDC) asm {
-			"mov %0, %%edi\n\t"~
+	} else version (GDC) {
+		version (X86) asm {
+			"lea %0, %%edi\n\t"~
 			"mov $0, %%eax\n\t"~
 			"cpuid\n"~
 			"mov %%ebx, (%%edi)\n\t"~
 			"mov %%edx, 4(%%edi)\n\t"~
 			"mov %%ecx, 8(%%edi)"
 			:
-			: "m" (vendor_ptr);
-		} else asm {
-			mov EDI, vendor_ptr;
+			: "m" (info.vendor)
+			: "edi", "eax", "ebx", "ecx", "edx";
+		} else asm { // x86-64
+			"lea %0, %%rdi\n\t"~
+			"mov $0, %%eax\n\t"~
+			"cpuid\n"~
+			"mov %%ebx, (%%rdi)\n\t"~
+			"mov %%edx, 4(%%rdi)\n\t"~
+			"mov %%ecx, 8(%%rdi)"
+			:
+			: "m" (info.vendor)
+			: "rdi", "rax", "rbx", "rcx", "rdx";
+		}
+	} else version (LDC) {
+		version (X86) asm {
+			lea EDI, info;
 			mov EAX, 0;
 			cpuid;
-			mov [EDI], EBX;
-			mov [EDI+4], EDX;
-			mov [EDI+8], ECX;
+			mov [EDI + VENDOR_OFFSET], EBX;
+			mov [EDI + VENDOR_OFFSET + 4], EDX;
+			mov [EDI + VENDOR_OFFSET + 8], ECX;
+		} else asm { // x86-64
+			lea RDI, info;
+			mov EAX, 0;
+			cpuid;
+			mov [RDI + VENDOR_OFFSET], EBX;
+			mov [RDI + VENDOR_OFFSET + 4], EDX;
+			mov [RDI + VENDOR_OFFSET + 8], ECX;
 		}
 	}
 	
@@ -715,6 +738,7 @@ void getVendor(ref CPUINFO info) {
 	info.vendor_id = info.vendor32[0];
 }
 
+pragma(inline, false)
 private
 void getBrand(ref CPUINFO info) {
 	version (DMD) {
@@ -722,46 +746,44 @@ void getBrand(ref CPUINFO info) {
 			mov EDI, info;
 			mov EAX, 0x8000_0002;
 			cpuid;
-			mov [EDI + info.brand.offsetof], EAX;
-			mov [EDI + info.brand.offsetof +  4], EBX;
-			mov [EDI + info.brand.offsetof +  8], ECX;
-			mov [EDI + info.brand.offsetof + 12], EDX;
+			mov [EDI + BRAND_OFFSET], EAX;
+			mov [EDI + BRAND_OFFSET +  4], EBX;
+			mov [EDI + BRAND_OFFSET +  8], ECX;
+			mov [EDI + BRAND_OFFSET + 12], EDX;
 			mov EAX, 0x8000_0003;
 			cpuid;
-			mov [EDI + info.brand.offsetof + 16], EAX;
-			mov [EDI + info.brand.offsetof + 20], EBX;
-			mov [EDI + info.brand.offsetof + 24], ECX;
-			mov [EDI + info.brand.offsetof + 28], EDX;
+			mov [EDI + BRAND_OFFSET + 16], EAX;
+			mov [EDI + BRAND_OFFSET + 20], EBX;
+			mov [EDI + BRAND_OFFSET + 24], ECX;
+			mov [EDI + BRAND_OFFSET + 28], EDX;
 			mov EAX, 0x8000_0004;
 			cpuid;
-			mov [EDI + info.brand.offsetof + 32], EAX;
-			mov [EDI + info.brand.offsetof + 36], EBX;
-			mov [EDI + info.brand.offsetof + 40], ECX;
-			mov [EDI + info.brand.offsetof + 44], EDX;
+			mov [EDI + BRAND_OFFSET + 32], EAX;
+			mov [EDI + BRAND_OFFSET + 36], EBX;
+			mov [EDI + BRAND_OFFSET + 40], ECX;
+			mov [EDI + BRAND_OFFSET + 44], EDX;
 		} else version (X86_64) asm {
 			mov RDI, info;
 			mov EAX, 0x8000_0002;
 			cpuid;
-			mov [RDI + info.brand.offsetof], EAX;
-			mov [RDI + info.brand.offsetof +  4], EBX;
-			mov [RDI + info.brand.offsetof +  8], ECX;
-			mov [RDI + info.brand.offsetof + 12], EDX;
+			mov [RDI + BRAND_OFFSET], EAX;
+			mov [RDI + BRAND_OFFSET +  4], EBX;
+			mov [RDI + BRAND_OFFSET +  8], ECX;
+			mov [RDI + BRAND_OFFSET + 12], EDX;
 			mov EAX, 0x8000_0003;
 			cpuid;
-			mov [RDI + info.brand.offsetof + 16], EAX;
-			mov [RDI + info.brand.offsetof + 20], EBX;
-			mov [RDI + info.brand.offsetof + 24], ECX;
-			mov [RDI + info.brand.offsetof + 28], EDX;
+			mov [RDI + BRAND_OFFSET + 16], EAX;
+			mov [RDI + BRAND_OFFSET + 20], EBX;
+			mov [RDI + BRAND_OFFSET + 24], ECX;
+			mov [RDI + BRAND_OFFSET + 28], EDX;
 			mov EAX, 0x8000_0004;
 			cpuid;
-			mov [RDI + info.brand.offsetof + 32], EAX;
-			mov [RDI + info.brand.offsetof + 36], EBX;
-			mov [RDI + info.brand.offsetof + 40], ECX;
-			mov [RDI + info.brand.offsetof + 44], EDX;
+			mov [RDI + BRAND_OFFSET + 32], EAX;
+			mov [RDI + BRAND_OFFSET + 36], EBX;
+			mov [RDI + BRAND_OFFSET + 40], ECX;
+			mov [RDI + BRAND_OFFSET + 44], EDX;
 		}
 	} else version (GDC) {
-		size_t p = cast(size_t)&info.brand; // PIC, somehow
-		
 		version (X86) asm {
 			"lea %0, %%edi\n\t"~
 			"mov $0x80000002, %%eax\n\t"~
@@ -783,8 +805,8 @@ void getBrand(ref CPUINFO info) {
 			"mov %%ecx, 40(%%rdi)\n\t"~
 			"mov %%edx, 44(%%rdi)"
 			:
-			: "m" (info)
-			;
+			: "m" (info.brand)
+			: "edi", "eax", "ebx", "ecx", "edx";
 		} else version (X86_64) asm {
 			"lea %0, %%rdi\n\t"~
 			"mov $0x80000002, %%eax\n\t"~
@@ -806,52 +828,129 @@ void getBrand(ref CPUINFO info) {
 			"mov %%ecx, 40(%%rdi)\n\t"~
 			"mov %%edx, 44(%%rdi)"
 			:
-			: "m" (info)
-			;
+			: "m" (info.brand)
+			: "rdi", "rax", "rbx", "rcx", "rdx";
 		}
 	} else version (LDC) {
 		version (X86) asm {
 			lea EDI, info;
 			mov EAX, 0x8000_0002;
 			cpuid;
-			mov [EDI + info.brand.offsetof], EAX;
-			mov [EDI + info.brand.offsetof +  4], EBX;
-			mov [EDI + info.brand.offsetof +  8], ECX;
-			mov [EDI + info.brand.offsetof + 12], EDX;
+			mov [EDI + BRAND_OFFSET], EAX;
+			mov [EDI + BRAND_OFFSET +  4], EBX;
+			mov [EDI + BRAND_OFFSET +  8], ECX;
+			mov [EDI + BRAND_OFFSET + 12], EDX;
 			mov EAX, 0x8000_0003;
 			cpuid;
-			mov [EDI + info.brand.offsetof + 16], EAX;
-			mov [EDI + info.brand.offsetof + 20], EBX;
-			mov [EDI + info.brand.offsetof + 24], ECX;
-			mov [EDI + info.brand.offsetof + 28], EDX;
+			mov [EDI + BRAND_OFFSET + 16], EAX;
+			mov [EDI + BRAND_OFFSET + 20], EBX;
+			mov [EDI + BRAND_OFFSET + 24], ECX;
+			mov [EDI + BRAND_OFFSET + 28], EDX;
 			mov EAX, 0x8000_0004;
 			cpuid;
-			mov [EDI + info.brand.offsetof + 32], EAX;
-			mov [EDI + info.brand.offsetof + 36], EBX;
-			mov [EDI + info.brand.offsetof + 40], ECX;
-			mov [EDI + info.brand.offsetof + 44], EDX;
+			mov [EDI + BRAND_OFFSET + 32], EAX;
+			mov [EDI + BRAND_OFFSET + 36], EBX;
+			mov [EDI + BRAND_OFFSET + 40], ECX;
+			mov [EDI + BRAND_OFFSET + 44], EDX;
 		} else version (X86_64) asm {
 			lea RDI, info;
 			mov EAX, 0x8000_0002;
 			cpuid;
-			mov [RDI + info.brand.offsetof], EAX;
-			mov [RDI + info.brand.offsetof +  4], EBX;
-			mov [RDI + info.brand.offsetof +  8], ECX;
-			mov [RDI + info.brand.offsetof + 12], EDX;
+			mov [RDI + BRAND_OFFSET], EAX;
+			mov [RDI + BRAND_OFFSET +  4], EBX;
+			mov [RDI + BRAND_OFFSET +  8], ECX;
+			mov [RDI + BRAND_OFFSET + 12], EDX;
 			mov EAX, 0x8000_0003;
 			cpuid;
-			mov [RDI + info.brand.offsetof + 16], EAX;
-			mov [RDI + info.brand.offsetof + 20], EBX;
-			mov [RDI + info.brand.offsetof + 24], ECX;
-			mov [RDI + info.brand.offsetof + 28], EDX;
+			mov [RDI + BRAND_OFFSET + 16], EAX;
+			mov [RDI + BRAND_OFFSET + 20], EBX;
+			mov [RDI + BRAND_OFFSET + 24], ECX;
+			mov [RDI + BRAND_OFFSET + 28], EDX;
 			mov EAX, 0x8000_0004;
 			cpuid;
-			mov [RDI + info.brand.offsetof + 32], EAX;
-			mov [RDI + info.brand.offsetof + 36], EBX;
-			mov [RDI + info.brand.offsetof + 40], ECX;
-			mov [RDI + info.brand.offsetof + 44], EDX;
+			mov [RDI + BRAND_OFFSET + 32], EAX;
+			mov [RDI + BRAND_OFFSET + 36], EBX;
+			mov [RDI + BRAND_OFFSET + 40], ECX;
+			mov [RDI + BRAND_OFFSET + 44], EDX;
 		}
-	} else static assert(0, "getBrand: Unsupported compiler");
+	}
+}
+
+pragma(inline, false)
+private
+void getVirtVendor(ref CPUINFO info) {
+	version (DMD) {
+		version (X86) asm {
+			mov EDI, info;
+			mov EAX, 0x40000000;
+			cpuid;
+			mov [EDI + VIRTVENDOR_OFFSET], EBX;
+			mov [EDI + VIRTVENDOR_OFFSET + 4], ECX;
+			mov [EDI + VIRTVENDOR_OFFSET + 8], EDX;
+		} else asm { // x86-64
+			mov RDI, info;
+			mov EAX, 0x40000000;
+			cpuid;
+			mov [RDI + VIRTVENDOR_OFFSET], EBX;
+			mov [RDI + VIRTVENDOR_OFFSET + 4], ECX;
+			mov [RDI + VIRTVENDOR_OFFSET + 8], EDX;
+		}
+	} else version (GDC) {
+		version (X86) asm {
+			"lea %0, %%edi\n\t"~
+			"mov $0x40000000, %%eax\n\t"~
+			"cpuid\n"~
+			"mov %%ebx, (%%edi)\n\t"~
+			"mov %%ecx, 4(%%edi)\n\t"~
+			"mov %%edx, 8(%%edi)"
+			:
+			: "m" (info.virt.vendor)
+			: "edi", "eax", "ebx", "ecx", "edx";
+		} else asm { // x86-64
+			"lea %0, %%rdi\n\t"~
+			"mov $0x40000000, %%eax\n\t"~
+			"cpuid\n"~
+			"mov %%ebx, (%%rdi)\n\t"~
+			"mov %%ecx, 4(%%rdi)\n\t"~
+			"mov %%edx, 8(%%rdi)"
+			:
+			: "m" (info.virt.vendor)
+			: "rdi", "rax", "rbx", "rcx", "rdx";
+		}
+	} else version (LDC) {
+		version (X86) asm {
+			lea EDI, info;
+			mov EAX, 0x40000000;
+			cpuid;
+			mov [EDI + VIRTVENDOR_OFFSET], EBX;
+			mov [EDI + VIRTVENDOR_OFFSET + 4], ECX;
+			mov [EDI + VIRTVENDOR_OFFSET + 8], EDX;
+		} else asm { // x86-64
+			lea RDI, info;
+			mov EAX, 0x40000000;
+			cpuid;
+			mov [RDI + VIRTVENDOR_OFFSET], EBX;
+			mov [RDI + VIRTVENDOR_OFFSET + 4], ECX;
+			mov [RDI + VIRTVENDOR_OFFSET + 8], EDX;
+		}
+	}
+	
+	// Paravirtual vendor string verification
+	// If the rest of the string doesn't correspond, the id is unset
+	switch (info.virt.vendor32[0]) {
+	case VIRT_VENDOR_KVM:	// "KVMKVMKVM\0\0\0"
+		if (info.virt.vendor32[1] != ID!("VMKV")) goto default;
+		if (info.virt.vendor32[2] != ID!("M\0\0\0")) goto default;
+		info.virt.vendor_id = VIRT_VENDOR_KVM;
+		break;
+	case VIRT_VENDOR_VBOX_HV:	// "VBoxVBoxVBox"
+		if (info.virt.vendor32[1] != ID!("VBox")) goto default;
+		if (info.virt.vendor32[2] != ID!("VBox")) goto default;
+		info.virt.vendor_id = VIRT_VENDOR_VBOX_HV;
+		break;
+	default:
+		info.virt.vendor_id = 0;
+	}
 }
 
 /// Fetch CPU information.
@@ -862,6 +961,7 @@ void getBrand(ref CPUINFO info) {
 // - Paravirtualization leaf information
 // - Extended leaf information
 // - Cache information
+pragma(inline, false)
 void getInfo(ref CPUINFO info) {
 	getVendor(info);
 	getBrand(info);
@@ -1141,63 +1241,7 @@ void getInfo(ref CPUINFO info) {
 	//
 	
 L_VIRT:
-	//TODO: Consider moving this to a function
-	// Horrible but PIC compatible
-	size_t virt_vendor_ptr = cast(size_t)&info.virt.vendor;
-	version (X86_64) {
-		version (GDC) asm {
-			"mov %0, %%rdi\n\t"~
-			"mov $0x40000000, %%eax\n\t"~
-			"cpuid\n\t"~
-			"mov %%ebx, (%%rdi)\n\t"~
-			"mov %%ecx, 4(%%rdi)\n\t"~
-			"mov %%edx, 8(%%rdi)"
-			:
-			: "m" (virt_vendor_ptr);
-		} else asm {
-			mov RDI, virt_vendor_ptr;
-			mov EAX, 0x4000_0000;
-			cpuid;
-			mov [RDI], EBX;
-			mov [RDI+4], ECX;
-			mov [RDI+8], EDX;
-		}
-	} else {
-		version (GDC) asm {
-			"mov %0, %%edi\n\t"~
-			"mov $0x40000000, %%eax\n\t"~
-			"cpuid\n"~
-			"mov %%ebx, (%%edi)\n\t"~
-			"mov %%ecx, 4(%%edi)\n\t"~
-			"mov %%edx, 8(%%edi)"
-			:
-			: "m" (virt_vendor_ptr);
-		} else asm {
-			mov EDI, virt_vendor_ptr;
-			mov EAX, 0x4000_0000;
-			cpuid;
-			mov [EDI], EBX;
-			mov [EDI+4], ECX;
-			mov [EDI+8], EDX;
-		}
-	}
-	
-	// Paravirtual vendor string verification
-	// If the rest of the string doesn't correspond, the id is unset
-	switch (info.virt.vendor32[0]) {
-	case VIRT_VENDOR_KVM:	// "KVMKVMKVM\0\0\0"
-		if (info.virt.vendor32[1] != ID!("VMKV")) goto default;
-		if (info.virt.vendor32[2] != ID!("M\0\0\0")) goto default;
-		info.virt.vendor_id = VIRT_VENDOR_KVM;
-		break;
-	case VIRT_VENDOR_VBOX_HV:	// "VBoxVBoxVBox"
-		if (info.virt.vendor32[1] != ID!("VBox")) goto default;
-		if (info.virt.vendor32[2] != ID!("VBox")) goto default;
-		info.virt.vendor_id = VIRT_VENDOR_VBOX_HV;
-		break;
-	default:
-		info.virt.vendor_id = 0;
-	}
+	getVirtVendor(info);
 
 	if (info.max_virt_leaf < 0x4000_0001) goto L_EXTENDED;
 	

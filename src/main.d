@@ -172,12 +172,14 @@ int main(int argc, const(char) **argv) {
 	
 	getInfo(info);
 	
-	// .ptr crashes glibc!__strlen_sse2 (printf) when compiled with GDC -O3
-	char* brandstr = cast(char*)info.brand;
+	// NOTE: .ptr crash with GDC -O3
+	//       glibc!__strlen_sse2 (in printf)
+	char *vendor = cast(char*)info.vendor;
+	char *brand  = cast(char*)info.brand;
 	
 	switch (info.vendor_id) {
 	case VENDOR_INTEL: // Common in Intel processor brand strings
-		while (*brandstr == ' ') ++brandstr; // left trim cpu string
+		while (*brand == ' ') ++brand; // left trim cpu string
 		break;
 	default:
 	}
@@ -192,8 +194,7 @@ int main(int argc, const(char) **argv) {
 	"Identifier  : Family %u (0x%x) [0x%x:0x%x] Model %u (0x%x) [0x%x:0x%x] Stepping %u\n"~
 	"Cores       : %u threads\n"~
 	"Extensions  :",
-	cast(char*)info.vendor,
-	brandstr,
+	vendor, brand,
 	info.family, info.family, info.family_base, info.family_ext,
 	info.model, info.model, info.model_base, info.model_ext,
 	info.stepping,
@@ -201,7 +202,7 @@ int main(int argc, const(char) **argv) {
 	);
 	
 	if (info.ext.fpu) {
-		printf(" FPU/x87");
+		printf(" x87/FPU");
 		if (info.ext.f16c) printf(" +F16C");
 	}
 	if (info.ext.mmx) {
@@ -405,8 +406,11 @@ int main(int argc, const(char) **argv) {
 	if (info.virt.apivc) printf(" APICv");
 	
 	// Paravirtualization
-	if (info.virt.vendor_id)
-		printf(" HOST=%.12s", info.virt.vendor.ptr);
+	if (info.virt.vendor_id) {
+		// See earlier NOTE
+		char *virtvendor = cast(char*)info.virt.vendor;
+		printf(" HOST=%.12s", virtvendor);
+	}
 	switch (info.virt.vendor_id) {
 	case VIRT_VENDOR_VBOX_MIN: // VBox Minimal Paravirt
 		if (info.virt.vbox_tsc_freq_khz)

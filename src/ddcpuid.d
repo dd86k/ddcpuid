@@ -64,9 +64,13 @@ private enum VENDOR_OFFSET     = CPUINFO.vendor.offsetof;
 private enum BRAND_OFFSET      = CPUINFO.brand.offsetof;
 private enum VIRTVENDOR_OFFSET = CPUINFO.virt.offsetof + CPUINFO.virt.vendor.offsetof;
 
-pragma(msg, "VENDOR_OFFSET\t", VENDOR_OFFSET);
-pragma(msg, "BRAND_OFFSET\t", BRAND_OFFSET);
-pragma(msg, "VIRTVENDOR_OFFSET\t", VIRTVENDOR_OFFSET);
+version (PrintInfo) {
+	pragma(msg, "VENDOR_OFFSET\t", VENDOR_OFFSET);
+	pragma(msg, "BRAND_OFFSET\t", BRAND_OFFSET);
+	pragma(msg, "VIRTVENDOR_OFFSET\t", VIRTVENDOR_OFFSET);
+	pragma(msg, "CPUINFO.sizeof\t", CPUINFO.sizeof);
+	pragma(msg, "CACHE.sizeof\t", CACHEINFO.sizeof);
+}
 
 /// Make a bit mask of one bit at n position
 private
@@ -1658,9 +1662,4 @@ L_CACHE_AMD_LEGACY:
 		break;
 	default:
 	}
-}
-
-version (PrintInfo) {
-	pragma(msg, "* CPUINFO.sizeof: ", CPUINFO.sizeof);
-	pragma(msg, "* CACHE.sizeof: ", CACHEINFO.sizeof);
 }

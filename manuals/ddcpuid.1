@@ -2,7 +2,7 @@
 ." Please read man-pages(7) and groff_man(7) about the manual page format.
 ." Don't forget to respect the format of this document!
 ."
-.TH ddcpuid 1 "April 2021" dd86k "User manual"
+.TH ddcpuid 1 "June 2021" dd86k "User manual"
 .SH NAME
 ddcpuid - x86/AMD64 CPUID information tool
 
@@ -30,9 +30,11 @@ The following is reported:
 .EX
 - Vendor and Brand strings
 - Identification numbers
+- Core information
 - x86 extensions (e.g. MMX, AVX, etc.)
 - Stand-alone instructions (e.g. RDRAND)
 - Cache information
+  - Cache level information
 - ACPI features
 - Virtualization features
   - Paravirtualization interface features
@@ -61,7 +63,7 @@ Show version screen and exit.
 Show version only and exit.
 
 .IP -o
-Overrides leaves to 20h, 4000_0010h, and 8000_0020h. Affects feature
+Overrides leaves to 20h, 4000_0020h, and 8000_0020h. Affects feature
 scanning and -r.
 
 .IP -r

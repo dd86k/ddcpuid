@@ -105,6 +105,7 @@ union __01ebx_t { // 01h.EBX internal
 	}
 }
 
+/// Registers structure used with asmcpuid.
 struct REGISTERS { uint eax, ebx, ecx, edx; }
 
 /// CPU cache entry
@@ -537,6 +538,11 @@ immutable const(char)* CACHE_TYPE = "?DIU????";
 private
 immutable const(char)*[] PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];
 
+/// Query processor with CPUID.
+/// Params:
+///   regs = REGISTERS structure
+///   level = Leaf (EAX)
+///   sublevel = Sub-leaf (ECX)
 pragma(inline, false)
 void asmcpuid(ref REGISTERS regs, uint level, uint sublevel = 0) {
 	version (DMD) {

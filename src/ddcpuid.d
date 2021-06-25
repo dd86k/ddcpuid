@@ -24,8 +24,6 @@
  *
  * For more information, it's encouraged to consult the technical manual.
  *
- * NOTICE: This is best used with DMD and LDC. Will crash on GDC -O1.
- *
  * Authors: dd86k (dd@dax.moe)
  * Copyright: © 2016-2021 dd86k
  * License: MIT

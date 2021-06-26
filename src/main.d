@@ -177,12 +177,9 @@ int main(int argc, const(char) **argv) {
 	char *vendor = cast(char*)info.vendor;
 	char *brand  = cast(char*)info.brand;
 	
-	switch (info.vendor_id) {
-	case Vendor.Intel: // Common in Intel processor brand strings
-		while (*brand == ' ') ++brand; // left trim cpu string
-		break;
-	default:
-	}
+	// Brand string left space trimming
+	// Extremely common in Intel but let's also do it for others
+	while (*brand == ' ') ++brand;
 	
 	//
 	// ANCHOR Processor basic information

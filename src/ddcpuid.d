@@ -32,8 +32,10 @@ module ddcpuid;
 
 //TODO: Consider moving all lone instructions into extras (again?)
 //      And probs have an argument to show them (to ouput)
-//TODO: CPUINFO.reset
+//TODO: reset(CPUINFO)
 //      Doesn't touch leaves and vendor strings
+//TODO: getAll(CPUINFO, bool, bool, bool...)
+//      Auto-clear, fill by parameter
 
 // NOTE: Please no naked assembler.
 //       I'd rather deal with a bit of prolog and epilog than slamming
@@ -42,12 +44,15 @@ module ddcpuid;
 //       Besides, final compiled binary is plenty fine.
 // NOTE: GAS syntax reminder
 //       asm { "asm;\n\t" : "constraint" output : "constraint" input : clobbers }
+// NOTE: bhyve doesn't not emit cpuid bits past 0x40000000, so not supported
 
 @system:
 extern (C):
 
-version (X86) enum DDCPUID_PLATFORM = "x86"; /// Target platform
-else version (X86_64) enum DDCPUID_PLATFORM = "amd64"; /// Target platform
+version (X86)
+	enum DDCPUID_PLATFORM = "x86"; /// Target platform
+else version (X86_64)
+	enum DDCPUID_PLATFORM = "amd64"; /// Target platform
 else static assert(0, "Unsupported platform");
 
 version (DigitalMars) {
@@ -119,7 +124,7 @@ union __01ebx_t { // 01h.EBX internal
 	}
 }
 
-/// Registers structure used with asmcpuid.
+/// Registers structure used with the asmcpuid function.
 struct REGISTERS { uint eax, ebx, ecx, edx; }
 
 /// CPU cache entry

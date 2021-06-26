@@ -178,7 +178,7 @@ int main(int argc, const(char) **argv) {
 	char *brand  = cast(char*)info.brand;
 	
 	switch (info.vendor_id) {
-	case VENDOR_INTEL: // Common in Intel processor brand strings
+	case Vendor.Intel: // Common in Intel processor brand strings
 		while (*brand == ' ') ++brand; // left trim cpu string
 		break;
 	default:
@@ -225,8 +225,8 @@ int main(int argc, const(char) **argv) {
 	}
 	if (info.ext.x86_64) {
 		switch (info.vendor_id) {
-		case VENDOR_INTEL: printf(" Intel64/x86-64"); break;
-		case VENDOR_AMD: printf(" AMD64/x86-64"); break;
+		case Vendor.Intel: printf(" Intel64/x86-64"); break;
+		case Vendor.AMD: printf(" AMD64/x86-64"); break;
 		default: printf(" x86-64");
 		}
 		if (info.ext.lahf64)
@@ -234,13 +234,13 @@ int main(int argc, const(char) **argv) {
 	}
 	if (info.virt.available)
 		switch (info.vendor_id) {
-		case VENDOR_INTEL: printf(" VT-x/VMX"); break;
-		case VENDOR_AMD: // SVM
+		case Vendor.Intel: printf(" VT-x/VMX"); break;
+		case Vendor.AMD: // SVM
 			printf(" AMD-V/VMX");
 			if (info.virt.version_)
 				printf(":v%u", info.virt.version_);
 			break;
-		case VENDOR_VIA: printf(" VIA-VT/VMX"); break;
+		case Vendor.VIA: printf(" VIA-VT/VMX"); break;
 		default: printf(" VMX");
 		}
 	if (info.ext.aes_ni) printf(" AES-NI");
@@ -335,7 +335,7 @@ int main(int argc, const(char) **argv) {
 	printf("\nTechnologies:");
 	
 	switch (info.vendor_id) {
-	case VENDOR_INTEL:
+	case Vendor.Intel:
 		if (info.tech.eist) printf(" EIST");
 		if (info.tech.turboboost)
 			printf(info.tech.turboboost30 ?
@@ -352,7 +352,7 @@ int main(int argc, const(char) **argv) {
 		if (info.tech.smx) printf(" Intel-TXT/SMX");
 		if (info.tech.sgx) printf(" SGX");
 		break;
-	case VENDOR_AMD:
+	case Vendor.AMD:
 		if (info.tech.turboboost) printf(" Core-Performance-Boost");
 		break;
 	default:
@@ -412,13 +412,13 @@ int main(int argc, const(char) **argv) {
 		printf(" HOST=%.12s", virtvendor);
 	}
 	switch (info.virt.vendor_id) {
-	case VIRT_VENDOR_VBOX_MIN: // VBox Minimal Paravirt
+	case VirtVendor.VBoxMin:
 		if (info.virt.vbox_tsc_freq_khz)
 			printf(" TSC_FREQ_KHZ=%u", info.virt.vbox_tsc_freq_khz);
 		if (info.virt.vbox_apic_freq_khz)
 			printf(" APIC_FREQ_KHZ=%u", info.virt.vbox_apic_freq_khz);
 		break;
-	case VIRT_VENDOR_VBOX_HV: // Hyper-V
+	case VirtVendor.HyperV:
 		printf(" OPENSOURCE=%d VENDOR_ID=%d OS=%d MAJOR=%d MINOR=%d SERVICE=%d BUILD=%d",
 			info.virt.hv_guest_opensource,
 			info.virt.hv_guest_vendor_id,
@@ -507,7 +507,7 @@ int main(int argc, const(char) **argv) {
 		if (info.virt.hv_host_feat_hpet_requested) printf(" HV_HOST_FEAT_HPET_REQUESTED");
 		if (info.virt.hv_host_feat_stimer_volatile) printf(" HV_HOST_FEAT_STIMER_VOLATILE");
 		break;
-	case VIRT_VENDOR_KVM:
+	case VirtVendor.KVM:
 		if (info.virt.kvm_feature_clocksource) printf(" KVM_FEATURE_CLOCKSOURCE");
 		if (info.virt.kvm_feature_nop_io_delay) printf(" KVM_FEATURE_NOP_IO_DELAY");
 		if (info.virt.kvm_feature_mmu_op) printf(" KVM_FEATURE_MMU_OP");
@@ -536,8 +536,8 @@ int main(int argc, const(char) **argv) {
 	if (info.mem.page1gb) printf(" Page1GB");
 	if (info.mem.nx)
 		switch (info.vendor_id) {
-		case VENDOR_INTEL: printf(" Intel-XD/NX"); break;
-		case VENDOR_AMD: printf(" AMD-EVP/NX"); break;
+		case Vendor.Intel: printf(" Intel-XD/NX"); break;
+		case Vendor.AMD: printf(" AMD-EVP/NX"); break;
 		default: printf(" NX");
 		}
 	if (info.mem.dca) printf(" DCA");

@@ -32,6 +32,8 @@ module ddcpuid;
 
 //TODO: Consider moving all lone instructions into extras (again?)
 //      And probs have an argument to show them (to ouput)
+//TODO: CPUINFO.reset
+//      Doesn't touch leaves and vendor strings
 
 // NOTE: Please no naked assembler.
 //       I'd rather deal with a bit of prolog and epilog than slamming
@@ -81,15 +83,29 @@ template ID(char[4] c) {
 	enum uint ID = c[0] | c[1] << 8 | c[2] << 16 | c[3] << 24;
 }
 
-// Self-made vendor "IDs" for faster look-ups, LSB-based.
-enum : uint {
-	VENDOR_OTHER = 0,	/// Other or unknown (zero)
-	VENDOR_INTEL = ID!("Genu"),	/// "GenuineIntel": Intel
-	VENDOR_AMD   = ID!("Auth"),	/// "AuthenticAMD": AMD
-	VENDOR_VIA   = ID!("VIA "),	/// "VIA VIA VIA ": VIA
-	VIRT_VENDOR_KVM      = ID!("KVMK"), /// "KVMKVMKVM\0\0\0": KVM
-	VIRT_VENDOR_VBOX_HV  = ID!("VBox"), /// "VBoxVBoxVBox": VirtualBox/Hyper-V interface
-	VIRT_VENDOR_VBOX_MIN = 0, /// VirtualBox minimal interface (zero)
+/// Vendor ID.
+///
+/// The CPUINFO.vendor_id field is set according to the Vendor String.
+/// They are validated in the getVendor function, so they are safe to use.
+enum Vendor {
+	Other = 0,
+	Intel = ID!("Genu"),	/// "GenuineIntel": Intel
+	AMD   = ID!("Auth"),	/// "AuthenticAMD": AMD
+	VIA   = ID!("VIA "),	/// "VIA VIA VIA ": VIA
+}
+
+/// Virtual Vendor ID, used as the interface type.
+///
+/// The CPUINFO.virt.vendor_id field is set according to the Vendor String.
+/// They are validated in the getVendor function, so they are safe to use.
+/// The VBoxHyperV ID will be adjusted for HyperV since it's the same interface,
+/// but simply a different implementation.
+enum VirtVendor {
+	Other = 0,
+	KVM        = ID!("KVMK"), /// "KVMKVMKVM\0\0\0": KVM
+	HyperV     = ID!("Micr"), /// "Microsoft Hv": Hyper-V interface
+	VBoxHyperV = ID!("VBox"), /// "VBoxVBoxVBox": VirtualBox's Hyper-V interface
+	VBoxMin    = 0, /// VirtualBox minimal interface (zero)
 }
 
 private
@@ -152,7 +168,10 @@ struct CPUINFO { align(1):
 		package uint[12] brand32;	// For init
 		char[48] brand;	/// Processor Brand String
 	}
-	uint vendor_id;	/// Validated vendor ID
+	union {
+		package uint vendor_id32;
+		Vendor vendor_id;	/// Validated vendor ID
+	}
 	ubyte brand_index;	/// Brand string index (not used)
 	
 	// Core
@@ -330,7 +349,10 @@ struct CPUINFO { align(1):
 			package uint[3] vendor32;
 			char[12] vendor;	/// Paravirtualization interface vendor string
 		}
-		uint vendor_id;	/// Effective paravirtualization vendor id
+		union {
+			package uint vendor_id32;
+			VirtVendor vendor_id;	/// Effective paravirtualization vendor id
+		}
 		
 		//TODO: Consider bit flags for paravirtualization flags
 		
@@ -725,24 +747,24 @@ void getVendor(ref CPUINFO info) {
 	// Vendor string verification
 	// If the rest of the string doesn't correspond, the id is unset
 	switch (info.vendor32[0]) {
-	case VENDOR_INTEL:	// "GenuineIntel"
+	case Vendor.Intel:	// "GenuineIntel"
 		if (info.vendor32[1] != ID!("ineI")) goto default;
 		if (info.vendor32[2] != ID!("ntel")) goto default;
 		break;
-	case VENDOR_AMD:	// "AuthenticAMD"
+	case Vendor.AMD:	// "AuthenticAMD"
 		if (info.vendor32[1] != ID!("enti")) goto default;
 		if (info.vendor32[2] != ID!("cAMD")) goto default;
 		break;
-	case VENDOR_VIA:	// "VIA VIA VIA "
+	case Vendor.VIA:	// "VIA VIA VIA "
 		if (info.vendor32[1] != ID!("VIA ")) goto default;
 		if (info.vendor32[2] != ID!("VIA ")) goto default;
 		break;
 	default: // Unknown
-		info.vendor_id = 0;
+		info.vendor_id32 = 0;
 		return;
 	}
 	
-	info.vendor_id = info.vendor32[0];
+	info.vendor_id32 = info.vendor32[0];
 }
 
 pragma(inline, false)
@@ -945,19 +967,25 @@ void getVirtVendor(ref CPUINFO info) {
 	// Paravirtual vendor string verification
 	// If the rest of the string doesn't correspond, the id is unset
 	switch (info.virt.vendor32[0]) {
-	case VIRT_VENDOR_KVM:	// "KVMKVMKVM\0\0\0"
+	case VirtVendor.KVM:	// "KVMKVMKVM\0\0\0"
 		if (info.virt.vendor32[1] != ID!("VMKV")) goto default;
 		if (info.virt.vendor32[2] != ID!("M\0\0\0")) goto default;
-		info.virt.vendor_id = VIRT_VENDOR_KVM;
 		break;
-	case VIRT_VENDOR_VBOX_HV:	// "VBoxVBoxVBox"
+	case VirtVendor.HyperV:	// "Microsoft Hv"
+		if (info.virt.vendor32[1] != ID!("osof")) goto default;
+		if (info.virt.vendor32[2] != ID!("t Hv")) goto default;
+		break;
+	case VirtVendor.VBoxHyperV:	// "VBoxVBoxVBox"
 		if (info.virt.vendor32[1] != ID!("VBox")) goto default;
 		if (info.virt.vendor32[2] != ID!("VBox")) goto default;
-		info.virt.vendor_id = VIRT_VENDOR_VBOX_HV;
-		break;
+		info.virt.vendor_id = VirtVendor.HyperV;
+		return;
 	default:
-		info.virt.vendor_id = 0;
+		info.virt.vendor_id32 = 0;
+		return;
 	}
+	
+	info.virt.vendor_id32 = info.virt.vendor32[0];
 }
 
 /// Fetch CPU information.
@@ -991,7 +1019,7 @@ void getInfo(ref CPUINFO info) {
 	info.family_ext  = cast(ubyte)(regs.eax >> 20); // EAX[27:20]
 	
 	switch (info.vendor_id) {
-	case VENDOR_INTEL:
+	case Vendor.Intel:
 		info.family = info.family_base != 0 ?
 			info.family_base :
 			cast(ubyte)(info.family_ext + info.family_base);
@@ -1024,7 +1052,7 @@ void getInfo(ref CPUINFO info) {
 		info.acpi.tm	= (regs.edx & BIT!(29)) != 0;
 		info.dbg.pbe	= regs.edx >= BIT!(31);
 		break;
-	case VENDOR_AMD:
+	case Vendor.AMD:
 		if (info.family_base < 0xF) {
 			info.family = info.family_base;
 			info.model = info.model_base;
@@ -1088,7 +1116,7 @@ void getInfo(ref CPUINFO info) {
 	info.tech.htt	= (regs.edx & BIT!(28)) != 0;
 	
 	switch (info.vendor_id) {
-	case VENDOR_AMD:
+	case Vendor.AMD:
 		if (info.tech.htt)
 			info.cores.logical = info.acpi.max_apic_id;
 		break;
@@ -1115,7 +1143,7 @@ void getInfo(ref CPUINFO info) {
 	asmcpuid(regs, 6);
 	
 	switch (info.vendor_id) {
-	case VENDOR_INTEL:
+	case Vendor.Intel:
 		info.tech.turboboost	= (regs.eax & BIT!(1)) != 0;
 		info.tech.turboboost30	= (regs.eax & BIT!(14)) != 0;
 		break;
@@ -1133,7 +1161,7 @@ void getInfo(ref CPUINFO info) {
 	asmcpuid(regs, 7);
 	
 	switch (info.vendor_id) {
-	case VENDOR_INTEL:
+	case Vendor.Intel:
 		// EBX
 		info.tech.sgx	= (regs.ebx & BIT!(2)) != 0;
 		info.mem.hle	= (regs.ebx & BIT!(4)) != 0;
@@ -1205,7 +1233,7 @@ void getInfo(ref CPUINFO info) {
 	//
 	
 	switch (info.vendor_id) {
-	case VENDOR_INTEL:
+	case Vendor.Intel:
 		asmcpuid(regs, 7, 1);
 		// a
 		info.ext.avx512_bf16	= (regs.eax & BIT!(5)) != 0;
@@ -1221,7 +1249,7 @@ void getInfo(ref CPUINFO info) {
 	//
 	
 	switch (info.vendor_id) {
-	case VENDOR_INTEL:
+	case Vendor.Intel:
 		asmcpuid(regs, 0xd);
 		info.ext.amx_xtilecfg	= (regs.eax & BIT!(17)) != 0;
 		info.ext.amx_xtiledata	= (regs.eax & BIT!(18)) != 0;
@@ -1234,7 +1262,7 @@ void getInfo(ref CPUINFO info) {
 	//
 
 	switch (info.vendor_id) {
-	case VENDOR_INTEL:
+	case Vendor.Intel:
 		asmcpuid(regs, 0xd, 1);
 		info.ext.amx_xfd	= (regs.eax & BIT!(18)) != 0;
 		break;
@@ -1257,7 +1285,7 @@ L_VIRT:
 	//
 	
 	switch (info.virt.vendor_id) {
-	case VIRT_VENDOR_KVM:
+	case VirtVendor.KVM:
 		asmcpuid(regs, 0x4000_0001);
 		info.virt.kvm_feature_clocksource	= (regs.eax & BIT!(0)) != 0;
 		info.virt.kvm_feature_nop_io_delay	= (regs.eax & BIT!(1)) != 0;
@@ -1283,9 +1311,9 @@ L_VIRT:
 	//
 	// Leaf 4000_002H
 	//
-
+	
 	switch (info.virt.vendor_id) {
-	case VIRT_VENDOR_VBOX_HV:
+	case VirtVendor.HyperV:
 		asmcpuid(regs, 0x4000_0002);
 		info.virt.hv_guest_minor	= cast(ubyte)(regs.eax >> 24);
 		info.virt.hv_guest_service	= cast(ubyte)(regs.eax >> 16);
@@ -1305,7 +1333,7 @@ L_VIRT:
 	//
 	
 	switch (info.virt.vendor_id) {
-	case VIRT_VENDOR_VBOX_HV:
+	case VirtVendor.HyperV:
 		asmcpuid(regs, 0x4000_0003);
 		info.virt.hv_base_feat_vp_runtime_msr	= (regs.eax & BIT!(0)) != 0;
 		info.virt.hv_base_feat_part_time_ref_count_msr	= (regs.eax & BIT!(1)) != 0;
@@ -1372,7 +1400,7 @@ L_VIRT:
 	//
 	
 	switch (info.virt.vendor_id) {
-	case VIRT_VENDOR_VBOX_HV:
+	case VirtVendor.HyperV:
 		asmcpuid(regs, 0x4000_0004);
 		info.virt.hv_hint_hypercall_for_process_switch	= (regs.eax & BIT!(0)) != 0;
 		info.virt.hv_hint_hypercall_for_tlb_flush	= (regs.eax & BIT!(1)) != 0;
@@ -1400,7 +1428,7 @@ L_VIRT:
 	//
 	
 	switch (info.virt.vendor_id) {
-	case VIRT_VENDOR_VBOX_HV:
+	case VirtVendor.HyperV:
 		asmcpuid(regs, 0x4000_0006);
 		info.virt.hv_host_feat_avic	= (regs.eax & BIT!(0)) != 0;
 		info.virt.hv_host_feat_msr_bitmap	= (regs.eax & BIT!(1)) != 0;
@@ -1423,7 +1451,7 @@ L_VIRT:
 	//
 	
 	switch (info.virt.vendor_id) {
-	case VIRT_VENDOR_VBOX_MIN: // VBox Minimal
+	case VirtVendor.VBoxMin: // VBox Minimal
 		asmcpuid(regs, 0x4000_0010);
 		info.virt.vbox_tsc_freq_khz = regs.eax;
 		info.virt.vbox_apic_freq_khz = regs.ebx;
@@ -1439,7 +1467,7 @@ L_EXTENDED:
 	asmcpuid(regs, 0x8000_0001);
 	
 	switch (info.vendor_id) {
-	case VENDOR_AMD:
+	case Vendor.AMD:
 		// ecx
 		info.virt.available	= (regs.ecx & BIT!(2)) != 0;
 		info.acpi.x2apic	= (regs.ecx & BIT!(3)) != 0;
@@ -1477,10 +1505,10 @@ L_EXTENDED:
 	asmcpuid(regs, 0x8000_0007);
 	
 	switch (info.vendor_id) {
-	case VENDOR_INTEL:
+	case Vendor.Intel:
 		info.extras.rdseed	= (regs.ebx & BIT!(28)) != 0;
 		break;
-	case VENDOR_AMD:
+	case Vendor.AMD:
 		info.acpi.tm	= (regs.edx & BIT!(4)) != 0;
 		info.tech.turboboost	= (regs.edx & BIT!(9)) != 0;
 		break;
@@ -1498,10 +1526,10 @@ L_EXTENDED:
 	asmcpuid(regs, 0x8000_0008);
 	
 	switch (info.vendor_id) {
-	case VENDOR_INTEL:
+	case Vendor.Intel:
 		info.cache.wbnoinvd	= (regs.ebx & BIT!(9)) != 0;
 		break;
-	case VENDOR_AMD:
+	case Vendor.AMD:
 		info.sec.ibpb	= (regs.ebx & BIT!(12)) != 0;
 		info.sec.ibrs	= (regs.ebx & BIT!(14)) != 0;
 		info.sec.stibp	= (regs.ebx & BIT!(15)) != 0;
@@ -1525,7 +1553,7 @@ L_EXTENDED:
 	asmcpuid(regs, 0x8000_000A);
 	
 	switch (info.vendor_id) {
-	case VENDOR_AMD:
+	case Vendor.AMD:
 		info.virt.version_	= cast(ubyte)regs.eax; // EAX[7:0]
 		info.virt.apivc	= (regs.edx & BIT!(13)) != 0;
 		break;
@@ -1549,7 +1577,7 @@ L_CACHE_INFO:
 	ushort crshrd = void;	/// actual count of shared cores
 	ubyte type = void;
 	switch (info.vendor_id) {
-	case VENDOR_INTEL:
+	case Vendor.Intel:
 		asmcpuid(regs, 4, info.cache.levels);
 		
 		type = regs.eax & CACHE_MASK; // EAX[4:0]
@@ -1575,8 +1603,8 @@ L_CACHE_INFO:
 		ca.sharedCores = sc ? sc : 1;
 		
 		++info.cache.levels; ++ca;
-		goto case VENDOR_INTEL;
-	case VENDOR_AMD:
+		goto case Vendor.Intel;
+	case Vendor.AMD:
 		if (info.max_ext_leaf < 0x8000_001D)
 			goto L_CACHE_AMD_LEGACY;
 		

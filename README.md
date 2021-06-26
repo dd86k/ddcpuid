@@ -12,6 +12,14 @@ processors.
 Want to better understand x86? There's the
 [ddcpuid Technical Manual](https://dd86k.space/docs/ddcpuid-manual.pdf) (PDF)!
 
+Officially supports these vendors:
+- `"GenuineIntel"` - Intel Corporation
+- `"AuthenticAMD"` - Advanced Micro Devices Inc.
+- `"KVMKVMKVM\0\0\0"` - Linux built-in Kernel Virtual Machine
+- `"Microsoft Hv"` - Microsoft Hyper-V interface
+- `"VBoxVBoxVBox"` - VirtualBox Hyper-V interface
+- `"\0\0\0\0\0\0\0\0\0\0\0\0"` - VirtualBox minimal interface
+
 # Command Output Examples
 
 ## On Host Computer

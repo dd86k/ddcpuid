@@ -4,12 +4,13 @@ ddcpuid is a x86 processor information tool. Currently supports Intel and AMD
 processors.
 
 - Can be used as a stand-alone tool or as a DUB library.
-- BetterC compatible, and used by default.
+- Fully supports DMD, GDC, and LDC.
+- BetterC compatible, and used by default for the application.
 - The library does not rely on any runtime (C, D) nor the OS.
 - Surpasses CPU-Z, [Intel's Go CPUID](https://github.com/intel-go/cpuid/) module, and Druntime's `core.cpuid` module.
 - _Currently featuring 240 CPUID bits documented and counting!_
 
-Want to better understand x86? There's the
+Want to better understand x86 and their technologies? There's the
 [ddcpuid Technical Manual](https://dd86k.space/docs/ddcpuid-manual.pdf) (PDF)!
 
 Officially supports these vendors:
@@ -107,13 +108,20 @@ Compilers supported:
   - For earlier versions (tested on dmd 2.067.1), see [manual compilation](#manually).
 - LDC >= 1.0.0 (best optimizations, see [LDC Issues](#ldc-issues))
   - For 0.17.1, see how to perform a [manual compilation](#manually).
-- GDC >= 9.0.0 (good optimizations, see [GDC Issues](#gdc-issues))
+- GDC >= 7.0.0 (good optimizations, see [GDC Issues](#gdc-issues))
 
 ## DUB
 
 Using dub(1) is rather straightforward.
 
-To learn how to use DUB, visit [this page](https://dub.pm/commandline.html).
+Once installed, navigate to the root directory of the project and to perform a
+debug build, simply do: `dub build`
+
+For a release build: `dub build -b release-nobounds`
+
+To select a different compiler: `dub build --compiler=ldc2`
+
+For more information, visit [this page](https://dub.pm/commandline.html).
 
 ## Makefile
 
@@ -145,22 +153,21 @@ ldc2 src/ddcpuid.d src/main.d -ofddcpuid
 gdc src/ddcpuid.d src/main.d -oddcpuid
 ```
 
+If you want an optimized build:
+```
+dmd -betterC -release -O -boundscheck=off src/ddcpuid.d src/main.d -oddcpuid
+ldc2 -betterC -release -O -boundscheck=off src/ddcpuid.d src/main.d -oddcpuid
+gdc -fno-druntime -release -O -fbounds-check=off src/ddcpuid.d src/main.d -oddcpuid
+```
+
 You get the idea.
 
 ## GDC Issues
 
-### Optimizations
+### GDC and betterC
 
-**UPDATE**: ddcpuid 0.18.0 is now fully compatible with GDC. No longer an issue!
-
-Compiling above O0 will yield invalid results, and that's because of my
-incapability to understand the complex extended GCC inline assembler
-format. Especially since D has no `volatile` type qualifier.
-
-Tests:
-- 8.4.0: Early runtime crash with -O1 and higher optimization levels.
-- 9.3.0: Runtime crash + incorrect information with -O1 and higher optimization levels.
-- 10.2.0: Same as 9.3.
+Versions earlier than 11 will not compile using `-fno-druntime` due to linking
+issues: `undefined reference to '__gdc_personality_v0'`.
 
 ## LDC Issues
 

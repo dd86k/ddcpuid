@@ -26,6 +26,7 @@ Officially supports these vendors:
 ## On Host Computer
 
 ```
+$ ddcpuid
 Vendor      : GenuineIntel
 Brand       : Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
 Identifier  : Family 6 (0x6) [0x6:0x0] Model 58 (0x3a) [0xa:0x3] Stepping 9
@@ -49,6 +50,7 @@ Misc.       : HLeaf=0xd HVLeaf=0x0 HELeaf=0x80000008 Type=Original Index=0 xTPR 
 ## In Virtual Environment
 
 ```
+$ ddcpuid
 Vendor      : GenuineIntel
 Brand       : Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
 Identifier  : Family 6 (0x6) [0x6:0x0] Model 58 (0x3a) [0xa:0x3] Stepping 9
@@ -69,9 +71,17 @@ Security    : L1D_FLUSH MD_CLEAR
 Misc.       : HLeaf=0xd HVLeaf=0x40000001 HELeaf=0x80000008 Type=Original Index=0 PCID FSGSBASE
 ```
 
+## Feature Level
+
+```
+$ ddcpuid --level
+x86-64-v2
+```
+
 ## CPUID Table on Host Computer
 
 ```
+$ ddcpuid --table
 | Leaf     | Sub-leaf | EAX      | EBX      | ECX      | EDX      |
 |----------|----------|----------|----------|----------|----------|
 |        0 |        0 |        d | 756e6547 | 6c65746e | 49656e69 |
@@ -144,7 +154,7 @@ Examples:
 ## Manually
 
 Since ddcpuid only consists of two source files, both being in the `src`
-folder, it's still pretty easy to perform a compilation by hand.
+folder, it's still pretty simple to perform a compilation by hand.
 
 Here's an example that works on any compiler:
 ```
@@ -174,5 +184,5 @@ issues: `undefined reference to '__gdc_personality_v0'`.
 ### Legacy stdio Definitions
 
 On Windows, LDC versions 1.13 and 1.14 do not include
-`legacy_stdio_definitions.lib`, making it impossible to compile the project
-using `-betterC`.
+`legacy_stdio_definitions.lib` when linking, making it impossible to compile
+the project using `-betterC`.

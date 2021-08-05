@@ -52,6 +52,7 @@ struct options_t {
 	uint maxsub;	/// Maximum subleaf for -r (-s)
 	bool table;	/// Raw table (-r)
 	bool override_;	/// Override leaves (-o)
+	bool optlevel;	/// Get x86-64 optimization feature level
 }
 
 /// print help page
@@ -63,9 +64,10 @@ void clih() {
 	"  ddcpuid [OPTIONS...]\n"~
 	"\n"~
 	"OPTIONS\n"~
-	"  -r    Show raw CPUID data in a table\n"~
-	"  -s    Set subleaf (ECX) input value with -r\n"~
-	"  -o    Override maximum leaves to 20h, 4000_0020h, and 8000_0020h\n"~
+	"  -r, --table   Show raw CPUID data in a table\n"~
+	"  -s            Set subleaf (ECX) input value with -r\n"~
+	"  -o            Override maximum leaves to 20h, 4000_0020h, and 8000_0020h\n"~
+	"  -L, --level   Print the processor's feature level\n"~
 	"\n"~
 	"PAGES\n"~
 	"  --version    Print version screen and quit\n"~
@@ -90,7 +92,7 @@ void cliv() {
 /// 	leaf = EAX input
 /// 	sub = ECX input
 pragma(inline, false) // ldc optimization thing
-void printc(uint leaf, uint sub) {
+void printcpuid(uint leaf, uint sub) {
 	REGISTERS regs = void;
 	asmcpuid(regs, leaf, sub);
 	with (regs)
@@ -105,9 +107,10 @@ int main(int argc, const(char) **argv) {
 	for (int argi = 1; argi < argc; ++argi) {
 		if (argv[argi][1] == '-') { // Long arguments
 			arg = argv[argi] + 2;
-			if (strcmp(arg, "help") == 0) { clih; return 0; }
+			if (strcmp(arg, "level") == 0) { opts.optlevel = true; continue; }
 			if (strcmp(arg, "version") == 0) { cliv; return 0; }
 			if (strcmp(arg, "ver") == 0) { puts(DDCPUID_VERSION); return 0; }
+			if (strcmp(arg, "help") == 0) { clih; return 0; }
 			printf("Unknown parameter: '%s'\n", arg);
 			return 1;
 		} else if (argv[argi][0] == '-') { // Short arguments
@@ -116,9 +119,10 @@ int main(int argc, const(char) **argv) {
 			while ((o = *arg) != 0) {
 				++arg;
 				switch (o) {
+				case 'L': opts.optlevel = true; continue;
 				case 'o': opts.override_ = true; continue;
 				case 'r': opts.table = true; continue;
-				case 's':
+				case 's': //TODO: Consider supporting -sN syntax
 					if (++argi >= argc) {
 						puts("Missing parameter: sub-leaf (-s)");
 						return 1;
@@ -155,22 +159,67 @@ int main(int argc, const(char) **argv) {
 		uint l = void, s = void;
 		for (l = 0; l <= info.max_leaf; ++l)
 			for (s = 0; s <= opts.maxsub; ++s)
-				printc(l, s);
+				printcpuid(l, s);
 		
 		// Paravirtualization
 		if (info.max_virt_leaf > 0x4000_0000)
 		for (l = 0x4000_0000; l <= info.max_virt_leaf; ++l)
 			for (s = 0; s <= opts.maxsub; ++s)
-				printc(l, s);
+				printcpuid(l, s);
 		
 		// Extended
 		for (l = 0x8000_0000; l <= info.max_ext_leaf; ++l)
 			for (s = 0; s <= opts.maxsub; ++s)
-				printc(l, s);
+				printcpuid(l, s);
 		return 0;
 	}
 	
 	getInfo(info);
+	
+	if (opts.optlevel) {
+		// That's a story for another time
+		if (info.ext.x86_64 == false)	goto L_X86_64_NONE;
+		
+		// v4
+		if (info.ext.avx512f && info.ext.avx512bw &&
+			info.ext.avx512cd && info.ext.avx512dq &&
+			info.ext.avx512vl) {
+			puts("x86-64-v4");
+			return 0;
+		}
+		
+		// v3
+		if (info.ext.avx2 && info.ext.avx &&
+			info.ext.bmi2 && info.ext.bmi1 &&
+			info.ext.f16c && info.ext.fma3 &&
+			info.extras.lzcnt && info.extras.movbe &&
+			info.extras.osxsave) {
+			puts("x86-64-v3");
+			return 0;
+		}
+		
+		// v2
+		if (info.ext.sse42 && info.ext.sse41 &&
+			info.ext.ssse3 && info.ext.sse3 &&
+			info.ext.lahf64 && info.extras.popcnt &&
+			info.extras.cmpxchg16b) {
+			puts("x86-64-v2");
+			return 0;
+		}
+		
+		// baseline
+		if (info.ext.sse2 && info.ext.sse &&
+			info.ext.mmx && info.extras.fxsr &&
+			info.extras.cmpxchg8b && info.extras.cmov &&
+			info.ext.fpu && info.extras.syscall) {
+			puts("x86-64"); // v1/base
+			return 0;
+		}
+		
+L_X86_64_NONE:
+		puts("none");
+		return 0;
+	}
 	
 	// NOTE: .ptr crash with GDC -O3
 	//       glibc!__strlen_sse2 (in printf)

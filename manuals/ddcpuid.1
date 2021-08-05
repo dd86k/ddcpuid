@@ -11,9 +11,12 @@ ddcpuid - x86/AMD64 CPUID information tool
 .OP \-r
 .OP \-o
 .OP \-s SUBLEAF
-.OP \--help
+.OP \-L
+.OP \--level
+.OP \--table
 .OP \--version
 .OP \--ver
+.OP \--help
 .YS
 
 .SH DESCRIPTION
@@ -66,7 +69,7 @@ Show version only and exit.
 Overrides leaves to 20h, 4000_0020h, and 8000_0020h. Affects feature
 scanning and -r.
 
-.IP -r
+.IP -r, --table
 Print a raw table of CPUID data. The table is Markdown-compatible.
 
 Note: Default, the sub-leaf input (ECX) is cleared.
@@ -74,8 +77,16 @@ Note: Default, the sub-leaf input (ECX) is cleared.
 .IP -s
 Provide how many sub-leaves (ECX) to travel. Applies for -r.
 
+.IP -L, --level
+
+Show which x86-64 feature level the processor fits in.
+
+When no levels are available, "none" is printed.
+
+No error codes are set.
+
 .SH NOTES
-This man-page was written for ddcpuid 0.18.0. The full technical manual contains
+This man-page was written for ddcpuid 0.18.1. The full technical manual contains
 more details, such as explanations to intel and amd technologies, as well as
 various extensions in detail.
 

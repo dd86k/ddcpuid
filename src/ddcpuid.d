@@ -63,8 +63,9 @@ version (DigitalMars) {
 	
 } else static assert(0, "Unsupported compiler");
 
-enum DDCPUID_VERSION   = "0.18.0";	/// Library version
-enum DDCPUID_CACHE_MAX = 6;	/// Cache levels buffer size (and maximum size)
+enum DDCPUID_VERSION   = "0.18.1";	/// Library version
+private enum CACHE_LEVELS = 6;	/// For buffer
+private enum CACHE_MAX_LEVEL = CACHE_LEVELS - 1;
 private enum VENDOR_OFFSET     = CPUINFO.vendor.offsetof;
 private enum BRAND_OFFSET      = CPUINFO.brand.offsetof;
 private enum VIRTVENDOR_OFFSET = CPUINFO.virt.offsetof + CPUINFO.virt.vendor.offsetof;
@@ -94,9 +95,9 @@ template ID(char[4] c) {
 /// They are validated in the getVendor function, so they are safe to use.
 enum Vendor {
 	Other = 0,
-	Intel = ID!("Genu"),	/// "GenuineIntel": Intel
-	AMD   = ID!("Auth"),	/// "AuthenticAMD": AMD
-	VIA   = ID!("VIA "),	/// "VIA VIA VIA ": VIA
+	Intel = ID!("Genu"),	/// `"GenuineIntel"`: Intel
+	AMD   = ID!("Auth"),	/// `"AuthenticAMD"`: AMD
+	VIA   = ID!("VIA "),	/// `"VIA VIA VIA "`: VIA
 }
 
 /// Virtual Vendor ID, used as the interface type.
@@ -107,10 +108,10 @@ enum Vendor {
 /// but simply a different implementation.
 enum VirtVendor {
 	Other = 0,
-	KVM        = ID!("KVMK"), /// "KVMKVMKVM\0\0\0": KVM
-	HyperV     = ID!("Micr"), /// "Microsoft Hv": Hyper-V interface
-	VBoxHyperV = ID!("VBox"), /// "VBoxVBoxVBox": VirtualBox's Hyper-V interface
-	VBoxMin    = 0, /// VirtualBox minimal interface (zero)
+	KVM        = ID!("KVMK"), /// `"KVMKVMKVM\0\0\0"`: KVM
+	HyperV     = ID!("Micr"), /// `"Microsoft Hv"`: Hyper-V interface
+	VBoxHyperV = ID!("VBox"), /// `"VBoxVBoxVBox"`: VirtualBox's Hyper-V interface
+	VBoxMin    = 0, /// Unset: VirtualBox minimal interface
 }
 
 private
@@ -318,7 +319,7 @@ struct CPUINFO { align(1):
 	/// Cache information.
 	struct CacheInfo {
 		uint levels;
-		CACHEINFO[DDCPUID_CACHE_MAX] level;
+		CACHEINFO[CACHE_LEVELS] level;
 		bool clflush;	/// CLFLUSH instruction
 		ubyte clflush_linesize;	/// Linesize of CLFLUSH in bytes
 		bool clflushopt;	/// CLFLUSH instruction
@@ -1587,7 +1588,7 @@ L_CACHE_INFO:
 		
 		type = regs.eax & CACHE_MASK; // EAX[4:0]
 		if (type == 0) break;
-		if (info.cache.levels >= DDCPUID_CACHE_MAX) break;
+		if (info.cache.levels >= CACHE_MAX_LEVEL) break;
 		
 		ca.type = CACHE_TYPE[type];
 		ca.level = cast(ubyte)((regs.eax >> 5) & 7);
@@ -1622,7 +1623,7 @@ L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 		
 		type = regs.eax & CACHE_MASK; // EAX[4:0]
 		if (type == 0) break;
-		if (info.cache.levels >= DDCPUID_CACHE_MAX) break;
+		if (info.cache.levels >= CACHE_MAX_LEVEL) break;
 		
 		ca.type = CACHE_TYPE[type];
 		ca.level = cast(ubyte)((regs.eax >> 5) & 7);

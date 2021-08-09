@@ -419,7 +419,7 @@ L_X86_64_NONE:
 	if (info.cache.invpcid) printf(" INVPCID");
 	if (info.cache.wbnoinvd) printf(" WBNOINVD");
 	
-	for (uint i; i < info.cache.levels && i < DDCPUID_CACHE_MAX; ++i) {
+	for (uint i; i < info.cache.levels; ++i) {
 		CACHEINFO *cache = &info.cache.level[i];
 		char c = 'K';
 		if (cache.size >= 1024) {

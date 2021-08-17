@@ -1,4 +1,4 @@
-name: D-dmd
+name: D-ldc
 
 on:
   push:

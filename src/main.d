@@ -67,7 +67,7 @@ void clih() {
 	"  -r, --table   Show raw CPUID data in a table\n"~
 	"  -s            Set subleaf (ECX) input value with -r\n"~
 	"  -o            Override maximum leaves to 20h, 4000_0020h, and 8000_0020h\n"~
-	"  -L, --level   Print the processor's feature level\n"~
+	"  -l, --level   Print the processor's feature level\n"~
 	"\n"~
 	"PAGES\n"~
 	"  --version    Print version screen and quit\n"~
@@ -119,7 +119,7 @@ int main(int argc, const(char) **argv) {
 			while ((o = *arg) != 0) {
 				++arg;
 				switch (o) {
-				case 'L': opts.optlevel = true; continue;
+				case 'l': opts.optlevel = true; continue;
 				case 'o': opts.override_ = true; continue;
 				case 'r': opts.table = true; continue;
 				case 's': //TODO: Consider supporting -sN syntax

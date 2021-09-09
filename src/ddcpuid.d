@@ -206,6 +206,9 @@ struct CPUINFO { align(1):
 	
 	//TODO: Consider bit flags for some families
 	//      Like MMX, SSE, AVX, AMX, you get the gist
+	//TODO: OR Consider bool array
+	//      has[EXTENSION_AVX2]
+	//      align(4) ;-)
 	/// Contains processor extensions.
 	/// Extensions contain a variety of instructions to aid particular
 	/// tasks.
@@ -1605,8 +1608,36 @@ L_CACHE_INFO:
 	ushort sc = void;	/// raw cores shared across cache level
 	ushort crshrd = void;	/// actual count of shared cores
 	ubyte type = void;
+	ushort clevel;
 	switch (info.vendor_id) {
 	case Vendor.Intel:
+		//TODO: Intel cache 1FH
+		//if (info.max_leaf < 0x1f)
+		//	GOTO L_CACHE_INTEL_BH;
+		if (info.max_leaf < 0xb)
+			goto L_CACHE_INTEL_4H;
+
+		// Usually, ECX=1 will hold EBX=4 (cores)
+		// With HTT, ECX=2 could hold EBX=8 (logical)
+L_CACHE_INTEL_BH:
+		asmcpuid(regs, 11, clevel);
+
+		if (cast(ushort)regs.eax == 0) goto L_CACHE_INTEL_4H;
+
+		switch (cast(ubyte)(regs.ecx >> 8)) {
+		case 1: // Core
+			info.cores.logical = cast(ushort)regs.ebx;
+			break;
+		case 2: // SMT
+			info.cores.logical = cast(ushort)regs.ebx;
+			break;
+		default: assert(0, "implement cache type");
+		}
+
+		++clevel;
+		goto L_CACHE_INTEL_BH;
+		
+L_CACHE_INTEL_4H:
 		asmcpuid(regs, 4, info.cache.levels);
 		
 		type = regs.eax & CACHE_MASK; // EAX[4:0]
@@ -1626,16 +1657,21 @@ L_CACHE_INFO:
 		if (regs.edx & BIT!(2)) ca.feat |= BIT!(4);
 		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
 		
-		info.cores.logical = (regs.eax >> 26) + 1;	// EAX[31:26]
+		if (info.cores.logical == 0) // skip if already populated
+			info.cores.logical = (regs.eax >> 26) + 1;	// EAX[31:26]
+		
 		crshrd = (((regs.eax >> 14) & 2047) + 1);	// EAX[25:14]
 		sc = cast(ushort)(info.cores.logical / crshrd); // cast for ldc 0.17.1
 		ca.sharedCores = sc ? sc : 1;
+		version (Trace) trace(
+			"intel.4h logical=%u shared=%u crshrd=%u sc=%u",
+			info.cores.logical, ca.sharedCores, crshrd, sc);
 		
 		++info.cache.levels; ++ca;
-		goto case Vendor.Intel;
+		goto L_CACHE_INTEL_4H;
 	case Vendor.AMD:
 		if (info.max_ext_leaf < 0x8000_001D)
-			goto L_CACHE_AMD_LEGACY;
+			goto L_CACHE_AMD_EXT_5H;
 		
 		//
 		// AMD newer cache method
@@ -1663,6 +1699,9 @@ L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 		crshrd = (((regs.eax >> 14) & 2047) + 1);	// EAX[25:14]
 		sc = cast(ushort)(info.cores.logical / crshrd); // cast for ldc 0.17.1
 		ca.sharedCores = sc ? sc : 1;
+
+		version (Trace) trace("amd.ext.1dh logical=%u shared=%u crshrd=%u sc=%u",
+			info.cores.logical, ca.sharedCores, crshrd, sc);
 		
 		++info.cache.levels; ++ca;
 		goto L_CACHE_AMD_EXT_1DH;
@@ -1671,7 +1710,7 @@ L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 		// AMD legacy cache
 		//
 		
-L_CACHE_AMD_LEGACY:
+L_CACHE_AMD_EXT_5H:
 		asmcpuid(regs, 0x8000_0005);
 		
 		info.cache.level[0].level = 1; // L1

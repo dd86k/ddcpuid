@@ -1,8 +1,8 @@
 /**
  * Program entry point.
  *
- * NOTE: printf is mainly used for two reasons. First, fputs with stdout
- *       crashes on Windows. Secondly, line buffering.
+ * NOTE: printf is mainly used for two reasons.  First, fputs with stdout
+ *       crashes on Windows. Secondly, line buffering is used by default.
  *
  * Authors: dd86k (dd@dax.moe)
  * Copyright: © 2016-2021 dd86k
@@ -19,7 +19,7 @@ extern (C):
 int strcmp(scope const char*, scope const char*);
 int puts(scope const char*);
 int putchar(int);
-int atoi(scope const char*);
+int sscanf(scope const char*, scope const char*, ...);
 
 static if (__VERSION__ >= 2092) {
 	pragma(printf)
@@ -49,7 +49,9 @@ enum : uint {
 
 /// Command-line options
 struct options_t {
-	uint maxsub;	/// Maximum subleaf for -r (-s)
+	uint maxLevel;	/// Maximum leaf for -r (-S)
+	uint maxSub;	/// Maximum subleaf for -r (-s)
+	bool hasLevel;	/// 
 	bool table;	/// Raw table (-r)
 	bool override_;	/// Override leaves (-o)
 	bool optlevel;	/// Get x86-64 optimization feature level
@@ -65,8 +67,9 @@ void clih() {
 	"\n"~
 	"OPTIONS\n"~
 	"  -r, --table   Show raw CPUID data in a table\n"~
-	"  -s            Set subleaf (ECX) input value with -r\n"~
-	"  -o            Override maximum leaves to 20h, 4000_0020h, and 8000_0020h\n"~
+	"  -S            Table: Set leaf (EAX) input value\n"~
+	"  -s            Table: Set subleaf (ECX) input value\n"~
+	"  -o            Override maximum leaves to 0x20, 0x4000_0020, and 0x8000_0020\n"~
 	"  -l, --level   Print the processor's feature level\n"~
 	"\n"~
 	"PAGES\n"~
@@ -122,12 +125,26 @@ int main(int argc, const(char) **argv) {
 				case 'l': opts.optlevel = true; continue;
 				case 'o': opts.override_ = true; continue;
 				case 'r': opts.table = true; continue;
-				case 's': //TODO: Consider supporting -sN syntax
+				case 'S':
+					if (++argi >= argc) {
+						puts("Missing parameter: leaf");
+						return 1;
+					}
+					opts.hasLevel = sscanf(argv[argi], "%i", &opts.maxLevel) == 1;
+					if (opts.hasLevel == false) {
+						puts("Could not parse level (-S)");
+						return 2;
+					}
+					continue;
+				case 's':
 					if (++argi >= argc) {
 						puts("Missing parameter: sub-leaf (-s)");
 						return 1;
 					}
-					opts.maxsub = atoi(argv[argi]);
+					if (sscanf(argv[argi], "%i", &opts.maxSub) != 1) {
+						puts("Could not parse sub-level (-s)");
+						return 2;
+					}
 					continue;
 				case 'h': clih; return 0;
 				case 'V': cliv; return 0;
@@ -154,22 +171,29 @@ int main(int argc, const(char) **argv) {
 		"| Leaf     | Sub-leaf | EAX      | EBX      | ECX      | EDX      |\n"~
 		"|----------|----------|----------|----------|----------|----------|"
 		);
+
+		uint l = void, s = void;
+
+		if (opts.hasLevel) {
+			for (s = 0; s <= opts.maxSub; ++s)
+				printcpuid(opts.maxLevel, s);
+			return 0;
+		}
 		
 		// Normal
-		uint l = void, s = void;
 		for (l = 0; l <= info.max_leaf; ++l)
-			for (s = 0; s <= opts.maxsub; ++s)
+			for (s = 0; s <= opts.maxSub; ++s)
 				printcpuid(l, s);
 		
 		// Paravirtualization
 		if (info.max_virt_leaf > 0x4000_0000)
 		for (l = 0x4000_0000; l <= info.max_virt_leaf; ++l)
-			for (s = 0; s <= opts.maxsub; ++s)
+			for (s = 0; s <= opts.maxSub; ++s)
 				printcpuid(l, s);
 		
 		// Extended
 		for (l = 0x8000_0000; l <= info.max_ext_leaf; ++l)
-			for (s = 0; s <= opts.maxsub; ++s)
+			for (s = 0; s <= opts.maxSub; ++s)
 				printcpuid(l, s);
 		return 0;
 	}

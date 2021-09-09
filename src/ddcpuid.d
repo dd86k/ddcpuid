@@ -33,11 +33,6 @@ module ddcpuid;
 //TODO: Consider moving all lone instructions into extras (again?)
 //      And probs have an argument to show them (to ouput)
 //      Why again?
-//TODO: reset(CPUINFO)
-//      Doesn't touch leaves and vendor strings
-//      Reset what again?
-//TODO: getAll(CPUINFO, bool, bool, bool...)
-//      Auto-clear, fill by parameter
 
 // NOTE: Please no naked assembler.
 //       I'd rather let the compiler deal with a little bit of prolog and
@@ -642,6 +637,14 @@ void asmcpuid(ref REGISTERS regs, uint level, uint sublevel = 0) {
 	version (Trace) with (regs) trace(
 		"level=%x sub=%x -> eax=%x ebx=%x ecx=%x edx=%x",
 		level, sublevel, eax, ebx, ecx, edx);
+}
+/// 
+@system unittest {
+	REGISTERS regs;
+	asmcpuid(regs, 0);
+	assert(regs.eax > 0 && regs.eax < 0x4000_0000);
+	asmcpuid(regs, 0x8000_0000);
+	assert(regs.eax > 0x8000_0000);
 }
 
 /// Get CPU leaf levels.

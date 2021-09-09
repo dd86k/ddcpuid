@@ -32,16 +32,18 @@ module ddcpuid;
 
 //TODO: Consider moving all lone instructions into extras (again?)
 //      And probs have an argument to show them (to ouput)
+//      Why again?
 //TODO: reset(CPUINFO)
 //      Doesn't touch leaves and vendor strings
+//      Reset what again?
 //TODO: getAll(CPUINFO, bool, bool, bool...)
 //      Auto-clear, fill by parameter
 
 // NOTE: Please no naked assembler.
-//       I'd rather deal with a bit of prolog and epilog than slamming
-//       my head into my desk violently trying to match every operating
-//       system ABI, compiler versions, and major compilers.
-//       Besides, final compiled binary is plenty fine.
+//       I'd rather let the compiler deal with a little bit of prolog and
+//       epilog than slamming my head into my desk violently trying to match
+//       every operating system ABI, compiler versions, and major compilers.
+//       Besides, final compiled binary is plenty fine on every compiler.
 // NOTE: GAS syntax reminder
 //       asm { "asm;\n\t" : "constraint" output : "constraint" input : clobbers }
 // NOTE: bhyve doesn't not emit cpuid bits past 0x40000000, so not supported
@@ -564,6 +566,22 @@ immutable const(char)* CACHE_TYPE = "?DIU????";
 private
 immutable const(char)*[] PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];
 
+version (Trace) {
+	import core.stdc.stdio;
+	import core.stdc.stdarg;
+	
+	private extern (C) int putchar(int);
+	
+	/// Trace application
+	void trace(string func = __FUNCTION__)(const(char) *fmt, ...) {
+		va_list va;
+		va_start(va, fmt);
+		printf("TRACE:%s: ", func.ptr);
+		vprintf(fmt, va);
+		putchar('\n');
+	}
+}
+
 /// Query processor with CPUID.
 /// Params:
 ///   regs = REGISTERS structure
@@ -618,6 +636,9 @@ void asmcpuid(ref REGISTERS regs, uint level, uint sublevel = 0) {
 			mov [RDI + regs.edx.offsetof], EDX;
 		}
 	}
+	version (Trace) with (regs) trace(
+		"level=%x sub=%x -> eax=%x ebx=%x ecx=%x edx=%x",
+		level, sublevel, eax, ebx, ecx, edx);
 }
 
 /// Get CPU leaf levels.
@@ -689,6 +710,9 @@ void getLeaves(ref CPUINFO info) {
 			mov [RDI + info.max_ext_leaf.offsetof], EAX;
 		}
 	}
+	version (Trace) with(info) trace(
+		"leaf=%x vleaf=%x eleaf=%x",
+		max_leaf, max_virt_leaf, max_ext_leaf);
 }
 
 /// Fetch CPU vendor
@@ -992,6 +1016,7 @@ void getVirtVendor(ref CPUINFO info) {
 	}
 	
 	info.virt.vendor_id32 = info.virt.vendor32[0];
+	version (Trace) trace("id=%u", info.virt.vendor_id32);
 }
 
 /// Fetch CPU information.
@@ -1573,8 +1598,6 @@ L_CACHE_INFO:
 	// - done at the very end since we may need prior information
 	//   - e.g. amd cpuid.8000_0008h
 	// - maxleaf < 4 is too old/rare these days (es. for D programs)
-	
-	//TODO: Maybe do physical cores
 	
 	info.cache.levels = 0;
 	CACHEINFO *ca = cast(CACHEINFO*)info.cache.level;

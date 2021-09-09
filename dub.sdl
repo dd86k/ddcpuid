@@ -1,8 +1,16 @@
 name "ddcpuid"
-description "x86 processor information library and executable"
+description "x86 processor information library and application"
 authors "dd86k <dd@dax.moe>"
 copyright "Copyright © 2016-2021, dd86k"
 license "MIT"
+
+# Trace build
+buildType "trace" {
+	versions "Trace"
+	buildOptions "debugMode" "debugInfo"
+	dflags "-betterC" platform="dmd"
+	dflags "-betterC" platform="ldc"
+}
 
 # Debug build
 buildType "debug" {

@@ -10,23 +10,16 @@
  */
 module main;
 
+import core.stdc.errno : errno;
+import core.stdc.stdio : printf, puts, sscanf, FILE, fopen, fread, fwrite;
+import core.stdc.string : strcmp, strerror;
 import ddcpuid;
 
 private:
 @system:
 extern (C):
 
-int strcmp(scope const char*, scope const char*);
-int puts(scope const char*);
 int putchar(int);
-int sscanf(scope const char*, scope const char*, ...);
-
-static if (__VERSION__ >= 2092) {
-	pragma(printf)
-	int printf(scope const char*, ...);
-} else {
-	int printf(scope const char*, ...);
-}
 
 /// Compiler version template for betterC usage
 template CVER(int v) {
@@ -49,8 +42,9 @@ enum : uint {
 
 /// Command-line options
 struct options_t {
-	uint maxLevel;	/// Maximum leaf for -r (-S)
-	uint maxSub;	/// Maximum subleaf for -r (-s)
+	FILE *file;	/// Dump
+	int maxLevel;	/// Maximum leaf for -r (-S)
+	int maxSub;	/// Maximum subleaf for -r (-s)
 	bool hasLevel;	/// 
 	bool table;	/// Raw table (-r)
 	bool override_;	/// Override leaves (-o)
@@ -63,19 +57,20 @@ void clih() {
 	"x86/AMD64 CPUID information tool\n"~
 	"\n"~
 	"USAGE\n"~
-	"  ddcpuid [OPTIONS...]\n"~
+	" ddcpuid [OPTIONS...]\n"~
 	"\n"~
 	"OPTIONS\n"~
-	"  -r, --table   Show raw CPUID data in a table\n"~
-	"  -S            Table: Set leaf (EAX) input value\n"~
-	"  -s            Table: Set subleaf (ECX) input value\n"~
-	"  -o            Override maximum leaves to 0x20, 0x4000_0020, and 0x8000_0020\n"~
-	"  -l, --level   Print the processor's feature level\n"~
+	" -r, --table   Show raw CPUID data in a table\n"~
+	" -S            Table: Set leaf (EAX) input value\n"~
+	" -s            Table: Set subleaf (ECX) input value\n"~
+	" -D, --dump    Dump CPUID data into binary\n"~
+	" -o            Override maximum leaves to 0x20, 0x4000_0020, and 0x8000_0020\n"~
+	" -l, --level   Print the processor's feature level\n"~
 	"\n"~
 	"PAGES\n"~
-	"  --version    Print version screen and quit\n"~
-	"  --ver        Print version and quit\n"~
-	"  -h, --help   Print this help screen and quit"
+	" --version    Print version screen and quit\n"~
+	" --ver        Print version and quit\n"~
+	" -h, --help   Print this help screen and quit"
 	);
 }
 
@@ -90,30 +85,85 @@ void cliv() {
 	);
 }
 
+void outcpuid(uint leaf, uint sub, FILE *file) {
+	REGISTERS regs = void;
+	asmcpuid(regs, leaf, sub);
+	if (file) {
+		dumpWrite(file, &leaf, leaf.sizeof);
+		dumpWrite(file, &sub,  sub.sizeof);
+		dumpWrite(file, &regs, regs.sizeof);
+	} else {
+		printcpuid(regs, leaf, sub);
+	}
+}
+
 /// Print cpuid table entry into stdout.
 /// Params:
 /// 	leaf = EAX input
 /// 	sub = ECX input
 pragma(inline, false) // ldc optimization thing
-void printcpuid(uint leaf, uint sub) {
-	REGISTERS regs = void;
-	asmcpuid(regs, leaf, sub);
+void printcpuid(ref REGISTERS regs, uint leaf, uint sub) {
 	with (regs)
 	printf("| %8x | %8x | %8x | %8x | %8x | %8x |\n",
 		leaf, sub, eax, ebx, ecx, edx);
 }
 
+// NOTE: ddcpuid dump structure
+//       char[4]: "ddcu"
+//       ubyte  : file format version
+//       ubyte  : reserved
+//       ubyte  : reserved
+//       ubyte  : reserved
+//       uint[6]: leaf, subleaf, eax, ebx, ecx, edx
+
+int dumpOpen(FILE **file, const(char) *path) {
+	return (*file = fopen(path, "w+b")) == null ? errno : 0;
+}
+
+int dumpWrite(FILE *file, const(void) *data, size_t size) {
+	return fwrite(data, size, 1, file) != 1;
+}
+
+/*int dumpRead(FILE *file) {
+	
+}*/
+
 int main(int argc, const(char) **argv) {
 	options_t opts;	/// Command-line options
 	
 	const(char) *arg = void;
+	int e = void;
 	for (int argi = 1; argi < argc; ++argi) {
 		if (argv[argi][1] == '-') { // Long arguments
 			arg = argv[argi] + 2;
-			if (strcmp(arg, "level") == 0) { opts.optlevel = true; continue; }
-			if (strcmp(arg, "version") == 0) { cliv; return 0; }
-			if (strcmp(arg, "ver") == 0) { puts(DDCPUID_VERSION); return 0; }
-			if (strcmp(arg, "help") == 0) { clih; return 0; }
+			if (strcmp(arg, "dump") == 0) {
+				if (++argi >= argc) {
+					puts("Missing argument: path");
+					return 1;
+				}
+				e = dumpOpen(&opts.file, argv[argi]);
+				if (e) {
+					printf("Couldn't open file: %s\n", strerror(e));
+					return 2;
+				}
+				continue;
+			}
+			if (strcmp(arg, "level") == 0) {
+				opts.optlevel = true;
+				continue;
+			}
+			if (strcmp(arg, "version") == 0) {
+				cliv;
+				return 0;
+			}
+			if (strcmp(arg, "ver") == 0) {
+				puts(DDCPUID_VERSION);
+				return 0;
+			}
+			if (strcmp(arg, "help") == 0) {
+				clih;
+				return 0;
+			}
 			printf("Unknown parameter: '%s'\n", arg);
 			return 1;
 		} else if (argv[argi][0] == '-') { // Short arguments
@@ -125,6 +175,17 @@ int main(int argc, const(char) **argv) {
 				case 'l': opts.optlevel = true; continue;
 				case 'o': opts.override_ = true; continue;
 				case 'r': opts.table = true; continue;
+				case 'D':
+					if (++argi >= argc) {
+						puts("Missing parameter: file");
+						return 1;
+					}
+					e = dumpOpen(&opts.file, argv[argi]);
+					if (e) {
+						printf("Couldn't open file: %s\n", strerror(e));
+						return 2;
+					}
+					continue;
 				case 'S':
 					if (++argi >= argc) {
 						puts("Missing parameter: leaf");
@@ -166,35 +227,40 @@ int main(int argc, const(char) **argv) {
 		info.max_ext_leaf = MAX_ELEAF;
 	}
 	
-	if (opts.table) { // -r
-		puts(
-		"| Leaf     | Sub-leaf | EAX      | EBX      | ECX      | EDX      |\n"~
-		"|----------|----------|----------|----------|----------|----------|"
-		);
-
+	if (opts.table || opts.file) { // -r|-D
 		uint l = void, s = void;
+
+		if (opts.file) {
+			__gshared const(char) *HEADER = "ddcu\x01\x00\x00\x00";
+			dumpWrite(opts.file, HEADER, 8);
+		} else {
+			puts(
+			"| Leaf     | Sub-leaf | EAX      | EBX      | ECX      | EDX      |\n"~
+			"|----------|----------|----------|----------|----------|----------|"
+			);
+		}
 
 		if (opts.hasLevel) {
 			for (s = 0; s <= opts.maxSub; ++s)
-				printcpuid(opts.maxLevel, s);
+				outcpuid(opts.maxLevel, s, opts.file);
 			return 0;
 		}
 		
 		// Normal
 		for (l = 0; l <= info.max_leaf; ++l)
 			for (s = 0; s <= opts.maxSub; ++s)
-				printcpuid(l, s);
+				outcpuid(l, s, opts.file);
 		
 		// Paravirtualization
 		if (info.max_virt_leaf > 0x4000_0000)
 		for (l = 0x4000_0000; l <= info.max_virt_leaf; ++l)
 			for (s = 0; s <= opts.maxSub; ++s)
-				printcpuid(l, s);
+				outcpuid(l, s, opts.file);
 		
 		// Extended
 		for (l = 0x8000_0000; l <= info.max_ext_leaf; ++l)
 			for (s = 0; s <= opts.maxSub; ++s)
-				printcpuid(l, s);
+				outcpuid(l, s, opts.file);
 		return 0;
 	}
 	

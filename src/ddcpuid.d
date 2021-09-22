@@ -30,10 +30,6 @@
  */
 module ddcpuid;
 
-//TODO: Consider moving all lone instructions into extras (again?)
-//      And probs have an argument to show them (to ouput)
-//      Why again?
-
 // NOTE: Please no naked assembler.
 //       I'd rather let the compiler deal with a little bit of prolog and
 //       epilog than slamming my head into my desk violently trying to match
@@ -123,7 +119,37 @@ union __01ebx_t { // 01h.EBX internal
 }
 
 /// Registers structure used with the asmcpuid function.
-struct REGISTERS { uint eax, ebx, ecx, edx; }
+struct REGISTERS {
+	union {
+		uint eax;
+		ushort ax;
+		struct { ubyte al, ah; }
+	}
+	union {
+		uint ebx;
+		ushort bx;
+		struct { ubyte bl, bh; }
+	}
+	union {
+		uint ecx;
+		ushort cx;
+		struct { ubyte cl, ch; }
+	}
+	union {
+		uint edx;
+		ushort dx;
+		struct { ubyte dl, dh; }
+	}
+}
+///
+@system unittest {
+	REGISTERS regs = void;
+	regs.eax = 0xaabbccdd;
+	assert(regs.eax == 0xaabbccdd);
+	assert(regs.ax  == 0xccdd);
+	assert(regs.al  == 0xdd);
+	assert(regs.ah  == 0xcc);
+}
 
 /// CPU cache entry
 struct CACHEINFO { align(1):
@@ -268,6 +294,13 @@ struct CPUINFO { align(1):
 		bool amx_xfd;	/// AMX-XFD
 	}
 	align(2) Extensions ext;	/// Extensions
+	
+	struct SGX {
+		bool enabled;	/// If SGX is enabled
+		ubyte maxSize;	/// 2^n maximum enclave size in non-64-bit
+		ubyte maxSize64;	/// 2^n maximum enclave size in 64-bit
+	}
+	align(2) SGX sgx;	/// Intel SGX
 	
 	/// Additional instructions. Often not part of extensions.
 	struct Extras {
@@ -1200,7 +1233,7 @@ void getInfo(ref CPUINFO info) {
 	switch (info.vendor_id) {
 	case Vendor.Intel:
 		// EBX
-		info.tech.sgx	= (regs.ebx & BIT!(2)) != 0;
+		info.sgx.enabled	= (regs.ebx & BIT!(2)) != 0;
 		info.mem.hle	= (regs.ebx & BIT!(4)) != 0;
 		info.cache.invpcid	= (regs.ebx & BIT!(10)) != 0;
 		info.mem.rtm	= (regs.ebx & BIT!(11)) != 0;
@@ -1279,7 +1312,7 @@ void getInfo(ref CPUINFO info) {
 	default:
 	}
 	
-	if (info.max_leaf < 0xD) goto L_VIRT;
+	if (info.max_leaf < 0xd) goto L_VIRT;
 	
 	//
 	// Leaf DH
@@ -1297,7 +1330,7 @@ void getInfo(ref CPUINFO info) {
 	//
 	// Leaf DH(ECX=01h)
 	//
-
+	
 	switch (info.vendor_id) {
 	case Vendor.Intel:
 		asmcpuid(regs, 0xd, 1);
@@ -1306,13 +1339,25 @@ void getInfo(ref CPUINFO info) {
 	default:
 	}
 	
-	if (info.max_virt_leaf < 0x4000_0000) goto L_VIRT;
+	if (info.max_virt_leaf < 0x12) goto L_VIRT;
+	
+	switch (info.vendor_id) {
+	case Vendor.Intel:
+		if (info.sgx.enabled == false) goto L_VIRT;
+		asmcpuid(regs, 0x12);
+		info.sgx.maxSize   = regs.al;
+		info.sgx.maxSize64 = regs.ah;
+		break;
+	default:
+	}
 	
 	//
 	// Leaf 4000_000H
 	//
 	
 L_VIRT:
+	if (info.max_virt_leaf < 0x4000_0000) goto L_VIRT;
+	
 	getVirtVendor(info);
 
 	if (info.max_virt_leaf < 0x4000_0001) goto L_EXTENDED;

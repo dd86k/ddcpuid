@@ -486,7 +486,14 @@ L_X86_64_NONE:
 				printf(" +TSXLDTRK");
 		}
 		if (info.tech.smx) printf(" Intel-TXT/SMX");
-		if (info.tech.sgx) printf(" SGX");
+		if (info.sgx.enabled) {
+			printf(" SGX");
+			if (info.sgx.maxSize) {
+				printf(" maxSize=%u maxSize64=%u",
+					1 << info.sgx.maxSize,
+					1 << info.sgx.maxSize64);
+			}
+		}
 		break;
 	case Vendor.AMD:
 		if (info.tech.turboboost) printf(" Core-Performance-Boost");

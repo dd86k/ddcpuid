@@ -7,13 +7,12 @@
  * ---
  * CPUINFO info;     // Important to let the struct init to zero!
  * getLeaves(info);  // Get maximum CPUID leaves (mandatory step before info)
- * getVendor(info);  // Get vendor string (mandatory step before info)
  * getInfo(info);    // Fill CPUINFO structure (optional)
  * ---
  *
  * Then checking the corresponding field:
  * ---
- * if (info.ext.amx_xfd) {
+ * if (info.extensions.amx_xfd) {
  *   // Intel AMX is available
  * } else {
  *   // Feature unavailable
@@ -59,9 +58,9 @@ version (DigitalMars) {
 enum DDCPUID_VERSION   = "0.18.1";	/// Library version
 private enum CACHE_LEVELS = 6;	/// For buffer
 private enum CACHE_MAX_LEVEL = CACHE_LEVELS - 1;
-private enum VENDOR_OFFSET     = CPUINFO.vendor.offsetof;
-private enum BRAND_OFFSET      = CPUINFO.brand.offsetof;
-private enum VIRTVENDOR_OFFSET = CPUINFO.virt.offsetof + CPUINFO.virt.vendor.offsetof;
+private enum VENDOR_OFFSET     = CPUINFO.vendorString.offsetof;
+private enum BRAND_OFFSET      = CPUINFO.brandString.offsetof;
+private enum VIRTVENDOR_OFFSET = CPUINFO.virt.offsetof + CPUINFO.virt.vendorString.offsetof;
 
 version (PrintInfo) {
 	pragma(msg, "VENDOR_OFFSET\t", VENDOR_OFFSET);
@@ -111,10 +110,10 @@ private
 union __01ebx_t { // 01h.EBX internal
 	uint all;
 	struct {
-		ubyte brand_index;	/// Processor brand index. No longer used.
-		ubyte clflush_linesize;	/// Linesize of CLFLUSH in bytes
-		ubyte max_apic_id;	/// Maximum APIC ID
-		ubyte apic_id;	/// Initial APIC ID (running core where CPUID was called)
+		ubyte brandIndex;	/// Processor brand index. No longer used.
+		ubyte clflushLinesize;	/// Linesize of CLFLUSH in bytes
+		ubyte maxApicId;	/// Maximum APIC ID
+		ubyte apicId;	/// Initial APIC ID (running core where CPUID was called)
 	}
 }
 
@@ -183,25 +182,25 @@ struct CACHEINFO { align(1):
 
 /// CPU information structure
 struct CPUINFO { align(1):
-	uint max_leaf;	/// Highest cpuid leaf
-	uint max_virt_leaf;	/// Highest cpuid virtualization leaf
-	uint max_ext_leaf;	/// Highest cpuid extended leaf
+	uint maxLeaf;	/// Highest cpuid leaf
+	uint maxLeafVirt;	/// Highest cpuid virtualization leaf
+	uint maxLeafExtended;	/// Highest cpuid extended leaf
 	
 	// Vendor strings
 	
 	union {
 		package uint[3] vendor32;	/// Vendor 32-bit parts
-		char[12] vendor;	/// Vendor String
+		char[12] vendorString;	/// Vendor String
 	}
 	union {
 		package uint[12] brand32;	// For init
-		char[48] brand;	/// Processor Brand String
+		char[48] brandString;	/// Processor Brand String
 	}
 	union {
-		package uint vendor_id32;
-		Vendor vendor_id;	/// Validated vendor ID
+		package uint vendorId32;
+		Vendor vendorId;	/// Validated vendor ID
 	}
-	ubyte brand_index;	/// Brand string index (not used)
+	ubyte brandIndex;	/// Brand string index (not used)
 	
 	// Core
 	
@@ -214,22 +213,17 @@ struct CPUINFO { align(1):
 	align(2) Cores cores;	/// Processor package cores
 	
 	// Identifier
-
+	
 	ubyte family;	/// Effective family identifier
-	ubyte family_base;	/// Base family identifier
-	ubyte family_ext;	/// Extended family identifier
+	ubyte familyBase;	/// Base family identifier
+	ubyte familyExtended;	/// Extended family identifier
 	ubyte model;	/// Effective model identifier
-	ubyte model_base;	/// Base model identifier
-	ubyte model_ext;	/// Extended model identifier
+	ubyte modelBase;	/// Base model identifier
+	ubyte modelExtended;	/// Extended model identifier
 	ubyte stepping;	/// Stepping revision
 	ubyte type;	/// Processor type number
-	const(char) *type_string;	/// Processor type string.
+	const(char) *typeString;	/// Processor type string.
 	
-	//TODO: Consider bit flags for some families
-	//      Like MMX, SSE, AVX, AMX, you get the gist
-	//TODO: OR Consider bool array
-	//      has[EXTENSION_AVX2]
-	//      align(4) ;-)
 	/// Contains processor extensions.
 	/// Extensions contain a variety of instructions to aid particular
 	/// tasks.
@@ -237,9 +231,9 @@ struct CPUINFO { align(1):
 		bool fpu;	/// On-Chip x87 FPU
 		bool f16c;	/// Float16 Conversions
 		bool mmx;	/// MMX
-		bool mmxext;	/// MMX Extended
-		bool _3dnow;	/// 3DNow!
-		bool _3dnowext;	/// 3DNow! Extended
+		bool mmxExtended;	/// MMX Extended
+		bool _3DNow;	/// 3DNow!
+		bool _3DNowExtended;	/// 3DNow! Extended
 		bool aes_ni;	/// Advanced Encryption Standard New Instructions
 		bool sha;	/// SHA-1
 		bool fma3;	/// Fused Multiply-Add
@@ -252,8 +246,10 @@ struct CPUINFO { align(1):
 		bool xop;	/// AMD eXtended OPerations
 		bool tbm;	/// Trailing Bit Manipulation
 		bool adx;	/// Multi-precision Add-Carry (ADCX+ADOX)
+	}
+	align(2) Extensions extensions;	/// Extensions
 		
-		// SSE
+	struct SSE {
 		bool sse;	/// Streaming SIMD Extensions
 		bool sse2;	/// SSE2
 		bool sse3;	/// SSE3
@@ -261,39 +257,43 @@ struct CPUINFO { align(1):
 		bool sse41;	/// SSE4.1
 		bool sse42;	/// SSE4.2
 		bool sse4a;	/// SSE4a
-		
-		// AVX
-		bool avx;	/// Advanced Vector eXtension
-		bool avx2;	/// AVX-2
-		bool avx512f;	/// AVX-512
-		bool avx512er;	/// AVX-512-ER
-		bool avx512pf;	/// AVX-512-PF
-		bool avx512cd;	/// AVX-512-CD
-		bool avx512dq;	/// AVX-512-DQ
-		bool avx512bw;	/// AVX-512-BW
-		bool avx512vl;	/// AVX-512-VL
-		bool avx512_ifma;	/// AVX-512-IFMA
-		bool avx512_vbmi;	/// AVX-512-VBMI
-		bool avx512_vbmi2;	/// AVX-512-VBMI2
-		bool avx512_gfni;	/// AVX-512-GFNI
-		bool avx512_vaes;	/// AVX-512-VAES
-		bool avx512_vnni;	/// AVX-512-VNNI
-		bool avx512_bitalg;	/// AVX-512-BITALG
-		bool avx512_vpopcntdq;	/// AVX-512-VPOPCNTDQ
-		bool avx512_4vnniw;	/// AVX-512-4VNNIW
-		bool avx512_4fmaps;	/// AVX-512-4FMAPS
-		bool avx512_bf16;	/// AVX-512-BF16
-		bool avx512_vp2intersect;	/// AVX-512-VP2INTERSECT
-		
-		// AMX
-		bool amx;	/// Advanced Matrix eXtension
-		bool amx_bf16;	/// AMX-BF16
-		bool amx_int8;	/// AMX-INT8
-		bool amx_xtilecfg;	/// AMX-XTILECFG
-		bool amx_xtiledata;	/// AMX-XTILEDATA
-		bool amx_xfd;	/// AMX-XFD
 	}
-	align(2) Extensions ext;	/// Extensions
+	align(2) SSE sse;	/// Streaming SIMD Extensions
+	
+	struct AVX {
+		bool avx;	/// Advanced Vector eXtension
+		bool avx2;	/// AVX2
+		bool avx512f;	/// AVX512
+		bool avx512er;	/// AVX512_ER
+		bool avx512pf;	/// AVX512_PF
+		bool avx512cd;	/// AVX512_CD
+		bool avx512dq;	/// AVX512_DQ
+		bool avx512bw;	/// AVX512_BW
+		bool avx512vl;	/// AVX512_VL
+		bool avx512_ifma;	/// AVX512_IFMA
+		bool avx512_vbmi;	/// AVX512_VBMI
+		bool avx512_vbmi2;	/// AVX512_VBMI2
+		bool avx512_gfni;	/// AVX512_GFNI
+		bool avx512_vaes;	/// AVX512_VAES
+		bool avx512_vnni;	/// AVX512_VNNI
+		bool avx512_bitalg;	/// AVX512_BITALG
+		bool avx512_vpopcntdq;	/// AVX512_VPOPCNTDQ
+		bool avx512_4vnniw;	/// AVX512_4VNNIW
+		bool avx512_4fmaps;	/// AVX512_4FMAPS
+		bool avx512_bf16;	/// AVX512_BF16
+		bool avx512_vp2intersect;	/// AVX512_VP2INTERSECT
+	}
+	align(2) AVX avx;	/// Advanced Vector eXtension
+	
+	struct AMX {
+		bool enabled;	/// Advanced Matrix eXtension
+		bool bf16;	/// AMX_BF16
+		bool int8;	/// AMX_INT8
+		bool xtilecfg;	/// AMX_XTILECFG
+		bool xtiledata;	/// AMX_XTILEDATA
+		bool xfd;	/// AMX_XFD
+	}
+	align(2) AMX amx;	/// Intel AMX
 	
 	struct SGX {
 		bool enabled;	/// If SGX is enabled
@@ -306,8 +306,8 @@ struct CPUINFO { align(1):
 	struct Extras {
 		bool pclmulqdq;	/// PCLMULQDQ instruction
 		bool monitor;	/// MONITOR and MWAIT instructions
-		ushort mwait_min;	/// (With MONITOR+MWAIT) MWAIT minimum size in bytes
-		ushort mwait_max;	/// (With MONITOR+MWAIT) MWAIT maximum size in bytes
+		ushort mwaitMin;	/// (With MONITOR+MWAIT) MWAIT minimum size in bytes
+		ushort mwaitMax;	/// (With MONITOR+MWAIT) MWAIT maximum size in bytes
 		bool cmpxchg8b;	/// CMPXCHG8B
 		bool cmpxchg16b;	/// CMPXCHG16B instruction
 		bool movbe;	/// MOVBE instruction
@@ -316,8 +316,8 @@ struct CPUINFO { align(1):
 		bool rdmsr;	/// RDMSR instruction
 		bool sysenter;	/// SYSENTER and SYSEXIT instructions
 		bool rdtsc;	/// RDTSC instruction
-		bool rdtsc_deadline;	/// (With RDTSC) IA32_TSC_DEADLINE MSR
-		bool rdtsc_invariant;	/// (With RDTSC) Timestamp counter invariant of C/P/T-state
+		bool rdtscDeadline;	/// (With RDTSC) IA32_TSC_DEADLINE MSR
+		bool rdtscInvariant;	/// (With RDTSC) Timestamp counter invariant of C/P/T-state
 		bool rdtscp;	/// RDTSCP instruction
 		bool rdpid;	/// RDPID instruction
 		bool cmov;	/// CMOVcc instruction
@@ -354,9 +354,9 @@ struct CPUINFO { align(1):
 		uint levels;
 		CACHEINFO[CACHE_LEVELS] level;
 		bool clflush;	/// CLFLUSH instruction
-		ubyte clflush_linesize;	/// Linesize of CLFLUSH in bytes
+		ubyte clflushLinesize;	/// Linesize of CLFLUSH in bytes
 		bool clflushopt;	/// CLFLUSH instruction
-		bool cnxt_id;	/// L1 Context ID
+		bool cnxtId;	/// L1 Context ID
 		bool ss;	/// SelfSnoop
 		bool prefetchw;	/// PREFETCHW instruction
 		bool invpcid;	/// INVPCID instruction
@@ -372,8 +372,8 @@ struct CPUINFO { align(1):
 		bool arat;	/// Always-Running-APIC-Timer
 		bool tm;	/// Thermal Monitor
 		bool tm2;	/// Thermal Monitor 2
-		ubyte max_apic_id;	/// Maximum APIC ID
-		ubyte apic_id;	/// Initial APIC ID (running core where CPUID was called)
+		ubyte maxApicId;	/// Maximum APIC ID
+		ubyte apicId;	/// Initial APIC ID (running core where CPUID was called)
 	}
 	align(2) AcpiInfo acpi;	/// ACPI features
 	
@@ -383,129 +383,130 @@ struct CPUINFO { align(1):
 		bool available;	/// Intel VT-x/AMD-V
 		ubyte version_;	/// (AMD) Virtualization platform version
 		bool vme;	/// Enhanced vm8086
-		bool apivc;	/// (AMD) APICv. Intel's is available via a MSR.
+		bool apicv;	/// (AMD) APICv. Intel's is available via a MSR.
 		union {
 			package uint[3] vendor32;
-			char[12] vendor;	/// Paravirtualization interface vendor string
+			char[12] vendorString;	/// Paravirtualization interface vendor string
 		}
 		union {
-			package uint vendor_id32;
-			VirtVendor vendor_id;	/// Effective paravirtualization vendor id
+			package uint vendorId32;
+			VirtVendor vendorId;	/// Effective paravirtualization vendor id
 		}
 		
-		//TODO: Consider bit flags for paravirtualization flags
+		struct VBox {
+			uint tsc_freq_khz;	/// (VBox) Timestamp counter frequency in KHz
+			uint apic_freq_khz;	/// (VBox) Paravirtualization API KHz frequency
+		}
+		VBox vbox;
 		
-		// VBox
+		struct KVM {
+			bool feature_clocksource;	/// (KVM) kvmclock interface
+			bool feature_nop_io_delay;	/// (KVM) No delays required on I/O operations
+			bool feature_mmu_op;	/// (KVM) Deprecated
+			bool feature_clocksource2;	/// (KVM) Remapped kvmclock interface
+			bool feature_async_pf;	/// (KVM) Asynchronous Page Fault
+			bool feature_steal_time;	/// (KVM) Steal time
+			bool feature_pv_eoi;	/// (KVM) Paravirtualized End Of the Interrupt handler
+			bool feature_pv_unhault;	/// (KVM) Paravirtualized spinlock
+			bool feature_pv_tlb_flush;	/// (KVM) Paravirtualized TLB flush
+			bool feature_async_pf_vmexit;	/// (KVM) Asynchronous Page Fault at VM exit
+			bool feature_pv_send_ipi;	/// (KVM) Paravirtualized SEBD inter-processor-interrupt
+			bool feature_pv_poll_control;	/// (KVM) Host-side polling on HLT
+			bool feature_pv_sched_yield;	/// (KVM) paravirtualized scheduler yield
+			bool feature_clocsource_stable_bit;	/// (KVM) kvmclock warning
+			bool hint_realtime;	/// (KVM) vCPUs are never preempted for an unlimited amount of time
+		}
+		KVM kvm;
 		
-		uint vbox_tsc_freq_khz;	/// (VBox) Timestamp counter frequency in KHz
-		uint vbox_apic_freq_khz;	/// (VBox) Paravirtualization API KHz frequency
-		
-		// KVM
-		
-		bool kvm_feature_clocksource;	/// (KVM) kvmclock interface
-		bool kvm_feature_nop_io_delay;	/// (KVM) No delays required on I/O operations
-		bool kvm_feature_mmu_op;	/// (KVM) Deprecated
-		bool kvm_feature_clocksource2;	/// (KVM) Remapped kvmclock interface
-		bool kvm_feature_async_pf;	/// (KVM) Asynchronous Page Fault
-		bool kvm_feature_steal_time;	/// (KVM) Steal time
-		bool kvm_feature_pv_eoi;	/// (KVM) Paravirtualized End Of the Interrupt handler
-		bool kvm_feature_pv_unhault;	/// (KVM) Paravirtualized spinlock
-		bool kvm_feature_pv_tlb_flush;	/// (KVM) Paravirtualized TLB flush
-		bool kvm_feature_async_pf_vmexit;	/// (KVM) Asynchronous Page Fault at VM exit
-		bool kvm_feature_pv_send_ipi;	/// (KVM) Paravirtualized SEBD inter-processor-interrupt
-		bool kvm_feature_pv_poll_control;	/// (KVM) Host-side polling on HLT
-		bool kvm_feature_pv_sched_yield;	/// (KVM) paravirtualized scheduler yield
-		bool kvm_feature_clocsource_stable_bit;	/// (KVM) kvmclock warning
-		bool kvm_hint_realtime;	/// (KVM) vCPUs are never preempted for an unlimited amount of time
-		
-		// Hyper-V
-		
-		ushort hv_guest_vendor_id;	/// (Hyper-V) Paravirtualization Guest Vendor ID
-		ushort hv_guest_build;	/// (Hyper-V) Paravirtualization Guest Build number
-		ubyte hv_guest_os;	/// (Hyper-V) Paravirtualization Guest OS ID
-		ubyte hv_guest_major;	/// (Hyper-V) Paravirtualization Guest OS Major version
-		ubyte hv_guest_minor;	/// (Hyper-V) Paravirtualization Guest OS Minor version
-		ubyte hv_guest_service;	/// (Hyper-V) Paravirtualization Guest Service ID
-		bool hv_guest_opensource;	/// (Hyper-V) Paravirtualization Guest additions open-source
-		bool hv_base_feat_vp_runtime_msr;	/// (Hyper-V) Virtual processor runtime MSR
-		bool hv_base_feat_part_time_ref_count_msr;	/// (Hyper-V) Partition reference counter MSR
-		bool hv_base_feat_basic_synic_msrs;	/// (Hyper-V) Basic Synthetic Interrupt Controller MSRs
-		bool hv_base_feat_stimer_msrs;	/// (Hyper-V) Synthetic Timer MSRs
-		bool hv_base_feat_apic_access_msrs;	/// (Hyper-V) APIC access MSRs (EOI, ICR, TPR)
-		bool hv_base_feat_hypercall_msrs;	/// (Hyper-V) Hypercalls API MSRs
-		bool hv_base_feat_vp_id_msr;	/// (Hyper-V) vCPU index MSR
-		bool hv_base_feat_virt_sys_reset_msr;	/// (Hyper-V) Virtual system reset MSR
-		bool hv_base_feat_stat_pages_msr;	/// (Hyper-V) Statistic pages MSRs
-		bool hv_base_feat_part_ref_tsc_msr;	/// (Hyper-V) Partition reference timestamp counter MSR
-		bool hv_base_feat_guest_idle_state_msr;	/// (Hyper-V) Virtual guest idle state MSR
-		bool hv_base_feat_timer_freq_msrs;	/// (Hyper-V) Timer frequency MSRs (TSC and APIC)
-		bool hv_base_feat_debug_msrs;	/// (Hyper-V) Debug MSRs
-		bool hv_part_flags_create_part;	/// (Hyper-V) Partitions can be created
-		bool hv_part_flags_access_part_id;	/// (Hyper-V) Partitions IDs can be accessed
-		bool hv_part_flags_access_memory_pool;	/// (Hyper-V) Memory pool can be accessed
-		bool hv_part_flags_adjust_msg_buffers;	/// (Hyper-V) Possible to adjust message buffers
-		bool hv_part_flags_post_msgs;	/// (Hyper-V) Possible to send messages
-		bool hv_part_flags_signal_events;	/// (Hyper-V) Possible to signal events
-		bool hv_part_flags_create_port;	/// (Hyper-V) Possible to create ports
-		bool hv_part_flags_connect_port;	/// (Hyper-V) Possible to connect to ports
-		bool hv_part_flags_access_stats;	/// (Hyper-V) Can access statistics
-		bool hv_part_flags_debugging;	/// (Hyper-V) Debugging features available
-		bool hv_part_flags_cpu_mgmt;	/// (Hyper-V) Processor management available
-		bool hv_part_flags_cpu_profiler;	/// (Hyper-V) Processor profiler available
-		bool hv_part_flags_expanded_stack_walk;	/// (Hyper-V) Extended stack walking available
-		bool hv_part_flags_access_vsm;	/// (Hyper-V) Virtual system monitor available
-		bool hv_part_flags_access_vp_regs;	/// (Hyper-V) Virtual private registers available
-		bool hv_part_flags_extended_hypercalls;	/// (Hyper-V) Extended hypercalls API available
-		bool hv_part_flags_start_vp;	/// (Hyper-V) Virtual processor has started
-		bool hv_pm_max_cpu_power_state_c0;	/// (Hyper-V) Processor C0 is maximum state
-		bool hv_pm_max_cpu_power_state_c1;	/// (Hyper-V) Processor C1 is maximum state
-		bool hv_pm_max_cpu_power_state_c2;	/// (Hyper-V) Processor C2 is maximum state
-		bool hv_pm_max_cpu_power_state_c3;	/// (Hyper-V) Processor C3 is maximum state
-		bool hv_pm_hpet_reqd_for_c3;	/// (Hyper-V) High-precision event timer required for C3 state
-		bool hv_misc_feat_mwait;	/// (Hyper-V) MWAIT instruction available for guest
-		bool hv_misc_feat_guest_debugging;	/// (Hyper-V) Guest supports debugging
-		bool hv_misc_feat_perf_mon;	/// (Hyper-V) Performance monitor support available
-		bool hv_misc_feat_pcpu_dyn_part_event;	/// (Hyper-V) Physicap CPU dynamic partitioning event available
-		bool hv_misc_feat_xmm_hypercall_input;	/// (Hyper-V) Hypercalls via XMM registers available
-		bool hv_misc_feat_guest_idle_state;	/// (Hyper-V) Virtual guest supports idle state
-		bool hv_misc_feat_hypervisor_sleep_state;	/// (Hyper-V) Hypervisor supports sleep
-		bool hv_misc_feat_query_numa_distance;	/// (Hyper-V) NUMA distance query available
-		bool hv_misc_feat_timer_freq;	/// (Hyper-V) Determining timer frequencies available
-		bool hv_misc_feat_inject_synmc_xcpt;	/// (Hyper-V) Support for injecting synthetic machine checks
-		bool hv_misc_feat_guest_crash_msrs;	/// (Hyper-V) Guest crash MSR available
-		bool hv_misc_feat_debug_msrs;	/// (Hyper-V) Debug MSR available
-		bool hv_misc_feat_npiep1;	/// (Hyper-V) Documentation unavailable
-		bool hv_misc_feat_disable_hypervisor;	/// (Hyper-V) Hypervisor can be disabled
-		bool hv_misc_feat_ext_gva_range_for_flush_va_list;	/// (Hyper-V) Extended guest virtual address (GVA) ranges for FlushVirtualAddressList available
-		bool hv_misc_feat_hypercall_output_xmm;	/// (Hyper-V) Returning hypercall output via XMM registers available
-		bool hv_misc_feat_sint_polling_mode;	/// (Hyper-V) Synthetic interrupt source polling mode available
-		bool hv_misc_feat_hypercall_msr_lock;	/// (Hyper-V) Hypercall MISR lock feature available
-		bool hv_misc_feat_use_direct_synth_msrs;	/// (Hyper-V) Possible to directly use synthetic MSRs
-		bool hv_hint_hypercall_for_process_switch;	/// (Hyper-V) Guest should use the Hypercall API for address space switches rather than MOV CR3
-		bool hv_hint_hypercall_for_tlb_flush;	/// (Hyper-V) Guest should use the Hypercall API for local TLB flushes rather than INVLPG/MOV CR3
-		bool hv_hint_hypercall_for_tlb_shootdown;	/// (Hyper-V) Guest should use the Hypercall API for inter-CPU TLB flushes rather than inter-processor-interrupts (IPI)
-		bool hv_hint_msr_for_apic_access;	/// (Hyper-V) Guest should use the MSRs for APIC access (EOI, ICR, TPR) rather than memory-mapped input/output (MMIO)
-		bool hv_hint_msr_for_sys_reset;	/// (Hyper-V) Guest should use the hypervisor-provided MSR for a system reset instead of traditional methods
-		bool hv_hint_relax_time_checks;	/// (Hyper-V) Guest should relax timer-related checks (watchdogs/deadman timeouts) that rely on timely deliver of external interrupts
-		bool hv_hint_dma_remapping;	/// (Hyper-V) Guest should use the direct memory access (DMA) remapping
-		bool hv_hint_interrupt_remapping;	/// (Hyper-V) Guest should use the interrupt remapping
-		bool hv_hint_x2apic_msrs;	/// (Hyper-V) Guest should use the X2APIC MSRs rather than memory mapped input/output (MMIO)
-		bool hv_hint_deprecate_auto_eoi;	/// (Hyper-V) Guest should deprecate Auto EOI (End Of Interrupt) features
-		bool hv_hint_synth_cluster_ipi_hypercall;	/// (Hyper-V) Guest should use the SyntheticClusterIpi Hypercall
-		bool hv_hint_ex_proc_masks_interface;	/// (Hyper-V) Guest should use the newer ExProcessMasks interface over ProcessMasks
-		bool hv_hint_nested_hyperv;	/// (Hyper-V) Hyper-V instance is nested within a Hyper-V partition
-		bool hv_hint_int_for_mbec_syscalls;	/// (Hyper-V) Guest should use the INT instruction for Mode Based Execution Control (MBEC) system calls
-		bool hv_hint_nested_enlightened_vmcs_interface;	/// (Hyper-V) Guest should use enlightened Virtual Machine Control Structure (VMCS) interfaces and nested enlightenment
-		bool hv_host_feat_avic;	/// (Hyper-V) Hypervisor is using the Advanced Virtual Interrupt Controller (AVIC) overlay
-		bool hv_host_feat_msr_bitmap;	/// (Hyper-V) Hypervisor is using MSR bitmaps
-		bool hv_host_feat_perf_counter;	/// (Hyper-V) Hypervisor supports the architectural performance counter
-		bool hv_host_feat_nested_paging;	/// (Hyper-V) Hypervisor is using nested paging
-		bool hv_host_feat_dma_remapping;	/// (Hyper-V) Hypervisor is using direct memory access (DMA) remapping
-		bool hv_host_feat_interrupt_remapping;	/// (Hyper-V) Hypervisor is using interrupt remapping
-		bool hv_host_feat_mem_patrol_scrubber;	/// (Hyper-V) Hypervisor's memory patrol scrubber is present
-		bool hv_host_feat_dma_prot_in_use;	/// (Hyper-V) Hypervisor is using direct memory access (DMA) protection
-		bool hv_host_feat_hpet_requested;	/// (Hyper-V) Hypervisor requires a High Precision Event Timer (HPET)
-		bool hv_host_feat_stimer_volatile;	/// (Hyper-V) Hypervisor's synthetic timers are volatile
+		struct HyperV {
+			ushort guest_vendor_id;	/// (Hyper-V) Paravirtualization Guest Vendor ID
+			ushort guest_build;	/// (Hyper-V) Paravirtualization Guest Build number
+			ubyte guest_os;	/// (Hyper-V) Paravirtualization Guest OS ID
+			ubyte guest_major;	/// (Hyper-V) Paravirtualization Guest OS Major version
+			ubyte guest_minor;	/// (Hyper-V) Paravirtualization Guest OS Minor version
+			ubyte guest_service;	/// (Hyper-V) Paravirtualization Guest Service ID
+			bool guest_opensource;	/// (Hyper-V) Paravirtualization Guest additions open-source
+			bool base_feat_vp_runtime_msr;	/// (Hyper-V) Virtual processor runtime MSR
+			bool base_feat_part_time_ref_count_msr;	/// (Hyper-V) Partition reference counter MSR
+			bool base_feat_basic_synic_msrs;	/// (Hyper-V) Basic Synthetic Interrupt Controller MSRs
+			bool base_feat_stimer_msrs;	/// (Hyper-V) Synthetic Timer MSRs
+			bool base_feat_apic_access_msrs;	/// (Hyper-V) APIC access MSRs (EOI, ICR, TPR)
+			bool base_feat_hypercall_msrs;	/// (Hyper-V) Hypercalls API MSRs
+			bool base_feat_vp_id_msr;	/// (Hyper-V) vCPU index MSR
+			bool base_feat_virt_sys_reset_msr;	/// (Hyper-V) Virtual system reset MSR
+			bool base_feat_stat_pages_msr;	/// (Hyper-V) Statistic pages MSRs
+			bool base_feat_part_ref_tsc_msr;	/// (Hyper-V) Partition reference timestamp counter MSR
+			bool base_feat_guest_idle_state_msr;	/// (Hyper-V) Virtual guest idle state MSR
+			bool base_feat_timer_freq_msrs;	/// (Hyper-V) Timer frequency MSRs (TSC and APIC)
+			bool base_feat_debug_msrs;	/// (Hyper-V) Debug MSRs
+			bool part_flags_create_part;	/// (Hyper-V) Partitions can be created
+			bool part_flags_access_part_id;	/// (Hyper-V) Partitions IDs can be accessed
+			bool part_flags_access_memory_pool;	/// (Hyper-V) Memory pool can be accessed
+			bool part_flags_adjust_msg_buffers;	/// (Hyper-V) Possible to adjust message buffers
+			bool part_flags_post_msgs;	/// (Hyper-V) Possible to send messages
+			bool part_flags_signal_events;	/// (Hyper-V) Possible to signal events
+			bool part_flags_create_port;	/// (Hyper-V) Possible to create ports
+			bool part_flags_connect_port;	/// (Hyper-V) Possible to connect to ports
+			bool part_flags_access_stats;	/// (Hyper-V) Can access statistics
+			bool part_flags_debugging;	/// (Hyper-V) Debugging features available
+			bool part_flags_cpu_mgmt;	/// (Hyper-V) Processor management available
+			bool part_flags_cpu_profiler;	/// (Hyper-V) Processor profiler available
+			bool part_flags_expanded_stack_walk;	/// (Hyper-V) Extended stack walking available
+			bool part_flags_access_vsm;	/// (Hyper-V) Virtual system monitor available
+			bool part_flags_access_vp_regs;	/// (Hyper-V) Virtual private registers available
+			bool part_flags_extended_hypercalls;	/// (Hyper-V) Extended hypercalls API available
+			bool part_flags_start_vp;	/// (Hyper-V) Virtual processor has started
+			bool pm_max_cpu_power_state_c0;	/// (Hyper-V) Processor C0 is maximum state
+			bool pm_max_cpu_power_state_c1;	/// (Hyper-V) Processor C1 is maximum state
+			bool pm_max_cpu_power_state_c2;	/// (Hyper-V) Processor C2 is maximum state
+			bool pm_max_cpu_power_state_c3;	/// (Hyper-V) Processor C3 is maximum state
+			bool pm_hpet_reqd_for_c3;	/// (Hyper-V) High-precision event timer required for C3 state
+			bool misc_feat_mwait;	/// (Hyper-V) MWAIT instruction available for guest
+			bool misc_feat_guest_debugging;	/// (Hyper-V) Guest supports debugging
+			bool misc_feat_perf_mon;	/// (Hyper-V) Performance monitor support available
+			bool misc_feat_pcpu_dyn_part_event;	/// (Hyper-V) Physicap CPU dynamic partitioning event available
+			bool misc_feat_xmm_hypercall_input;	/// (Hyper-V) Hypercalls via XMM registers available
+			bool misc_feat_guest_idle_state;	/// (Hyper-V) Virtual guest supports idle state
+			bool misc_feat_hypervisor_sleep_state;	/// (Hyper-V) Hypervisor supports sleep
+			bool misc_feat_query_numa_distance;	/// (Hyper-V) NUMA distance query available
+			bool misc_feat_timer_freq;	/// (Hyper-V) Determining timer frequencies available
+			bool misc_feat_inject_synmc_xcpt;	/// (Hyper-V) Support for injecting synthetic machine checks
+			bool misc_feat_guest_crash_msrs;	/// (Hyper-V) Guest crash MSR available
+			bool misc_feat_debug_msrs;	/// (Hyper-V) Debug MSR available
+			bool misc_feat_npiep1;	/// (Hyper-V) Documentation unavailable
+			bool misc_feat_disable_hypervisor;	/// (Hyper-V) Hypervisor can be disabled
+			bool misc_feat_ext_gva_range_for_flush_va_list;	/// (Hyper-V) Extended guest virtual address (GVA) ranges for FlushVirtualAddressList available
+			bool misc_feat_hypercall_output_xmm;	/// (Hyper-V) Returning hypercall output via XMM registers available
+			bool misc_feat_sint_polling_mode;	/// (Hyper-V) Synthetic interrupt source polling mode available
+			bool misc_feat_hypercall_msr_lock;	/// (Hyper-V) Hypercall MISR lock feature available
+			bool misc_feat_use_direct_synth_msrs;	/// (Hyper-V) Possible to directly use synthetic MSRs
+			bool hint_hypercall_for_process_switch;	/// (Hyper-V) Guest should use the Hypercall API for address space switches rather than MOV CR3
+			bool hint_hypercall_for_tlb_flush;	/// (Hyper-V) Guest should use the Hypercall API for local TLB flushes rather than INVLPG/MOV CR3
+			bool hint_hypercall_for_tlb_shootdown;	/// (Hyper-V) Guest should use the Hypercall API for inter-CPU TLB flushes rather than inter-processor-interrupts (IPI)
+			bool hint_msr_for_apic_access;	/// (Hyper-V) Guest should use the MSRs for APIC access (EOI, ICR, TPR) rather than memory-mapped input/output (MMIO)
+			bool hint_msr_for_sys_reset;	/// (Hyper-V) Guest should use the hypervisor-provided MSR for a system reset instead of traditional methods
+			bool hint_relax_time_checks;	/// (Hyper-V) Guest should relax timer-related checks (watchdogs/deadman timeouts) that rely on timely deliver of external interrupts
+			bool hint_dma_remapping;	/// (Hyper-V) Guest should use the direct memory access (DMA) remapping
+			bool hint_interrupt_remapping;	/// (Hyper-V) Guest should use the interrupt remapping
+			bool hint_x2apic_msrs;	/// (Hyper-V) Guest should use the X2APIC MSRs rather than memory mapped input/output (MMIO)
+			bool hint_deprecate_auto_eoi;	/// (Hyper-V) Guest should deprecate Auto EOI (End Of Interrupt) features
+			bool hint_synth_cluster_ipi_hypercall;	/// (Hyper-V) Guest should use the SyntheticClusterIpi Hypercall
+			bool hint_ex_proc_masks_interface;	/// (Hyper-V) Guest should use the newer ExProcessMasks interface over ProcessMasks
+			bool hint_nested_hyperv;	/// (Hyper-V) Hyper-V instance is nested within a Hyper-V partition
+			bool hint_int_for_mbec_syscalls;	/// (Hyper-V) Guest should use the INT instruction for Mode Based Execution Control (MBEC) system calls
+			bool hint_nested_enlightened_vmcs_interface;	/// (Hyper-V) Guest should use enlightened Virtual Machine Control Structure (VMCS) interfaces and nested enlightenment
+			bool host_feat_avic;	/// (Hyper-V) Hypervisor is using the Advanced Virtual Interrupt Controller (AVIC) overlay
+			bool host_feat_msr_bitmap;	/// (Hyper-V) Hypervisor is using MSR bitmaps
+			bool host_feat_perf_counter;	/// (Hyper-V) Hypervisor supports the architectural performance counter
+			bool host_feat_nested_paging;	/// (Hyper-V) Hypervisor is using nested paging
+			bool host_feat_dma_remapping;	/// (Hyper-V) Hypervisor is using direct memory access (DMA) remapping
+			bool host_feat_interrupt_remapping;	/// (Hyper-V) Hypervisor is using interrupt remapping
+			bool host_feat_mem_patrol_scrubber;	/// (Hyper-V) Hypervisor's memory patrol scrubber is present
+			bool host_feat_dma_prot_in_use;	/// (Hyper-V) Hypervisor is using direct memory access (DMA) protection
+			bool host_feat_hpet_requested;	/// (Hyper-V) Hypervisor requires a High Precision Event Timer (HPET)
+			bool host_feat_stimer_volatile;	/// (Hyper-V) Hypervisor's synthetic timers are volatile
+		}
+		HyperV hv;
 	}
 	align(2) Virtualization virt;	/// Virtualization features
 	
@@ -513,7 +514,7 @@ struct CPUINFO { align(1):
 	struct Memory {
 		bool pae;	/// Physical Address Extension 
 		bool pse;	/// Page Size Extension
-		bool pse_36;	/// 36-bit PSE
+		bool pse36;	/// 36-bit PSE
 		bool page1gb;	/// 1GiB pages in 4-level paging and higher
 		bool mtrr;	/// Memory Type Range Registers
 		bool pat;	/// Page Attribute Table
@@ -537,12 +538,12 @@ struct CPUINFO { align(1):
 		union {
 			package ushort b_8000_0008_ax;
 			struct {
-				ubyte phys_bits;	/// Memory physical bits
-				ubyte line_bits;	/// Memory linear bits
+				ubyte physBits;	/// Memory physical bits
+				ubyte lineBits;	/// Memory linear bits
 			}
 		}
 	}
-	align (2) Memory mem;	/// Memory features
+	align (2) Memory memory;	/// Memory features
 	
 	/// Debugging features.
 	struct Debugging {
@@ -550,13 +551,13 @@ struct CPUINFO { align(1):
 		bool mce;	/// Machine Check Exception
 		bool de;	/// Degging Extensions
 		bool ds;	/// Debug Store
-		bool ds_cpl;	/// Debug Store - Curernt Privilege Level
+		bool dsCpl;	/// Debug Store - Curernt Privilege Level
 		bool dtes64;	/// 64-bit Debug Store area
 		bool pdcm;	/// Perfmon And Debug Capability
 		bool sdbg;	/// Silicon Debug
 		bool pbe;	/// Pending Break Enable
 	}
-	align(2) Debugging dbg;	/// Debugging feature
+	align(2) Debugging debugging;	/// Debugging feature
 	
 	/// Security features and mitigations.
 	struct Security {
@@ -564,17 +565,17 @@ struct CPUINFO { align(1):
 		// NOTE: IA32_CORE_CAPABILITIES is currently empty
 		bool ibpb;	/// Indirect Branch Predictor Barrier
 		bool ibrs;	/// Indirect Branch Restricted Speculation
-		bool ibrs_on;	/// IBRS always enabled
-		bool ibrs_pref;	/// IBRS preferred
+		bool ibrsAlwaysOn;	/// IBRS always enabled
+		bool ibrsPreferred;	/// IBRS preferred over software solution
 		bool stibp;	/// Single Thread Indirect Branch Predictors
-		bool stibp_on;	/// STIBP always enabled
+		bool stibpAlwaysOn;	/// STIBP always enabled
 		bool ssbd;	/// Speculative Store Bypass Disable
-		bool l1d_flush;	/// L1D Cache Flush
+		bool l1dFlush;	/// L1D Cache Flush
 		bool md_clear;	/// MDS mitigation
-		bool cet_ibt;	/// (Control-flow Enforcement Technology) Indirect Branch Tracking 
-		bool cet_ss;	/// (Control-flow Enforcement Technology) Shadow Stack
+		bool cetIbt;	/// (Control-flow Enforcement Technology) Indirect Branch Tracking 
+		bool cetSs;	/// (Control-flow Enforcement Technology) Shadow Stack
 	}
-	align(2) Security sec;	/// Security features
+	align(2) Security security;	/// Security features
 	
 	/// Miscellaneous features.
 	struct Miscellaneous {
@@ -595,7 +596,7 @@ private
 immutable const(char)* CACHE_TYPE = "?DIU????";
 
 private
-immutable const(char)*[] PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];
+immutable const(char)*[4] PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];
 
 version (Trace) {
 	import core.stdc.stdio;
@@ -689,39 +690,39 @@ void getLeaves(ref CPUINFO info) {
 			mov EDI, info;
 			mov EAX, 0;
 			cpuid;
-			mov [EDI + info.max_leaf.offsetof], EAX;
+			mov [EDI + info.maxLeaf.offsetof], EAX;
 			mov EAX, 0x4000_0000;
 			cpuid;
-			mov [EDI + info.max_virt_leaf.offsetof], EAX;
+			mov [EDI + info.maxLeafVirt.offsetof], EAX;
 			mov EAX, 0x8000_0000;
 			cpuid;
-			mov [EDI + info.max_ext_leaf.offsetof], EAX;
+			mov [EDI + info.maxLeafExtended.offsetof], EAX;
 		} else version (X86_64) asm {
 			mov RDI, info;
 			mov EAX, 0;
 			cpuid;
-			mov [RDI + info.max_leaf.offsetof], EAX;
+			mov [RDI + info.maxLeaf.offsetof], EAX;
 			mov EAX, 0x4000_0000;
 			cpuid;
-			mov [RDI + info.max_virt_leaf.offsetof], EAX;
+			mov [RDI + info.maxLeafVirt.offsetof], EAX;
 			mov EAX, 0x8000_0000;
 			cpuid;
-			mov [RDI + info.max_ext_leaf.offsetof], EAX;
+			mov [RDI + info.maxLeafExtended.offsetof], EAX;
 		}
 	} else version (GDC) {
 		asm {
 			"cpuid"
-			: "=a" (info.max_leaf)
+			: "=a" (info.maxLeaf)
 			: "a" (0);
 		}
 		asm {
 			"cpuid"
-			: "=a" (info.max_virt_leaf)
+			: "=a" (info.maxLeafVirt)
 			: "a" (0x40000000);
 		}
 		asm {
 			"cpuid"
-			: "=a" (info.max_ext_leaf)
+			: "=a" (info.maxLeafExtended)
 			: "a" (0x80000000);
 		}
 	} else version (LDC) {
@@ -729,29 +730,29 @@ void getLeaves(ref CPUINFO info) {
 			lea EDI, info;
 			mov EAX, 0;
 			cpuid;
-			mov [EDI + info.max_leaf.offsetof], EAX;
+			mov [EDI + info.maxLeaf.offsetof], EAX;
 			mov EAX, 0x4000_0000;
 			cpuid;
-			mov [EDI + info.max_virt_leaf.offsetof], EAX;
+			mov [EDI + info.maxLeafVirt.offsetof], EAX;
 			mov EAX, 0x8000_0000;
 			cpuid;
-			mov [EDI + info.max_ext_leaf.offsetof], EAX;
+			mov [EDI + info.maxLeafExtended.offsetof], EAX;
 		} else version (X86_64) asm {
 			lea RDI, info;
 			mov EAX, 0;
 			cpuid;
-			mov [RDI + info.max_leaf.offsetof], EAX;
+			mov [RDI + info.maxLeaf.offsetof], EAX;
 			mov EAX, 0x4000_0000;
 			cpuid;
-			mov [RDI + info.max_virt_leaf.offsetof], EAX;
+			mov [RDI + info.maxLeafVirt.offsetof], EAX;
 			mov EAX, 0x8000_0000;
 			cpuid;
-			mov [RDI + info.max_ext_leaf.offsetof], EAX;
+			mov [RDI + info.maxLeafExtended.offsetof], EAX;
 		}
 	}
 	version (Trace) with(info) trace(
 		"leaf=%x vleaf=%x eleaf=%x",
-		max_leaf, max_virt_leaf, max_ext_leaf);
+		maxLeaf, maxLeafVirt, maxLeafExtended);
 }
 
 /// Fetch CPU vendor
@@ -829,11 +830,11 @@ void getVendor(ref CPUINFO info) {
 		if (info.vendor32[2] != ID!("VIA ")) goto default;
 		break;
 	default: // Unknown
-		info.vendor_id32 = 0;
+		info.vendorId32 = 0;
 		return;
 	}
 	
-	info.vendor_id32 = info.vendor32[0];
+	info.vendorId32 = info.vendor32[0];
 }
 
 pragma(inline, false)
@@ -1047,25 +1048,32 @@ void getVirtVendor(ref CPUINFO info) {
 	case VirtVendor.VBoxHyperV:	// "VBoxVBoxVBox"
 		if (info.virt.vendor32[1] != ID!("VBox")) goto default;
 		if (info.virt.vendor32[2] != ID!("VBox")) goto default;
-		info.virt.vendor_id = VirtVendor.HyperV;
+		info.virt.vendorId = VirtVendor.HyperV;
 		return;
 	default:
-		info.virt.vendor_id32 = 0;
+		info.virt.vendorId32 = 0;
 		return;
 	}
 	
-	info.virt.vendor_id32 = info.virt.vendor32[0];
-	version (Trace) trace("id=%u", info.virt.vendor_id32);
+	info.virt.vendorId32 = info.virt.vendor32[0];
+	version (Trace) trace("id=%u", info.virt.vendorId32);
 }
 
 /// Fetch CPU information.
+/// 
+/// Here is a list of phases this function goes through:
+/// 1. Get vendor string and ID
+/// 2. Get brand string
+/// 3. Get family IDs and basic information
+/// 4. Get virtualization features
+/// 5. Get extended features
+/// 6. Get cache and core information
+///
+/// When a section is no longer capable of proceeding, it skips to the next
+/// phase.
+/// 
 /// Params: info = CPUINFO structure
-// There are essentially 5 sections to this function:
-// - Brand String
-// - Normal leaf information
-// - Paravirtualization leaf information
-// - Extended leaf information
-// - Cache information
+//TODO: bool skipCache = false (for -l)
 pragma(inline, false)
 void getInfo(ref CPUINFO info) {
 	getVendor(info);
@@ -1080,55 +1088,55 @@ void getInfo(ref CPUINFO info) {
 	asmcpuid(regs, 1);
 	
 	// EAX
-	info.stepping    = regs.eax & 0xF;        // EAX[3:0]
-	info.model_base  = regs.eax >>  4 &  0xF; // EAX[7:4]
-	info.family_base = regs.eax >>  8 &  0xF; // EAX[11:8]
-	info.type        = regs.eax >> 12 & 0b11; // EAX[13:12]
-	info.type_string = PROCESSOR_TYPE[info.type];
-	info.model_ext   = regs.eax >> 16 &  0xF; // EAX[19:16]
-	info.family_ext  = cast(ubyte)(regs.eax >> 20); // EAX[27:20]
+	info.stepping   = regs.eax & 0xF;        // EAX[3:0]
+	info.modelBase  = regs.eax >>  4 &  0xF; // EAX[7:4]
+	info.familyBase = regs.eax >>  8 &  0xF; // EAX[11:8]
+	info.type       = regs.eax >> 12 & 0b11; // EAX[13:12]
+	info.typeString = PROCESSOR_TYPE[info.type];
+	info.modelExtended   = regs.eax >> 16 &  0xF; // EAX[19:16]
+	info.familyExtended  = cast(ubyte)(regs.eax >> 20); // EAX[27:20]
 	
-	switch (info.vendor_id) {
+	switch (info.vendorId) {
 	case Vendor.Intel:
-		info.family = info.family_base != 0 ?
-			info.family_base :
-			cast(ubyte)(info.family_ext + info.family_base);
+		info.family = info.familyBase != 0 ?
+			info.familyBase :
+			cast(ubyte)(info.familyExtended + info.familyBase);
 		
-		info.model = info.family_base == 6 || info.family_base == 0 ?
-			cast(ubyte)((info.model_ext << 4) + info.model_base) :
-			info.model_base; // DisplayModel = Model_ID;
+		info.model = info.familyBase == 6 || info.familyBase == 0 ?
+			cast(ubyte)((info.modelExtended << 4) + info.modelBase) :
+			info.modelBase; // DisplayModel = Model_ID;
 		
 		// ECX
-		info.dbg.dtes64	= (regs.ecx & BIT!(2)) != 0;
-		info.dbg.ds_cpl	= (regs.ecx & BIT!(4)) != 0;
+		info.debugging.dtes64	= (regs.ecx & BIT!(2)) != 0;
+		info.debugging.dsCpl	= (regs.ecx & BIT!(4)) != 0;
 		info.virt.available	= (regs.ecx & BIT!(5)) != 0;
 		info.tech.smx	= (regs.ecx & BIT!(6)) != 0;
 		info.tech.eist	= (regs.ecx & BIT!(7)) != 0;
 		info.acpi.tm2	= (regs.ecx & BIT!(8)) != 0;
-		info.cache.cnxt_id	= (regs.ecx & BIT!(10)) != 0;
-		info.dbg.sdbg	= (regs.ecx & BIT!(11)) != 0;
+		info.cache.cnxtId	= (regs.ecx & BIT!(10)) != 0;
+		info.debugging.sdbg	= (regs.ecx & BIT!(11)) != 0;
 		info.misc.xtpr	= (regs.ecx & BIT!(14)) != 0;
-		info.dbg.pdcm	= (regs.ecx & BIT!(15)) != 0;
+		info.debugging.pdcm	= (regs.ecx & BIT!(15)) != 0;
 		info.misc.pcid	= (regs.ecx & BIT!(17)) != 0;
-		info.dbg.mca	= (regs.ecx & BIT!(18)) != 0;
+		info.debugging.mca	= (regs.ecx & BIT!(18)) != 0;
 		info.acpi.x2apic	= (regs.ecx & BIT!(21)) != 0;
-		info.extras.rdtsc_deadline	= (regs.ecx & BIT!(24)) != 0;
+		info.extras.rdtscDeadline	= (regs.ecx & BIT!(24)) != 0;
 		
 		// EDX
 		info.misc.psn	= (regs.edx & BIT!(18)) != 0;
-		info.dbg.ds	= (regs.edx & BIT!(21)) != 0;
+		info.debugging.ds	= (regs.edx & BIT!(21)) != 0;
 		info.acpi.available	= (regs.edx & BIT!(22)) != 0;
 		info.cache.ss	= (regs.edx & BIT!(27)) != 0;
 		info.acpi.tm	= (regs.edx & BIT!(29)) != 0;
-		info.dbg.pbe	= regs.edx >= BIT!(31);
+		info.debugging.pbe	= regs.edx >= BIT!(31);
 		break;
 	case Vendor.AMD:
-		if (info.family_base < 0xF) {
-			info.family = info.family_base;
-			info.model = info.model_base;
+		if (info.familyBase < 0xF) {
+			info.family = info.familyBase;
+			info.model = info.modelBase;
 		} else {
-			info.family = cast(ubyte)(info.family_ext + info.family_base);
-			info.model = cast(ubyte)((info.model_ext << 4) + info.model_base);
+			info.family = cast(ubyte)(info.familyExtended + info.familyBase);
+			info.model = cast(ubyte)((info.modelExtended << 4) + info.modelBase);
 		}
 		break;
 	default:
@@ -1137,82 +1145,82 @@ void getInfo(ref CPUINFO info) {
 	// EBX
 	__01ebx_t t = void; // BrandIndex, CLFLUSHLineSize, MaxIDs, InitialAPICID
 	t.all = regs.ebx;
-	info.brand_index = t.brand_index;
-	info.cache.clflush_linesize = t.clflush_linesize;
-	info.acpi.max_apic_id = t.max_apic_id;
-	info.acpi.apic_id = t.apic_id;
+	info.brandIndex = t.brandIndex;
+	info.cache.clflushLinesize = t.clflushLinesize;
+	info.acpi.maxApicId = t.maxApicId;
+	info.acpi.apicId = t.apicId;
 	
 	// ECX
-	info.ext.sse3	= (regs.ecx & BIT!(0)) != 0;
+	info.sse.sse3	= (regs.ecx & BIT!(0)) != 0;
 	info.extras.pclmulqdq	= (regs.ecx & BIT!(1)) != 0;
 	info.extras.monitor	= (regs.ecx & BIT!(3)) != 0;
-	info.ext.ssse3	= (regs.ecx & BIT!(9)) != 0;
-	info.ext.fma3	= (regs.ecx & BIT!(12)) != 0;
+	info.sse.ssse3	= (regs.ecx & BIT!(9)) != 0;
+	info.extensions.fma3	= (regs.ecx & BIT!(12)) != 0;
 	info.extras.cmpxchg16b	= (regs.ecx & BIT!(13)) != 0;
-	info.ext.sse41	= (regs.ecx & BIT!(15)) != 0;
-	info.ext.sse42	= (regs.ecx & BIT!(20)) != 0;
+	info.sse.sse41	= (regs.ecx & BIT!(15)) != 0;
+	info.sse.sse42	= (regs.ecx & BIT!(20)) != 0;
 	info.extras.movbe	= (regs.ecx & BIT!(22)) != 0;
 	info.extras.popcnt	= (regs.ecx & BIT!(23)) != 0;
-	info.ext.aes_ni	= (regs.ecx & BIT!(25)) != 0;
+	info.extensions.aes_ni	= (regs.ecx & BIT!(25)) != 0;
 	info.extras.xsave	= (regs.ecx & BIT!(26)) != 0;
 	info.extras.osxsave	= (regs.ecx & BIT!(27)) != 0;
-	info.ext.avx	= (regs.ecx & BIT!(28)) != 0;
-	info.ext.f16c	= (regs.ecx & BIT!(29)) != 0;
+	info.avx.avx	= (regs.ecx & BIT!(28)) != 0;
+	info.extensions.f16c	= (regs.ecx & BIT!(29)) != 0;
 	info.extras.rdrand	= (regs.ecx & BIT!(30)) != 0;
 	
 	// EDX
-	info.ext.fpu	= (regs.edx & BIT!(0)) != 0;
+	info.extensions.fpu	= (regs.edx & BIT!(0)) != 0;
 	info.virt.vme	= (regs.edx & BIT!(1)) != 0;
-	info.dbg.de	= (regs.edx & BIT!(2)) != 0;
-	info.mem.pse	= (regs.edx & BIT!(3)) != 0;
+	info.debugging.de	= (regs.edx & BIT!(2)) != 0;
+	info.memory.pse	= (regs.edx & BIT!(3)) != 0;
 	info.extras.rdtsc	= (regs.edx & BIT!(4)) != 0;
 	info.extras.rdmsr	= (regs.edx & BIT!(5)) != 0;
-	info.mem.pae	= (regs.edx & BIT!(6)) != 0;
-	info.dbg.mce	= (regs.edx & BIT!(7)) != 0;
+	info.memory.pae	= (regs.edx & BIT!(6)) != 0;
+	info.debugging.mce	= (regs.edx & BIT!(7)) != 0;
 	info.extras.cmpxchg8b	= (regs.edx & BIT!(8)) != 0;
 	info.acpi.apic	= (regs.edx & BIT!(9)) != 0;
 	info.extras.sysenter	= (regs.edx & BIT!(11)) != 0;
-	info.mem.mtrr	= (regs.edx & BIT!(12)) != 0;
-	info.mem.pge	= (regs.edx & BIT!(13)) != 0;
-	info.dbg.mca	= (regs.edx & BIT!(14)) != 0;
+	info.memory.mtrr	= (regs.edx & BIT!(12)) != 0;
+	info.memory.pge	= (regs.edx & BIT!(13)) != 0;
+	info.debugging.mca	= (regs.edx & BIT!(14)) != 0;
 	info.extras.cmov	= (regs.edx & BIT!(15)) != 0;
-	info.mem.pat	= (regs.edx & BIT!(16)) != 0;
-	info.mem.pse_36	= (regs.edx & BIT!(17)) != 0;
+	info.memory.pat	= (regs.edx & BIT!(16)) != 0;
+	info.memory.pse36	= (regs.edx & BIT!(17)) != 0;
 	info.cache.clflush	= (regs.edx & BIT!(19)) != 0;
-	info.ext.mmx	= (regs.edx & BIT!(23)) != 0;
+	info.extensions.mmx	= (regs.edx & BIT!(23)) != 0;
 	info.extras.fxsr	= (regs.edx & BIT!(24)) != 0;
-	info.ext.sse	= (regs.edx & BIT!(25)) != 0;
-	info.ext.sse2	= (regs.edx & BIT!(26)) != 0;
+	info.sse.sse	= (regs.edx & BIT!(25)) != 0;
+	info.sse.sse2	= (regs.edx & BIT!(26)) != 0;
 	info.tech.htt	= (regs.edx & BIT!(28)) != 0;
 	
-	switch (info.vendor_id) {
+	switch (info.vendorId) {
 	case Vendor.AMD:
 		if (info.tech.htt)
-			info.cores.logical = info.acpi.max_apic_id;
+			info.cores.logical = info.acpi.maxApicId;
 		break;
 	default:
 	}
-	
-	if (info.max_leaf < 5) goto L_VIRT;
 	
 	//
 	// Leaf 5H
 	//
 	
+	if (info.maxLeaf < 5) goto L_VIRT;
+	
 	asmcpuid(regs, 5);
 	
-	info.extras.mwait_min = cast(ushort)regs.eax;
-	info.extras.mwait_max = cast(ushort)regs.ebx;
-	
-	if (info.max_leaf < 6) goto L_VIRT;
+	info.extras.mwaitMin = regs.ax;
+	info.extras.mwaitMax = regs.bx;
 	
 	//
 	// Leaf 6H
 	//
 	
+	if (info.maxLeaf < 6) goto L_VIRT;
+	
 	asmcpuid(regs, 6);
 	
-	switch (info.vendor_id) {
+	switch (info.vendorId) {
 	case Vendor.Intel:
 		info.tech.turboboost	= (regs.eax & BIT!(1)) != 0;
 		info.tech.turboboost30	= (regs.eax & BIT!(14)) != 0;
@@ -1222,79 +1230,79 @@ void getInfo(ref CPUINFO info) {
 	
 	info.acpi.arat = (regs.eax & BIT!(2)) != 0;
 	
-	if (info.max_leaf < 7) goto L_VIRT;
-	
 	//
 	// Leaf 7H
 	//
 	
+	if (info.maxLeaf < 7) goto L_VIRT;
+	
 	asmcpuid(regs, 7);
 	
-	switch (info.vendor_id) {
+	switch (info.vendorId) {
 	case Vendor.Intel:
 		// EBX
 		info.sgx.enabled	= (regs.ebx & BIT!(2)) != 0;
-		info.mem.hle	= (regs.ebx & BIT!(4)) != 0;
+		info.memory.hle	= (regs.ebx & BIT!(4)) != 0;
 		info.cache.invpcid	= (regs.ebx & BIT!(10)) != 0;
-		info.mem.rtm	= (regs.ebx & BIT!(11)) != 0;
-		info.ext.avx512f	= (regs.ebx & BIT!(16)) != 0;
-		info.mem.smap	= (regs.ebx & BIT!(20)) != 0;
-		info.ext.avx512er	= (regs.ebx & BIT!(27)) != 0;
-		info.ext.avx512pf	= (regs.ebx & BIT!(26)) != 0;
-		info.ext.avx512cd	= (regs.ebx & BIT!(28)) != 0;
-		info.ext.avx512dq	= (regs.ebx & BIT!(17)) != 0;
-		info.ext.avx512bw	= (regs.ebx & BIT!(30)) != 0;
-		info.ext.avx512_ifma	= (regs.ebx & BIT!(21)) != 0;
-		info.ext.avx512_vbmi	= regs.ebx >= BIT!(31);
+		info.memory.rtm	= (regs.ebx & BIT!(11)) != 0;
+		info.avx.avx512f	= (regs.ebx & BIT!(16)) != 0;
+		info.memory.smap	= (regs.ebx & BIT!(20)) != 0;
+		info.avx.avx512er	= (regs.ebx & BIT!(27)) != 0;
+		info.avx.avx512pf	= (regs.ebx & BIT!(26)) != 0;
+		info.avx.avx512cd	= (regs.ebx & BIT!(28)) != 0;
+		info.avx.avx512dq	= (regs.ebx & BIT!(17)) != 0;
+		info.avx.avx512bw	= (regs.ebx & BIT!(30)) != 0;
+		info.avx.avx512_ifma	= (regs.ebx & BIT!(21)) != 0;
+		info.avx.avx512_vbmi	= regs.ebx >= BIT!(31);
 		// ECX
-		info.ext.avx512vl	= (regs.ecx & BIT!(1)) != 0;
-		info.mem.pku	= (regs.ecx & BIT!(3)) != 0;
-		info.mem.fsrepmov	= (regs.ecx & BIT!(4)) != 0;
-		info.ext.waitpkg	= (regs.ecx & BIT!(5)) != 0;
-		info.ext.avx512_vbmi2	= (regs.ecx & BIT!(6)) != 0;
-		info.sec.cet_ss	= (regs.ecx & BIT!(7)) != 0;
-		info.ext.avx512_gfni	= (regs.ecx & BIT!(8)) != 0;
-		info.ext.avx512_vaes	= (regs.ecx & BIT!(9)) != 0;
-		info.ext.avx512_vnni	= (regs.ecx & BIT!(11)) != 0;
-		info.ext.avx512_bitalg	= (regs.ecx & BIT!(12)) != 0;
-		info.ext.avx512_vpopcntdq	= (regs.ecx & BIT!(14)) != 0;
-		info.mem._5pl	= (regs.ecx & BIT!(16)) != 0;
+		info.avx.avx512vl	= (regs.ecx & BIT!(1)) != 0;
+		info.memory.pku	= (regs.ecx & BIT!(3)) != 0;
+		info.memory.fsrepmov	= (regs.ecx & BIT!(4)) != 0;
+		info.extensions.waitpkg	= (regs.ecx & BIT!(5)) != 0;
+		info.avx.avx512_vbmi2	= (regs.ecx & BIT!(6)) != 0;
+		info.security.cetSs	= (regs.ecx & BIT!(7)) != 0;
+		info.avx.avx512_gfni	= (regs.ecx & BIT!(8)) != 0;
+		info.avx.avx512_vaes	= (regs.ecx & BIT!(9)) != 0;
+		info.avx.avx512_vnni	= (regs.ecx & BIT!(11)) != 0;
+		info.avx.avx512_bitalg	= (regs.ecx & BIT!(12)) != 0;
+		info.avx.avx512_vpopcntdq	= (regs.ecx & BIT!(14)) != 0;
+		info.memory._5pl	= (regs.ecx & BIT!(16)) != 0;
 		info.extras.cldemote	= (regs.ecx & BIT!(25)) != 0;
 		info.extras.movdiri	= (regs.ecx & BIT!(27)) != 0;
 		info.extras.movdir64b	= (regs.ecx & BIT!(28)) != 0;
 		info.extras.enqcmd	= (regs.ecx & BIT!(29)) != 0;
 		// EDX
-		info.ext.avx512_4vnniw	= (regs.edx & BIT!(2)) != 0;
-		info.ext.avx512_4fmaps	= (regs.edx & BIT!(3)) != 0;
+		info.avx.avx512_4vnniw	= (regs.edx & BIT!(2)) != 0;
+		info.avx.avx512_4fmaps	= (regs.edx & BIT!(3)) != 0;
 		info.misc.uintr	= (regs.edx & BIT!(5)) != 0;
-		info.ext.avx512_vp2intersect	= (regs.edx & BIT!(8)) != 0;
-		info.sec.md_clear	= (regs.edx & BIT!(10)) != 0;
+		info.avx.avx512_vp2intersect	= (regs.edx & BIT!(8)) != 0;
+		info.security.md_clear	= (regs.edx & BIT!(10)) != 0;
 		info.extras.serialize	= (regs.edx & BIT!(14)) != 0;
-		info.mem.tsxldtrk	= (regs.edx & BIT!(16)) != 0;
+		info.memory.tsxldtrk	= (regs.edx & BIT!(16)) != 0;
 		info.extras.pconfig	= (regs.edx & BIT!(18)) != 0;
-		info.sec.cet_ibt	= (regs.edx & BIT!(20)) != 0;
-		info.ext.amx_bf16	= (regs.edx & BIT!(22)) != 0;
-		info.ext.amx	= (regs.edx & BIT!(24)) != 0;
-		info.ext.amx_int8	= (regs.edx & BIT!(25)) != 0;
-		info.sec.ibrs = (regs.edx & BIT!(26)) != 0;
-		info.sec.stibp	= (regs.edx & BIT!(27)) != 0;
-		info.sec.l1d_flush	= (regs.edx & BIT!(28)) != 0;
-		info.sec.ia32_arch_capabilities	= (regs.edx & BIT!(29)) != 0;
-		info.sec.ssbd	= regs.edx >= BIT!(31);
+		info.security.cetIbt	= (regs.edx & BIT!(20)) != 0;
+		info.amx.bf16	= (regs.edx & BIT!(22)) != 0;
+		info.amx.enabled	= (regs.edx & BIT!(24)) != 0;
+		info.amx.int8	= (regs.edx & BIT!(25)) != 0;
+		info.security.ibrs = (regs.edx & BIT!(26)) != 0;
+		info.security.stibp	= (regs.edx & BIT!(27)) != 0;
+		info.security.l1dFlush	= (regs.edx & BIT!(28)) != 0;
+		info.security.ia32_arch_capabilities	= (regs.edx & BIT!(29)) != 0;
+		info.security.ssbd	= regs.edx >= BIT!(31);
 		break;
 	default:
 	}
 
 	// ebx
 	info.misc.fsgsbase	= (regs.ebx & BIT!(0)) != 0;
-	info.ext.bmi1	= (regs.ebx & BIT!(3)) != 0;
-	info.ext.avx2	= (regs.ebx & BIT!(5)) != 0;
-	info.mem.smep	= (regs.ebx & BIT!(7)) != 0;
-	info.ext.bmi2	= (regs.ebx & BIT!(8)) != 0;
+	info.extensions.bmi1	= (regs.ebx & BIT!(3)) != 0;
+	info.avx.avx2	= (regs.ebx & BIT!(5)) != 0;
+	info.memory.smep	= (regs.ebx & BIT!(7)) != 0;
+	info.extensions.bmi2	= (regs.ebx & BIT!(8)) != 0;
 	info.extras.rdseed	= (regs.ebx & BIT!(18)) != 0;
-	info.ext.adx	= (regs.ebx & BIT!(19)) != 0;
+	info.extensions.adx	= (regs.ebx & BIT!(19)) != 0;
 	info.cache.clflushopt	= (regs.ebx & BIT!(23)) != 0;
-	info.ext.sha	= (regs.ebx & BIT!(29)) != 0;
+	info.extensions.sha	= (regs.ebx & BIT!(29)) != 0;
 	// ecx
 	info.extras.rdpid	= (regs.ecx & BIT!(22)) != 0;
 	
@@ -1302,27 +1310,27 @@ void getInfo(ref CPUINFO info) {
 	// Leaf 7H(ECX=01h)
 	//
 	
-	switch (info.vendor_id) {
+	switch (info.vendorId) {
 	case Vendor.Intel:
 		asmcpuid(regs, 7, 1);
 		// a
-		info.ext.avx512_bf16	= (regs.eax & BIT!(5)) != 0;
-		info.mem.lam	= (regs.eax & BIT!(26)) != 0;
+		info.avx.avx512_bf16	= (regs.eax & BIT!(5)) != 0;
+		info.memory.lam	= (regs.eax & BIT!(26)) != 0;
 		break;
 	default:
 	}
-	
-	if (info.max_leaf < 0xd) goto L_VIRT;
 	
 	//
 	// Leaf DH
 	//
 	
-	switch (info.vendor_id) {
+	if (info.maxLeaf < 0xd) goto L_VIRT;
+	
+	switch (info.vendorId) {
 	case Vendor.Intel:
 		asmcpuid(regs, 0xd);
-		info.ext.amx_xtilecfg	= (regs.eax & BIT!(17)) != 0;
-		info.ext.amx_xtiledata	= (regs.eax & BIT!(18)) != 0;
+		info.amx.xtilecfg	= (regs.eax & BIT!(17)) != 0;
+		info.amx.xtiledata	= (regs.eax & BIT!(18)) != 0;
 		break;
 	default:
 	}
@@ -1331,17 +1339,21 @@ void getInfo(ref CPUINFO info) {
 	// Leaf DH(ECX=01h)
 	//
 	
-	switch (info.vendor_id) {
+	switch (info.vendorId) {
 	case Vendor.Intel:
 		asmcpuid(regs, 0xd, 1);
-		info.ext.amx_xfd	= (regs.eax & BIT!(18)) != 0;
+		info.amx.xfd	= (regs.eax & BIT!(18)) != 0;
 		break;
 	default:
 	}
 	
-	if (info.max_virt_leaf < 0x12) goto L_VIRT;
+	//
+	// Leaf 12H
+	//
 	
-	switch (info.vendor_id) {
+	if (info.maxLeafVirt < 0x12) goto L_VIRT;
+	
+	switch (info.vendorId) {
 	case Vendor.Intel:
 		if (info.sgx.enabled == false) goto L_VIRT;
 		asmcpuid(regs, 0x12);
@@ -1356,187 +1368,187 @@ void getInfo(ref CPUINFO info) {
 	//
 	
 L_VIRT:
-	if (info.max_virt_leaf < 0x4000_0000) goto L_VIRT;
+	if (info.maxLeafVirt < 0x4000_0000) goto L_EXTENDED;
 	
 	getVirtVendor(info);
-
-	if (info.max_virt_leaf < 0x4000_0001) goto L_EXTENDED;
 	
 	//
 	// Leaf 4000_0001H
 	//
+
+	if (info.maxLeafVirt < 0x4000_0001) goto L_EXTENDED;
 	
-	switch (info.virt.vendor_id) {
+	switch (info.virt.vendorId) {
 	case VirtVendor.KVM:
 		asmcpuid(regs, 0x4000_0001);
-		info.virt.kvm_feature_clocksource	= (regs.eax & BIT!(0)) != 0;
-		info.virt.kvm_feature_nop_io_delay	= (regs.eax & BIT!(1)) != 0;
-		info.virt.kvm_feature_mmu_op	= (regs.eax & BIT!(2)) != 0;
-		info.virt.kvm_feature_clocksource2	= (regs.eax & BIT!(3)) != 0;
-		info.virt.kvm_feature_async_pf	= (regs.eax & BIT!(4)) != 0;
-		info.virt.kvm_feature_steal_time	= (regs.eax & BIT!(5)) != 0;
-		info.virt.kvm_feature_pv_eoi	= (regs.eax & BIT!(6)) != 0;
-		info.virt.kvm_feature_pv_unhault	= (regs.eax & BIT!(7)) != 0;
-		info.virt.kvm_feature_pv_tlb_flush	= (regs.eax & BIT!(9)) != 0;
-		info.virt.kvm_feature_async_pf_vmexit	= (regs.eax & BIT!(10)) != 0;
-		info.virt.kvm_feature_pv_send_ipi	= (regs.eax & BIT!(11)) != 0;
-		info.virt.kvm_feature_pv_poll_control	= (regs.eax & BIT!(12)) != 0;
-		info.virt.kvm_feature_pv_sched_yield	= (regs.eax & BIT!(13)) != 0;
-		info.virt.kvm_feature_clocsource_stable_bit	= (regs.eax & BIT!(24)) != 0;
-		info.virt.kvm_hint_realtime	= (regs.edx & BIT!(0)) != 0;
+		info.virt.kvm.feature_clocksource	= (regs.eax & BIT!(0)) != 0;
+		info.virt.kvm.feature_nop_io_delay	= (regs.eax & BIT!(1)) != 0;
+		info.virt.kvm.feature_mmu_op	= (regs.eax & BIT!(2)) != 0;
+		info.virt.kvm.feature_clocksource2	= (regs.eax & BIT!(3)) != 0;
+		info.virt.kvm.feature_async_pf	= (regs.eax & BIT!(4)) != 0;
+		info.virt.kvm.feature_steal_time	= (regs.eax & BIT!(5)) != 0;
+		info.virt.kvm.feature_pv_eoi	= (regs.eax & BIT!(6)) != 0;
+		info.virt.kvm.feature_pv_unhault	= (regs.eax & BIT!(7)) != 0;
+		info.virt.kvm.feature_pv_tlb_flush	= (regs.eax & BIT!(9)) != 0;
+		info.virt.kvm.feature_async_pf_vmexit	= (regs.eax & BIT!(10)) != 0;
+		info.virt.kvm.feature_pv_send_ipi	= (regs.eax & BIT!(11)) != 0;
+		info.virt.kvm.feature_pv_poll_control	= (regs.eax & BIT!(12)) != 0;
+		info.virt.kvm.feature_pv_sched_yield	= (regs.eax & BIT!(13)) != 0;
+		info.virt.kvm.feature_clocsource_stable_bit	= (regs.eax & BIT!(24)) != 0;
+		info.virt.kvm.hint_realtime	= (regs.edx & BIT!(0)) != 0;
 		break;
 	default:
 	}
-
-	if (info.max_virt_leaf < 0x4000_0002) goto L_EXTENDED;
 	
 	//
 	// Leaf 4000_002H
 	//
+
+	if (info.maxLeafVirt < 0x4000_0002) goto L_EXTENDED;
 	
-	switch (info.virt.vendor_id) {
+	switch (info.virt.vendorId) {
 	case VirtVendor.HyperV:
 		asmcpuid(regs, 0x4000_0002);
-		info.virt.hv_guest_minor	= cast(ubyte)(regs.eax >> 24);
-		info.virt.hv_guest_service	= cast(ubyte)(regs.eax >> 16);
-		info.virt.hv_guest_build	= cast(ushort)regs.eax;
-		info.virt.hv_guest_opensource	= regs.edx >= BIT!(31);
-		info.virt.hv_guest_vendor_id	= (regs.edx >> 16) & 0xFFF;
-		info.virt.hv_guest_os	= cast(ubyte)(regs.edx >> 8);
-		info.virt.hv_guest_major	= cast(ubyte)regs.edx;
+		info.virt.hv.guest_minor	= cast(ubyte)(regs.eax >> 24);
+		info.virt.hv.guest_service	= cast(ubyte)(regs.eax >> 16);
+		info.virt.hv.guest_build	= regs.ax;
+		info.virt.hv.guest_opensource	= regs.edx >= BIT!(31);
+		info.virt.hv.guest_vendor_id	= (regs.edx >> 16) & 0xFFF;
+		info.virt.hv.guest_os	= regs.dh;
+		info.virt.hv.guest_major	= regs.dl;
 		break;
 	default:
 	}
-
-	if (info.max_virt_leaf < 0x4000_0003) goto L_EXTENDED;
 	
 	//
 	// Leaf 4000_0003H
 	//
+
+	if (info.maxLeafVirt < 0x4000_0003) goto L_EXTENDED;
 	
-	switch (info.virt.vendor_id) {
+	switch (info.virt.vendorId) {
 	case VirtVendor.HyperV:
 		asmcpuid(regs, 0x4000_0003);
-		info.virt.hv_base_feat_vp_runtime_msr	= (regs.eax & BIT!(0)) != 0;
-		info.virt.hv_base_feat_part_time_ref_count_msr	= (regs.eax & BIT!(1)) != 0;
-		info.virt.hv_base_feat_basic_synic_msrs	= (regs.eax & BIT!(2)) != 0;
-		info.virt.hv_base_feat_stimer_msrs	= (regs.eax & BIT!(3)) != 0;
-		info.virt.hv_base_feat_apic_access_msrs	= (regs.eax & BIT!(4)) != 0;
-		info.virt.hv_base_feat_hypercall_msrs	= (regs.eax & BIT!(5)) != 0;
-		info.virt.hv_base_feat_vp_id_msr	= (regs.eax & BIT!(6)) != 0;
-		info.virt.hv_base_feat_virt_sys_reset_msr	= (regs.eax & BIT!(7)) != 0;
-		info.virt.hv_base_feat_stat_pages_msr	= (regs.eax & BIT!(8)) != 0;
-		info.virt.hv_base_feat_part_ref_tsc_msr	= (regs.eax & BIT!(9)) != 0;
-		info.virt.hv_base_feat_guest_idle_state_msr	= (regs.eax & BIT!(10)) != 0;
-		info.virt.hv_base_feat_timer_freq_msrs	= (regs.eax & BIT!(11)) != 0;
-		info.virt.hv_base_feat_debug_msrs	= (regs.eax & BIT!(12)) != 0;
-		info.virt.hv_part_flags_create_part	= (regs.ebx & BIT!(0)) != 0;
-		info.virt.hv_part_flags_access_part_id	= (regs.ebx & BIT!(1)) != 0;
-		info.virt.hv_part_flags_access_memory_pool	= (regs.ebx & BIT!(2)) != 0;
-		info.virt.hv_part_flags_adjust_msg_buffers	= (regs.ebx & BIT!(3)) != 0;
-		info.virt.hv_part_flags_post_msgs	= (regs.ebx & BIT!(4)) != 0;
-		info.virt.hv_part_flags_signal_events	= (regs.ebx & BIT!(5)) != 0;
-		info.virt.hv_part_flags_create_port	= (regs.ebx & BIT!(6)) != 0;
-		info.virt.hv_part_flags_connect_port	= (regs.ebx & BIT!(7)) != 0;
-		info.virt.hv_part_flags_access_stats	= (regs.ebx & BIT!(8)) != 0;
-		info.virt.hv_part_flags_debugging	= (regs.ebx & BIT!(11)) != 0;
-		info.virt.hv_part_flags_cpu_mgmt	= (regs.ebx & BIT!(12)) != 0;
-		info.virt.hv_part_flags_cpu_profiler	= (regs.ebx & BIT!(13)) != 0;
-		info.virt.hv_part_flags_expanded_stack_walk	= (regs.ebx & BIT!(14)) != 0;
-		info.virt.hv_part_flags_access_vsm	= (regs.ebx & BIT!(16)) != 0;
-		info.virt.hv_part_flags_access_vp_regs	= (regs.ebx & BIT!(17)) != 0;
-		info.virt.hv_part_flags_extended_hypercalls	= (regs.ebx & BIT!(20)) != 0;
-		info.virt.hv_part_flags_start_vp	= (regs.ebx & BIT!(21)) != 0;
-		info.virt.hv_pm_max_cpu_power_state_c0	= (regs.ecx & BIT!(0)) != 0;
-		info.virt.hv_pm_max_cpu_power_state_c1	= (regs.ecx & BIT!(1)) != 0;
-		info.virt.hv_pm_max_cpu_power_state_c2	= (regs.ecx & BIT!(2)) != 0;
-		info.virt.hv_pm_max_cpu_power_state_c3	= (regs.ecx & BIT!(3)) != 0;
-		info.virt.hv_pm_hpet_reqd_for_c3	= (regs.ecx & BIT!(4)) != 0;
-		info.virt.hv_misc_feat_mwait	= (regs.eax & BIT!(0)) != 0;
-		info.virt.hv_misc_feat_guest_debugging	= (regs.eax & BIT!(1)) != 0;
-		info.virt.hv_misc_feat_perf_mon	= (regs.eax & BIT!(2)) != 0;
-		info.virt.hv_misc_feat_pcpu_dyn_part_event	= (regs.eax & BIT!(3)) != 0;
-		info.virt.hv_misc_feat_xmm_hypercall_input	= (regs.eax & BIT!(4)) != 0;
-		info.virt.hv_misc_feat_guest_idle_state	= (regs.eax & BIT!(5)) != 0;
-		info.virt.hv_misc_feat_hypervisor_sleep_state	= (regs.eax & BIT!(6)) != 0;
-		info.virt.hv_misc_feat_query_numa_distance	= (regs.eax & BIT!(7)) != 0;
-		info.virt.hv_misc_feat_timer_freq	= (regs.eax & BIT!(8)) != 0;
-		info.virt.hv_misc_feat_inject_synmc_xcpt	= (regs.eax & BIT!(9)) != 0;
-		info.virt.hv_misc_feat_guest_crash_msrs	= (regs.eax & BIT!(10)) != 0;
-		info.virt.hv_misc_feat_debug_msrs	= (regs.eax & BIT!(11)) != 0;
-		info.virt.hv_misc_feat_npiep1	= (regs.eax & BIT!(12)) != 0;
-		info.virt.hv_misc_feat_disable_hypervisor	= (regs.eax & BIT!(13)) != 0;
-		info.virt.hv_misc_feat_ext_gva_range_for_flush_va_list	= (regs.eax & BIT!(14)) != 0;
-		info.virt.hv_misc_feat_hypercall_output_xmm	= (regs.eax & BIT!(15)) != 0;
-		info.virt.hv_misc_feat_sint_polling_mode	= (regs.eax & BIT!(17)) != 0;
-		info.virt.hv_misc_feat_hypercall_msr_lock	= (regs.eax & BIT!(18)) != 0;
-		info.virt.hv_misc_feat_use_direct_synth_msrs	= (regs.eax & BIT!(19)) != 0;
+		info.virt.hv.base_feat_vp_runtime_msr	= (regs.eax & BIT!(0)) != 0;
+		info.virt.hv.base_feat_part_time_ref_count_msr	= (regs.eax & BIT!(1)) != 0;
+		info.virt.hv.base_feat_basic_synic_msrs	= (regs.eax & BIT!(2)) != 0;
+		info.virt.hv.base_feat_stimer_msrs	= (regs.eax & BIT!(3)) != 0;
+		info.virt.hv.base_feat_apic_access_msrs	= (regs.eax & BIT!(4)) != 0;
+		info.virt.hv.base_feat_hypercall_msrs	= (regs.eax & BIT!(5)) != 0;
+		info.virt.hv.base_feat_vp_id_msr	= (regs.eax & BIT!(6)) != 0;
+		info.virt.hv.base_feat_virt_sys_reset_msr	= (regs.eax & BIT!(7)) != 0;
+		info.virt.hv.base_feat_stat_pages_msr	= (regs.eax & BIT!(8)) != 0;
+		info.virt.hv.base_feat_part_ref_tsc_msr	= (regs.eax & BIT!(9)) != 0;
+		info.virt.hv.base_feat_guest_idle_state_msr	= (regs.eax & BIT!(10)) != 0;
+		info.virt.hv.base_feat_timer_freq_msrs	= (regs.eax & BIT!(11)) != 0;
+		info.virt.hv.base_feat_debug_msrs	= (regs.eax & BIT!(12)) != 0;
+		info.virt.hv.part_flags_create_part	= (regs.ebx & BIT!(0)) != 0;
+		info.virt.hv.part_flags_access_part_id	= (regs.ebx & BIT!(1)) != 0;
+		info.virt.hv.part_flags_access_memory_pool	= (regs.ebx & BIT!(2)) != 0;
+		info.virt.hv.part_flags_adjust_msg_buffers	= (regs.ebx & BIT!(3)) != 0;
+		info.virt.hv.part_flags_post_msgs	= (regs.ebx & BIT!(4)) != 0;
+		info.virt.hv.part_flags_signal_events	= (regs.ebx & BIT!(5)) != 0;
+		info.virt.hv.part_flags_create_port	= (regs.ebx & BIT!(6)) != 0;
+		info.virt.hv.part_flags_connect_port	= (regs.ebx & BIT!(7)) != 0;
+		info.virt.hv.part_flags_access_stats	= (regs.ebx & BIT!(8)) != 0;
+		info.virt.hv.part_flags_debugging	= (regs.ebx & BIT!(11)) != 0;
+		info.virt.hv.part_flags_cpu_mgmt	= (regs.ebx & BIT!(12)) != 0;
+		info.virt.hv.part_flags_cpu_profiler	= (regs.ebx & BIT!(13)) != 0;
+		info.virt.hv.part_flags_expanded_stack_walk	= (regs.ebx & BIT!(14)) != 0;
+		info.virt.hv.part_flags_access_vsm	= (regs.ebx & BIT!(16)) != 0;
+		info.virt.hv.part_flags_access_vp_regs	= (regs.ebx & BIT!(17)) != 0;
+		info.virt.hv.part_flags_extended_hypercalls	= (regs.ebx & BIT!(20)) != 0;
+		info.virt.hv.part_flags_start_vp	= (regs.ebx & BIT!(21)) != 0;
+		info.virt.hv.pm_max_cpu_power_state_c0	= (regs.ecx & BIT!(0)) != 0;
+		info.virt.hv.pm_max_cpu_power_state_c1	= (regs.ecx & BIT!(1)) != 0;
+		info.virt.hv.pm_max_cpu_power_state_c2	= (regs.ecx & BIT!(2)) != 0;
+		info.virt.hv.pm_max_cpu_power_state_c3	= (regs.ecx & BIT!(3)) != 0;
+		info.virt.hv.pm_hpet_reqd_for_c3	= (regs.ecx & BIT!(4)) != 0;
+		info.virt.hv.misc_feat_mwait	= (regs.eax & BIT!(0)) != 0;
+		info.virt.hv.misc_feat_guest_debugging	= (regs.eax & BIT!(1)) != 0;
+		info.virt.hv.misc_feat_perf_mon	= (regs.eax & BIT!(2)) != 0;
+		info.virt.hv.misc_feat_pcpu_dyn_part_event	= (regs.eax & BIT!(3)) != 0;
+		info.virt.hv.misc_feat_xmm_hypercall_input	= (regs.eax & BIT!(4)) != 0;
+		info.virt.hv.misc_feat_guest_idle_state	= (regs.eax & BIT!(5)) != 0;
+		info.virt.hv.misc_feat_hypervisor_sleep_state	= (regs.eax & BIT!(6)) != 0;
+		info.virt.hv.misc_feat_query_numa_distance	= (regs.eax & BIT!(7)) != 0;
+		info.virt.hv.misc_feat_timer_freq	= (regs.eax & BIT!(8)) != 0;
+		info.virt.hv.misc_feat_inject_synmc_xcpt	= (regs.eax & BIT!(9)) != 0;
+		info.virt.hv.misc_feat_guest_crash_msrs	= (regs.eax & BIT!(10)) != 0;
+		info.virt.hv.misc_feat_debug_msrs	= (regs.eax & BIT!(11)) != 0;
+		info.virt.hv.misc_feat_npiep1	= (regs.eax & BIT!(12)) != 0;
+		info.virt.hv.misc_feat_disable_hypervisor	= (regs.eax & BIT!(13)) != 0;
+		info.virt.hv.misc_feat_ext_gva_range_for_flush_va_list	= (regs.eax & BIT!(14)) != 0;
+		info.virt.hv.misc_feat_hypercall_output_xmm	= (regs.eax & BIT!(15)) != 0;
+		info.virt.hv.misc_feat_sint_polling_mode	= (regs.eax & BIT!(17)) != 0;
+		info.virt.hv.misc_feat_hypercall_msr_lock	= (regs.eax & BIT!(18)) != 0;
+		info.virt.hv.misc_feat_use_direct_synth_msrs	= (regs.eax & BIT!(19)) != 0;
 		break;
 	default:
 	}
-
-	if (info.max_virt_leaf < 0x4000_0004) goto L_EXTENDED;
 	
 	//
 	// Leaf 4000_0004H
 	//
+
+	if (info.maxLeafVirt < 0x4000_0004) goto L_EXTENDED;
 	
-	switch (info.virt.vendor_id) {
+	switch (info.virt.vendorId) {
 	case VirtVendor.HyperV:
 		asmcpuid(regs, 0x4000_0004);
-		info.virt.hv_hint_hypercall_for_process_switch	= (regs.eax & BIT!(0)) != 0;
-		info.virt.hv_hint_hypercall_for_tlb_flush	= (regs.eax & BIT!(1)) != 0;
-		info.virt.hv_hint_hypercall_for_tlb_shootdown	= (regs.eax & BIT!(2)) != 0;
-		info.virt.hv_hint_msr_for_apic_access	= (regs.eax & BIT!(3)) != 0;
-		info.virt.hv_hint_msr_for_sys_reset	= (regs.eax & BIT!(4)) != 0;
-		info.virt.hv_hint_relax_time_checks	= (regs.eax & BIT!(5)) != 0;
-		info.virt.hv_hint_dma_remapping	= (regs.eax & BIT!(6)) != 0;
-		info.virt.hv_hint_interrupt_remapping	= (regs.eax & BIT!(7)) != 0;
-		info.virt.hv_hint_x2apic_msrs	= (regs.eax & BIT!(8)) != 0;
-		info.virt.hv_hint_deprecate_auto_eoi	= (regs.eax & BIT!(9)) != 0;
-		info.virt.hv_hint_synth_cluster_ipi_hypercall	= (regs.eax & BIT!(10)) != 0;
-		info.virt.hv_hint_ex_proc_masks_interface	= (regs.eax & BIT!(11)) != 0;
-		info.virt.hv_hint_nested_hyperv	= (regs.eax & BIT!(12)) != 0;
-		info.virt.hv_hint_int_for_mbec_syscalls	= (regs.eax & BIT!(13)) != 0;
-		info.virt.hv_hint_nested_enlightened_vmcs_interface	= (regs.eax & BIT!(14)) != 0;
+		info.virt.hv.hint_hypercall_for_process_switch	= (regs.eax & BIT!(0)) != 0;
+		info.virt.hv.hint_hypercall_for_tlb_flush	= (regs.eax & BIT!(1)) != 0;
+		info.virt.hv.hint_hypercall_for_tlb_shootdown	= (regs.eax & BIT!(2)) != 0;
+		info.virt.hv.hint_msr_for_apic_access	= (regs.eax & BIT!(3)) != 0;
+		info.virt.hv.hint_msr_for_sys_reset	= (regs.eax & BIT!(4)) != 0;
+		info.virt.hv.hint_relax_time_checks	= (regs.eax & BIT!(5)) != 0;
+		info.virt.hv.hint_dma_remapping	= (regs.eax & BIT!(6)) != 0;
+		info.virt.hv.hint_interrupt_remapping	= (regs.eax & BIT!(7)) != 0;
+		info.virt.hv.hint_x2apic_msrs	= (regs.eax & BIT!(8)) != 0;
+		info.virt.hv.hint_deprecate_auto_eoi	= (regs.eax & BIT!(9)) != 0;
+		info.virt.hv.hint_synth_cluster_ipi_hypercall	= (regs.eax & BIT!(10)) != 0;
+		info.virt.hv.hint_ex_proc_masks_interface	= (regs.eax & BIT!(11)) != 0;
+		info.virt.hv.hint_nested_hyperv	= (regs.eax & BIT!(12)) != 0;
+		info.virt.hv.hint_int_for_mbec_syscalls	= (regs.eax & BIT!(13)) != 0;
+		info.virt.hv.hint_nested_enlightened_vmcs_interface	= (regs.eax & BIT!(14)) != 0;
 		break;
 	default:
 	}
-
-	if (info.max_virt_leaf < 0x4000_0006) goto L_EXTENDED;
 	
 	//
 	// Leaf 4000_0006H
 	//
+
+	if (info.maxLeafVirt < 0x4000_0006) goto L_EXTENDED;
 	
-	switch (info.virt.vendor_id) {
+	switch (info.virt.vendorId) {
 	case VirtVendor.HyperV:
 		asmcpuid(regs, 0x4000_0006);
-		info.virt.hv_host_feat_avic	= (regs.eax & BIT!(0)) != 0;
-		info.virt.hv_host_feat_msr_bitmap	= (regs.eax & BIT!(1)) != 0;
-		info.virt.hv_host_feat_perf_counter	= (regs.eax & BIT!(2)) != 0;
-		info.virt.hv_host_feat_nested_paging	= (regs.eax & BIT!(3)) != 0;
-		info.virt.hv_host_feat_dma_remapping	= (regs.eax & BIT!(4)) != 0;
-		info.virt.hv_host_feat_interrupt_remapping	= (regs.eax & BIT!(5)) != 0;
-		info.virt.hv_host_feat_mem_patrol_scrubber	= (regs.eax & BIT!(6)) != 0;
-		info.virt.hv_host_feat_dma_prot_in_use	= (regs.eax & BIT!(7)) != 0;
-		info.virt.hv_host_feat_hpet_requested	= (regs.eax & BIT!(8)) != 0;
-		info.virt.hv_host_feat_stimer_volatile	= (regs.eax & BIT!(9)) != 0;
+		info.virt.hv.host_feat_avic	= (regs.eax & BIT!(0)) != 0;
+		info.virt.hv.host_feat_msr_bitmap	= (regs.eax & BIT!(1)) != 0;
+		info.virt.hv.host_feat_perf_counter	= (regs.eax & BIT!(2)) != 0;
+		info.virt.hv.host_feat_nested_paging	= (regs.eax & BIT!(3)) != 0;
+		info.virt.hv.host_feat_dma_remapping	= (regs.eax & BIT!(4)) != 0;
+		info.virt.hv.host_feat_interrupt_remapping	= (regs.eax & BIT!(5)) != 0;
+		info.virt.hv.host_feat_mem_patrol_scrubber	= (regs.eax & BIT!(6)) != 0;
+		info.virt.hv.host_feat_dma_prot_in_use	= (regs.eax & BIT!(7)) != 0;
+		info.virt.hv.host_feat_hpet_requested	= (regs.eax & BIT!(8)) != 0;
+		info.virt.hv.host_feat_stimer_volatile	= (regs.eax & BIT!(9)) != 0;
 		break;
 	default:
 	}
-
-	if (info.max_virt_leaf < 0x4000_0010) goto L_EXTENDED;
 	
 	//
 	// Leaf 4000_0010H
 	//
+
+	if (info.maxLeafVirt < 0x4000_0010) goto L_EXTENDED;
 	
-	switch (info.virt.vendor_id) {
+	switch (info.virt.vendorId) {
 	case VirtVendor.VBoxMin: // VBox Minimal
 		asmcpuid(regs, 0x4000_0010);
-		info.virt.vbox_tsc_freq_khz = regs.eax;
-		info.virt.vbox_apic_freq_khz = regs.ebx;
+		info.virt.vbox.tsc_freq_khz = regs.eax;
+		info.virt.vbox.apic_freq_khz = regs.ebx;
 		break;
 	default:
 	}
@@ -1548,45 +1560,45 @@ L_VIRT:
 L_EXTENDED:
 	asmcpuid(regs, 0x8000_0001);
 	
-	switch (info.vendor_id) {
+	switch (info.vendorId) {
 	case Vendor.AMD:
 		// ecx
 		info.virt.available	= (regs.ecx & BIT!(2)) != 0;
 		info.acpi.x2apic	= (regs.ecx & BIT!(3)) != 0;
-		info.ext.sse4a	= (regs.ecx & BIT!(6)) != 0;
-		info.ext.xop	= (regs.ecx & BIT!(11)) != 0;
+		info.sse.sse4a	= (regs.ecx & BIT!(6)) != 0;
+		info.extensions.xop	= (regs.ecx & BIT!(11)) != 0;
 		info.extras.skinit	= (regs.ecx & BIT!(12)) != 0;
-		info.ext.fma4	= (regs.ecx & BIT!(16)) != 0;
-		info.ext.tbm	= (regs.ecx & BIT!(21)) != 0;
+		info.extensions.fma4	= (regs.ecx & BIT!(16)) != 0;
+		info.extensions.tbm	= (regs.ecx & BIT!(21)) != 0;
 		// edx
-		info.ext.mmxext	= (regs.edx & BIT!(22)) != 0;
-		info.ext._3dnowext	= (regs.edx & BIT!(30)) != 0;
-		info.ext._3dnow	= regs.edx >= BIT!(31);
+		info.extensions.mmxExtended	= (regs.edx & BIT!(22)) != 0;
+		info.extensions._3DNowExtended	= (regs.edx & BIT!(30)) != 0;
+		info.extensions._3DNow	= regs.edx >= BIT!(31);
 		break;
 	default:
 	}
 	
 	// ecx
-	info.ext.lahf64	= (regs.ecx & BIT!(0)) != 0;
+	info.extensions.lahf64	= (regs.ecx & BIT!(0)) != 0;
 	info.extras.lzcnt	= (regs.ecx & BIT!(5)) != 0;
 	info.cache.prefetchw	= (regs.ecx & BIT!(8)) != 0;
 	info.extras.monitorx	= (regs.ecx & BIT!(29)) != 0;
 	// edx
 	info.extras.syscall	= (regs.edx & BIT!(11)) != 0;
-	info.mem.nx	= (regs.edx & BIT!(20)) != 0;
-	info.mem.page1gb	= (regs.edx & BIT!(26)) != 0;
+	info.memory.nx	= (regs.edx & BIT!(20)) != 0;
+	info.memory.page1gb	= (regs.edx & BIT!(26)) != 0;
 	info.extras.rdtscp	= (regs.edx & BIT!(27)) != 0;
-	info.ext.x86_64	= (regs.edx & BIT!(29)) != 0;
-	
-	if (info.max_ext_leaf < 0x8000_0007) goto L_CACHE_INFO;
+	info.extensions.x86_64	= (regs.edx & BIT!(29)) != 0;
 	
 	//
 	// Leaf 8000_0007H
 	//
 	
+	if (info.maxLeafExtended < 0x8000_0007) goto L_CACHE_INFO;
+	
 	asmcpuid(regs, 0x8000_0007);
 	
-	switch (info.vendor_id) {
+	switch (info.vendorId) {
 	case Vendor.Intel:
 		info.extras.rdseed	= (regs.ebx & BIT!(28)) != 0;
 		break;
@@ -1597,52 +1609,52 @@ L_EXTENDED:
 	default:
 	}
 	
-	info.extras.rdtsc_invariant	= (regs.edx & BIT!(8)) != 0;
-	
-	if (info.max_ext_leaf < 0x8000_0008) goto L_CACHE_INFO;
+	info.extras.rdtscInvariant	= (regs.edx & BIT!(8)) != 0;
 	
 	//
 	// Leaf 8000_0008H
 	//
 	
+	if (info.maxLeafExtended < 0x8000_0008) goto L_CACHE_INFO;
+	
 	asmcpuid(regs, 0x8000_0008);
 	
-	switch (info.vendor_id) {
+	switch (info.vendorId) {
 	case Vendor.Intel:
 		info.cache.wbnoinvd	= (regs.ebx & BIT!(9)) != 0;
 		break;
 	case Vendor.AMD:
-		info.sec.ibpb	= (regs.ebx & BIT!(12)) != 0;
-		info.sec.ibrs	= (regs.ebx & BIT!(14)) != 0;
-		info.sec.stibp	= (regs.ebx & BIT!(15)) != 0;
-		info.sec.ibrs_on	= (regs.ebx & BIT!(16)) != 0;
-		info.sec.stibp_on	= (regs.ebx & BIT!(17)) != 0;
-		info.sec.ibrs_pref	= (regs.ebx & BIT!(18)) != 0;
-		info.sec.ssbd	= (regs.ebx & BIT!(24)) != 0;
-		info.cores.logical	= (cast(ubyte)regs.ecx) + 1;
+		info.security.ibpb	= (regs.ebx & BIT!(12)) != 0;
+		info.security.ibrs	= (regs.ebx & BIT!(14)) != 0;
+		info.security.stibp	= (regs.ebx & BIT!(15)) != 0;
+		info.security.ibrsAlwaysOn	= (regs.ebx & BIT!(16)) != 0;
+		info.security.stibpAlwaysOn	= (regs.ebx & BIT!(17)) != 0;
+		info.security.ibrsPreferred	= (regs.ebx & BIT!(18)) != 0;
+		info.security.ssbd	= (regs.ebx & BIT!(24)) != 0;
+		info.cores.logical	= regs.cl + 1;
 		break;
 	default:
 	}
 
-	info.mem.b_8000_0008_ax = cast(ushort)regs.eax; // info.addr_phys_bits, info.addr_line_bits
-
-	if (info.max_ext_leaf < 0x8000_000A) goto L_CACHE_INFO;
+	info.memory.b_8000_0008_ax = regs.ax; // info.addr_phys_bits, info.addr_line_bits
 	
 	//
 	// Leaf 8000_000AH
 	//
+
+	if (info.maxLeafExtended < 0x8000_000A) goto L_CACHE_INFO;
 	
 	asmcpuid(regs, 0x8000_000A);
 	
-	switch (info.vendor_id) {
+	switch (info.vendorId) {
 	case Vendor.AMD:
-		info.virt.version_	= cast(ubyte)regs.eax; // EAX[7:0]
-		info.virt.apivc	= (regs.edx & BIT!(13)) != 0;
+		info.virt.version_	= regs.al; // EAX[7:0]
+		info.virt.apicv	= (regs.edx & BIT!(13)) != 0;
 		break;
 	default:
 	}
 
-	//if (info.max_ext_leaf < ...) goto L_CACHE_INFO;
+	//if (info.maxLeafExtended < ...) goto L_CACHE_INFO;
 	
 L_CACHE_INFO:
 	// Cache information
@@ -1657,12 +1669,12 @@ L_CACHE_INFO:
 	ushort crshrd = void;	/// actual count of shared cores
 	ubyte type = void;
 	ushort clevel;
-	switch (info.vendor_id) {
+	switch (info.vendorId) {
 	case Vendor.Intel:
 		//TODO: Intel cache 1FH
-		//if (info.max_leaf < 0x1f)
+		//if (info.maxLeaf < 0x1f)
 		//	GOTO L_CACHE_INTEL_BH;
-		if (info.max_leaf < 0xb)
+		if (info.maxLeaf < 0xb)
 			goto L_CACHE_INTEL_4H;
 
 		// Usually, ECX=1 will hold EBX=4 (cores)
@@ -1670,14 +1682,14 @@ L_CACHE_INFO:
 L_CACHE_INTEL_BH:
 		asmcpuid(regs, 11, clevel);
 
-		if (cast(ushort)regs.eax == 0) goto L_CACHE_INTEL_4H;
+		if (regs.ax == 0) goto L_CACHE_INTEL_4H;
 
-		switch (cast(ubyte)(regs.ecx >> 8)) {
+		switch (regs.cx >> 8) {
 		case 1: // Core
-			info.cores.logical = cast(ushort)regs.ebx;
+			info.cores.logical = regs.bx;
 			break;
 		case 2: // SMT
-			info.cores.logical = cast(ushort)regs.ebx;
+			info.cores.logical = regs.bx;
 			break;
 		default: assert(0, "implement cache type");
 		}
@@ -1693,11 +1705,11 @@ L_CACHE_INTEL_4H:
 		if (info.cache.levels >= CACHE_MAX_LEVEL) break;
 		
 		ca.type = CACHE_TYPE[type];
-		ca.level = cast(ubyte)((regs.eax >> 5) & 7);
+		ca.level = regs.al >> 5;
 		ca.linesize = cast(ubyte)((regs.ebx & 0x7FF) + 1);
 		ca.partitions = cast(ubyte)(((regs.ebx >> 12) & 0x7FF) + 1);
 		ca.ways = cast(ubyte)((regs.ebx >> 22) + 1);
-		ca.sets = cast(ushort)(regs.ecx + 1);
+		ca.sets = regs.cl + 1;
 		if (regs.eax & BIT!(8)) ca.feat = 1;
 		if (regs.eax & BIT!(9)) ca.feat |= BIT!(1);
 		if (regs.edx & BIT!(0)) ca.feat |= BIT!(2);
@@ -1718,7 +1730,7 @@ L_CACHE_INTEL_4H:
 		++info.cache.levels; ++ca;
 		goto L_CACHE_INTEL_4H;
 	case Vendor.AMD:
-		if (info.max_ext_leaf < 0x8000_001D)
+		if (info.maxLeafExtended < 0x8000_001D)
 			goto L_CACHE_AMD_EXT_5H;
 		
 		//
@@ -1748,7 +1760,7 @@ L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 		sc = cast(ushort)(info.cores.logical / crshrd); // cast for ldc 0.17.1
 		ca.sharedCores = sc ? sc : 1;
 
-		version (Trace) trace("amd.ext.1dh logical=%u shared=%u crshrd=%u sc=%u",
+		version (Trace) trace("amd.extensions.1dh logical=%u shared=%u crshrd=%u sc=%u",
 			info.cores.logical, ca.sharedCores, crshrd, sc);
 		
 		++info.cache.levels; ++ca;
@@ -1772,7 +1784,7 @@ L_CACHE_AMD_EXT_5H:
 		
 		info.cache.levels = 2;
 		
-		if (info.max_ext_leaf < 0x8000_0006)
+		if (info.maxLeafExtended < 0x8000_0006)
 			break; // No L2/L3
 		
 		// See Table E-4. L2/L3 Cache and TLB Associativity Field Encoding
@@ -1791,8 +1803,7 @@ L_CACHE_AMD_EXT_5H:
 			info.cache.level[2].ways = _amd_cache_ways[_amd_ways_l2];
 			info.cache.level[2].size = regs.ecx >> 16;
 			info.cache.level[2].sets = (regs.ecx >> 8) & 7;
-			info.cache.level[2].linesize = cast(ubyte)regs.ecx;
-			
+			info.cache.level[2].linesize = regs.cl;
 			info.cache.levels = 3;
 			
 			ubyte _amd_ways_l3 = (regs.edx >> 12) & 15;
@@ -1802,8 +1813,7 @@ L_CACHE_AMD_EXT_5H:
 				info.cache.level[3].ways = _amd_cache_ways[_amd_ways_l3];
 				info.cache.level[3].size = ((regs.edx >> 18) + 1) * 512;
 				info.cache.level[3].sets = (regs.edx >> 8) & 7;
-				info.cache.level[3].linesize = cast(ubyte)(regs.edx & 0x7F);
-				
+				info.cache.level[3].linesize = regs.dl & 0x7F;
 				info.cache.levels = 4;
 			}
 		}

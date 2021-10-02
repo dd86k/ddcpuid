@@ -528,13 +528,13 @@ L_X86_64_NONE:
 		}
 		printf("\n\tL%u-%c: %ux %4u %ciB, %u ways, %u parts, %u B, %u sets",
 			cache.level, cache.type, cache.sharedCores, cache.size, c,
-			cache.ways, cache.partitions, cache.linesize, cache.sets
+			cache.ways, cache.partitions, cache.lineSize, cache.sets
 		);
-		if (cache.feat & BIT!(0)) printf(" +SI"); // Self Initiative
-		if (cache.feat & BIT!(1)) printf(" +FA"); // Fully Associative
-		if (cache.feat & BIT!(2)) printf(" +NWBV"); // No Write-Back Validation
-		if (cache.feat & BIT!(3)) printf(" +CI"); // Cache Inclusive
-		if (cache.feat & BIT!(4)) printf(" +CCI"); // Complex Cache Indexing
+		if (cache.features & BIT!(0)) printf(" +SI"); // Self Initiative
+		if (cache.features & BIT!(1)) printf(" +FA"); // Fully Associative
+		if (cache.features & BIT!(2)) printf(" +NWBV"); // No Write-Back Validation
+		if (cache.features & BIT!(3)) printf(" +CI"); // Cache Inclusive
+		if (cache.features & BIT!(4)) printf(" +CCI"); // Complex Cache Indexing
 	}
 	
 	printf("\nACPI        :");

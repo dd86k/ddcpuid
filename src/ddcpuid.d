@@ -12,8 +12,8 @@
  *
  * Then checking the corresponding field:
  * ---
- * if (info.extensions.amx_xfd) {
- *   // Intel AMX is available
+ * if (info.extensions.amx.xfd) {
+ *   // Intel AMX with AMX_XFD is available
  * } else {
  *   // Feature unavailable
  * }
@@ -21,7 +21,7 @@
  *
  * See the CPUINFO structure for available fields.
  *
- * For more information, it's encouraged to consult the technical manual.
+ * To further understand these fields, it's encouraged to consult the technical manual.
  *
  * Authors: dd86k (dd@dax.moe)
  * Copyright: © 2016-2021 dd86k
@@ -152,21 +152,26 @@ struct REGISTERS {
 
 /// CPU cache entry
 struct CACHEINFO { align(1):
-	union {
+	deprecated union {
 		package uint __bundle1;
 		struct {
 			ubyte linesize; /// Size of the line in bytes
-			ubyte partitions;	/// Number of partitions
-			ubyte ways;	/// Number of ways per line
+			ubyte partitions_;	/// Number of partitions
+			ubyte ways_;	/// Number of ways per line
 			package ubyte _amdsize;	/// (AMD, legacy) Size in KiB
 		}
 	}
-	/// Cache Size in kilobytes.
-	// (Ways + 1) * (Partitions + 1) * (Line_Size + 1) * (Sets + 1)
+	ushort lineSize;	/// Size of the line in bytes.
+	union {
+		ushort partitions;	/// Number of partitions.
+		ushort lines;	/// AMD legacy way of saying sets.
+	}
+	ushort ways;	/// Number of ways per line.
+	ushort sets; /// Number of cache sets.
+	/// Cache size in kilobytes.
+	// (Ways + 1) * (Partitions + 1) * (LineSize + 1) * (Sets + 1)
 	// (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
 	uint size;
-	/// Number of cache sets.
-	ushort sets;
 	/// Number of CPU cores sharing this cache.
 	ushort sharedCores;
 	/// Cache feature, bit flags.
@@ -175,7 +180,7 @@ struct CACHEINFO { align(1):
 	/// - Bit 2: No Write-Back Invalidation (toggle)
 	/// - Bit 3:  Cache Inclusiveness (toggle)
 	/// - Bit 4: Complex Cache Indexing (toggle)
-	ushort feat;
+	ushort features;
 	ubyte level;	/// Cache level: L1, L2, etc.
 	char type = 0;	/// Type entry character: 'D'=Data, 'I'=Instructions, 'U'=Unified
 }
@@ -1668,7 +1673,7 @@ L_CACHE_INFO:
 	ushort sc = void;	/// raw cores shared across cache level
 	ushort crshrd = void;	/// actual count of shared cores
 	ubyte type = void;
-	ushort clevel;
+	ushort clevel;	/// Current cache level
 	switch (info.vendorId) {
 	case Vendor.Intel:
 		//TODO: Intel cache 1FH
@@ -1676,14 +1681,14 @@ L_CACHE_INFO:
 		//	GOTO L_CACHE_INTEL_BH;
 		if (info.maxLeaf < 0xb)
 			goto L_CACHE_INTEL_4H;
-
+		
 		// Usually, ECX=1 will hold EBX=4 (cores)
 		// With HTT, ECX=2 could hold EBX=8 (logical)
 L_CACHE_INTEL_BH:
-		asmcpuid(regs, 11, clevel);
-
+		asmcpuid(regs, 0xb, clevel);
+		
 		if (regs.ax == 0) goto L_CACHE_INTEL_4H;
-
+		
 		switch (regs.cx >> 8) {
 		case 1: // Core
 			info.cores.logical = regs.bx;
@@ -1693,7 +1698,7 @@ L_CACHE_INTEL_BH:
 			break;
 		default: assert(0, "implement cache type");
 		}
-
+		
 		++clevel;
 		goto L_CACHE_INTEL_BH;
 		
@@ -1706,16 +1711,16 @@ L_CACHE_INTEL_4H:
 		
 		ca.type = CACHE_TYPE[type];
 		ca.level = regs.al >> 5;
-		ca.linesize = cast(ubyte)((regs.ebx & 0x7FF) + 1);
+		ca.lineSize = (regs.bx & 0x7FF) + 1;
 		ca.partitions = cast(ubyte)(((regs.ebx >> 12) & 0x7FF) + 1);
 		ca.ways = cast(ubyte)((regs.ebx >> 22) + 1);
 		ca.sets = regs.cl + 1;
-		if (regs.eax & BIT!(8)) ca.feat = 1;
-		if (regs.eax & BIT!(9)) ca.feat |= BIT!(1);
-		if (regs.edx & BIT!(0)) ca.feat |= BIT!(2);
-		if (regs.edx & BIT!(1)) ca.feat |= BIT!(3);
-		if (regs.edx & BIT!(2)) ca.feat |= BIT!(4);
-		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
+		if (regs.eax & BIT!(8)) ca.features = 1;
+		if (regs.eax & BIT!(9)) ca.features |= BIT!(1);
+		if (regs.edx & BIT!(0)) ca.features |= BIT!(2);
+		if (regs.edx & BIT!(1)) ca.features |= BIT!(3);
+		if (regs.edx & BIT!(2)) ca.features |= BIT!(4);
+		ca.size = (ca.sets * ca.lineSize * ca.partitions * ca.ways) >> 10;
 		
 		if (info.cores.logical == 0) // skip if already populated
 			info.cores.logical = (regs.eax >> 26) + 1;	// EAX[31:26]
@@ -1746,15 +1751,15 @@ L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 		
 		ca.type = CACHE_TYPE[type];
 		ca.level = cast(ubyte)((regs.eax >> 5) & 7);
-		ca.linesize = cast(ubyte)((regs.ebx & 0x7FF) + 1);
+		ca.lineSize = cast(ubyte)((regs.ebx & 0x7FF) + 1);
 		ca.partitions = cast(ubyte)(((regs.ebx >> 12) & 0x7FF) + 1);
 		ca.ways = cast(ubyte)((regs.ebx >> 22) + 1);
 		ca.sets = cast(ushort)(regs.ecx + 1);
-		if (regs.eax & BIT!(8)) ca.feat = 1;
-		if (regs.eax & BIT!(9)) ca.feat |= BIT!(1);
-		if (regs.edx & BIT!(0)) ca.feat |= BIT!(2);
-		if (regs.edx & BIT!(1)) ca.feat |= BIT!(3);
-		ca.size = (ca.sets * ca.linesize * ca.partitions * ca.ways) >> 10;
+		if (regs.eax & BIT!(8)) ca.features = 1;
+		if (regs.eax & BIT!(9)) ca.features |= BIT!(1);
+		if (regs.edx & BIT!(0)) ca.features |= BIT!(2);
+		if (regs.edx & BIT!(1)) ca.features |= BIT!(3);
+		ca.size = (ca.sets * ca.lineSize * ca.partitions * ca.ways) >> 10;
 		
 		crshrd = (((regs.eax >> 14) & 2047) + 1);	// EAX[25:14]
 		sc = cast(ushort)(info.cores.logical / crshrd); // cast for ldc 0.17.1
@@ -1773,14 +1778,21 @@ L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 L_CACHE_AMD_EXT_5H:
 		asmcpuid(regs, 0x8000_0005);
 		
-		info.cache.level[0].level = 1; // L1
+		info.cache.level[0].level = 1; // L1-D
 		info.cache.level[0].type = 'D'; // data
-		info.cache.level[0].__bundle1 = regs.ecx;
-		info.cache.level[0].size = info.cache.level[0]._amdsize;
-		info.cache.level[1].level = 1; // L1
+		info.cache.level[0].size = regs.ecx >> 24;
+		info.cache.level[0].ways = cast(ubyte)(regs.ecx >> 16);
+		info.cache.level[0].lines = regs.ch;
+		info.cache.level[0].lineSize = regs.cl;
+		info.cache.level[0].sets = 1;
+		
+		info.cache.level[1].level = 1; // L1-I
 		info.cache.level[1].type = 'I'; // instructions
-		info.cache.level[1].__bundle1 = regs.edx;
-		info.cache.level[1].size = info.cache.level[1]._amdsize;
+		info.cache.level[1].size = regs.edx >> 24;
+		info.cache.level[1].ways = cast(ubyte)(regs.edx >> 16);
+		info.cache.level[1].lines = regs.dh;
+		info.cache.level[1].lineSize = regs.dl;
+		info.cache.level[1].sets = 1;
 		
 		info.cache.levels = 2;
 		
@@ -1796,24 +1808,26 @@ L_CACHE_AMD_EXT_5H:
 		
 		asmcpuid(regs, 0x8000_0006);
 		
-		ubyte _amd_ways_l2 = (regs.ecx >> 12) & 15;
+		ubyte _amd_ways_l2 = regs.cx >> 12;
 		if (_amd_ways_l2) {
-			info.cache.level[2].level = 2; // L2
+			info.cache.level[2].level = 2;  // L2
 			info.cache.level[2].type = 'U'; // unified
-			info.cache.level[2].ways = _amd_cache_ways[_amd_ways_l2];
 			info.cache.level[2].size = regs.ecx >> 16;
-			info.cache.level[2].sets = (regs.ecx >> 8) & 7;
-			info.cache.level[2].linesize = regs.cl;
+			info.cache.level[2].ways = _amd_cache_ways[_amd_ways_l2];
+			info.cache.level[2].lines = regs.ch & 0xf;
+			info.cache.level[2].lineSize = regs.cl;
+			info.cache.level[2].sets = 1;
 			info.cache.levels = 3;
 			
-			ubyte _amd_ways_l3 = (regs.edx >> 12) & 15;
+			ubyte _amd_ways_l3 = regs.dx >> 12;
 			if (_amd_ways_l3) {
 				info.cache.level[3].level = 3;  // L3
 				info.cache.level[3].type = 'U'; // unified
+				info.cache.level[3].size = ((regs.edx >> 18) + 1) << 9;
 				info.cache.level[3].ways = _amd_cache_ways[_amd_ways_l3];
-				info.cache.level[3].size = ((regs.edx >> 18) + 1) * 512;
-				info.cache.level[3].sets = (regs.edx >> 8) & 7;
-				info.cache.level[3].linesize = regs.dl & 0x7F;
+				info.cache.level[3].lines = regs.dh & 0xf;
+				info.cache.level[3].lineSize = regs.dl & 0x7F;
+				info.cache.level[3].sets = 1;
 				info.cache.levels = 4;
 			}
 		}

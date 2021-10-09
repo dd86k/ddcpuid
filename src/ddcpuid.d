@@ -106,17 +106,6 @@ enum VirtVendor {
 	VBoxMin    = 0, /// Unset: VirtualBox minimal interface
 }
 
-private
-union __01ebx_t { // 01h.EBX internal
-	uint all;
-	struct {
-		ubyte brandIndex;	/// Processor brand index. No longer used.
-		ubyte clflushLinesize;	/// Linesize of CLFLUSH in bytes
-		ubyte maxApicId;	/// Maximum APIC ID
-		ubyte apicId;	/// Initial APIC ID (running core where CPUID was called)
-	}
-}
-
 /// Registers structure used with the asmcpuid function.
 struct REGISTERS {
 	union {
@@ -211,9 +200,8 @@ struct CPUINFO { align(1):
 	
 	/// Contains the information on the number of cores.
 	struct Cores {
-		//TODO: Physical cores
-//		ushort physical;	/// Physical cores in this processor
 		ushort logical;	/// Logical cores in this processor
+		ushort physical;	/// Physical cores in this processor
 	}
 	align(2) Cores cores;	/// Processor package cores
 	
@@ -1081,6 +1069,16 @@ void getVirtVendor(ref CPUINFO info) {
 //TODO: bool skipCache = false (for -l)
 pragma(inline, false)
 void getInfo(ref CPUINFO info) {
+	ushort sc = void;	/// raw cores shared across cache level
+	ushort crshrd = void;	/// actual count of shared cores
+	ushort clevel;	/// current cache level
+	ubyte type = void;	/// cache type
+	ubyte mids = void;	/// maximum IDs to this cache
+	ubyte maxAddrIDs = void;	/// Maximum number of addressable IDs for logical processors in this physical package
+	int SMTSelectMask = void;
+	int SMTMaskWidth = void;
+	int levelShift = void;
+	
 	getVendor(info);
 	getBrand(info);
 	
@@ -1148,12 +1146,10 @@ void getInfo(ref CPUINFO info) {
 	}
 	
 	// EBX
-	__01ebx_t t = void; // BrandIndex, CLFLUSHLineSize, MaxIDs, InitialAPICID
-	t.all = regs.ebx;
-	info.brandIndex = t.brandIndex;
-	info.cache.clflushLinesize = t.clflushLinesize;
-	info.acpi.maxApicId = t.maxApicId;
-	info.acpi.apicId = t.apicId;
+	info.acpi.apicId = regs.ebx >> 24;
+	info.acpi.maxApicId = cast(ubyte)(regs.ebx >> 16);
+	info.cache.clflushLinesize = regs.bh;
+	info.brandIndex = regs.bl;
 	
 	// ECX
 	info.sse.sse3	= (regs.ecx & BIT!(0)) != 0;
@@ -1197,14 +1193,6 @@ void getInfo(ref CPUINFO info) {
 	info.sse.sse	= (regs.edx & BIT!(25)) != 0;
 	info.sse.sse2	= (regs.edx & BIT!(26)) != 0;
 	info.tech.htt	= (regs.edx & BIT!(28)) != 0;
-	
-	switch (info.vendorId) {
-	case Vendor.AMD:
-		if (info.tech.htt)
-			info.cores.logical = info.acpi.maxApicId;
-		break;
-	default:
-	}
 	
 	//
 	// Leaf 5H
@@ -1636,7 +1624,6 @@ L_EXTENDED:
 		info.security.stibpAlwaysOn	= (regs.ebx & BIT!(17)) != 0;
 		info.security.ibrsPreferred	= (regs.ebx & BIT!(18)) != 0;
 		info.security.ssbd	= (regs.ebx & BIT!(24)) != 0;
-		info.cores.logical	= regs.cl + 1;
 		break;
 	default:
 	}
@@ -1662,38 +1649,50 @@ L_EXTENDED:
 	//if (info.maxLeafExtended < ...) goto L_CACHE_INFO;
 	
 L_CACHE_INFO:
-	// Cache information
-	// - done at the very end since we may need prior information
-	//   - e.g. amd cpuid.8000_0008h
-	// - maxleaf < 4 is too old/rare these days (es. for D programs)
-	
 	info.cache.levels = 0;
 	CACHEINFO *ca = cast(CACHEINFO*)info.cache.level;
 	
-	ushort sc = void;	/// raw cores shared across cache level
-	ushort crshrd = void;	/// actual count of shared cores
-	ubyte type = void;
-	ushort clevel;	/// Current cache level
 	switch (info.vendorId) {
 	case Vendor.Intel:
-		//TODO: Intel cache 1FH
-		//if (info.maxLeaf < 0x1f)
-		//	GOTO L_CACHE_INTEL_BH;
-		if (info.maxLeaf < 0xb)
-			goto L_CACHE_INTEL_4H;
+		if (info.maxLeaf < 0x1f) goto L_CACHE_INTEL_BH;
+		if (info.maxLeaf < 0xb)  goto L_CACHE_INTEL_4H;
+		if (info.maxLeaf < 4) {
+			with (info.cores) logical = physical = 1;
+			break;
+		}
 		
-		// Usually, ECX=1 will hold EBX=4 (cores)
-		// With HTT, ECX=2 could hold EBX=8 (logical)
+L_CACHE_INTEL_1FH:
+		asmcpuid(regs, 0x1f, clevel);
+		
+		switch (regs.ch) {
+		case 0: goto L_CACHE_INTEL_4H;
+		case 1: // SMT
+			info.cores.physical =
+				cast(ushort)(regs.bx << ~((-1) << (regs.al & 0xf)));
+			break;
+		case 2: // Core
+			info.cores.physical = regs.bx;
+			break;
+		//TODO: Support hybrid/big.little configurations
+		case 3, 4, 5: break; // Module/Tile/Die
+		default: assert(0, "implement cache type");
+		}
+		
+		++clevel;
+		goto L_CACHE_INTEL_1FH;
+		
 L_CACHE_INTEL_BH:
 		asmcpuid(regs, 0xb, clevel);
 		
-		if (regs.ax == 0) goto L_CACHE_INTEL_4H;
+		levelShift = regs.eax & 0xf;
 		
-		switch (regs.cx >> 8) {
-		case 1: // Core
-			info.cores.logical = regs.bx;
+		switch (regs.ch) { // levelType
+		case 0: goto L_CACHE_INTEL_4H;
+		case 1: // SMT
+			info.cores.physical =
+				cast(ushort)(regs.bx << ~((-1) << (regs.al & 0xf)));
 			break;
-		case 2: // SMT
+		case 2: // Core
 			info.cores.logical = regs.bx;
 			break;
 		default: assert(0, "implement cache type");
@@ -1722,21 +1721,28 @@ L_CACHE_INTEL_4H:
 		if (regs.edx & BIT!(2)) ca.features |= BIT!(4);
 		ca.size = (ca.sets * ca.lineSize * ca.partitions * ca.ways) >> 10;
 		
-		if (info.cores.logical == 0) // skip if already populated
-			info.cores.logical = (regs.eax >> 26) + 1;	// EAX[31:26]
+		mids = (regs.eax >> 26) + 1;	// EAX[31:26]
+		
+		if (info.cores.logical == 0) { // skip if already populated
+			info.cores.logical = mids;
+			info.cores.physical = info.tech.htt ? mids >> 1 : mids;
+		}
 		
 		crshrd = (((regs.eax >> 14) & 2047) + 1);	// EAX[25:14]
 		sc = cast(ushort)(info.cores.logical / crshrd); // cast for ldc 0.17.1
 		ca.sharedCores = sc ? sc : 1;
-		version (Trace) trace(
-			"intel.4h logical=%u shared=%u crshrd=%u sc=%u",
-			info.cores.logical, ca.sharedCores, crshrd, sc);
+		version (Trace) trace("intel.4h mids=%u shared=%u crshrd=%u sc=%u",
+			mids, ca.sharedCores, crshrd, sc);
 		
 		++info.cache.levels; ++ca;
 		goto L_CACHE_INTEL_4H;
 	case Vendor.AMD:
 		if (info.maxLeafExtended < 0x8000_001D)
 			goto L_CACHE_AMD_EXT_5H;
+		if (info.maxLeafExtended < 0x8000_0005) {
+			with (info.cores) logical = physical = 1;
+			break;
+		}
 		
 		//
 		// AMD newer cache method
@@ -1747,7 +1753,7 @@ L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 		
 		type = regs.eax & CACHE_MASK; // EAX[4:0]
 		if (type == 0) break;
-		if (info.cache.levels >= CACHE_MAX_LEVEL) break;
+		if (info.cache.levels >= CACHE_MAX_LEVEL) goto L_CACHE_AMD_TOPOLOGY;
 		
 		ca.type = CACHE_TYPE[type];
 		ca.level = cast(ubyte)((regs.eax >> 5) & 7);
@@ -1765,7 +1771,7 @@ L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 		sc = cast(ushort)(info.cores.logical / crshrd); // cast for ldc 0.17.1
 		ca.sharedCores = sc ? sc : 1;
 
-		version (Trace) trace("amd.extensions.1dh logical=%u shared=%u crshrd=%u sc=%u",
+		version (Trace) trace("amd.8000_001Dh logical=%u shared=%u crshrd=%u sc=%u",
 			info.cores.logical, ca.sharedCores, crshrd, sc);
 		
 		++info.cache.levels; ++ca;
@@ -1808,28 +1814,41 @@ L_CACHE_AMD_EXT_5H:
 		
 		asmcpuid(regs, 0x8000_0006);
 		
-		ubyte _amd_ways_l2 = regs.cx >> 12;
-		if (_amd_ways_l2) {
+		type = regs.cx >> 12; // amd_ways_l2
+		if (type) {
 			info.cache.level[2].level = 2;  // L2
 			info.cache.level[2].type = 'U'; // unified
 			info.cache.level[2].size = regs.ecx >> 16;
-			info.cache.level[2].ways = _amd_cache_ways[_amd_ways_l2];
+			info.cache.level[2].ways = _amd_cache_ways[type];
 			info.cache.level[2].lines = regs.ch & 0xf;
 			info.cache.level[2].lineSize = regs.cl;
 			info.cache.level[2].sets = 1;
 			info.cache.levels = 3;
 			
-			ubyte _amd_ways_l3 = regs.dx >> 12;
-			if (_amd_ways_l3) {
+			type = regs.dx >> 12; // amd_ways_l3
+			if (type) {
 				info.cache.level[3].level = 3;  // L3
 				info.cache.level[3].type = 'U'; // unified
 				info.cache.level[3].size = ((regs.edx >> 18) + 1) << 9;
-				info.cache.level[3].ways = _amd_cache_ways[_amd_ways_l3];
+				info.cache.level[3].ways = _amd_cache_ways[type];
 				info.cache.level[3].lines = regs.dh & 0xf;
 				info.cache.level[3].lineSize = regs.dl & 0x7F;
 				info.cache.level[3].sets = 1;
 				info.cache.levels = 4;
 			}
+		}
+
+L_CACHE_AMD_TOPOLOGY: // See APM Volume 3 Appendix E.5
+		// For some reason, CPUID Fn8000_001E_EBX is not mentioned there
+		asmcpuid(regs, 0x8000_0008);
+		
+		type = regs.cx >> 12; // ApicIdSize
+		
+		if (type) { // Extended
+			info.cores.physical = regs.cl + 1;
+			info.cores.logical = cast(ushort)(1 << type);
+		} else { // Legacy
+			info.cores.logical = info.cores.physical = regs.cl + 1;
 		}
 		break;
 	default:

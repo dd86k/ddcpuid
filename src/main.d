@@ -324,17 +324,17 @@ L_X86_64_NONE:
 	// ANCHOR Processor basic information
 	//
 	
-	printf(
+	with (info) printf(
 	"Vendor      : %.12s\n"~
 	"Brand       : %.48s\n"~
 	"Identifier  : Family %u (0x%x) [0x%x:0x%x] Model %u (0x%x) [0x%x:0x%x] Stepping %u\n"~
-	"Cores       : %u threads\n"~
+	"Cores       : %u cores %u threads\n"~
 	"Extensions  :",
 	vendor, brand,
-	info.family, info.family, info.familyBase, info.familyExtended,
-	info.model, info.model, info.modelBase, info.modelExtended,
-	info.stepping,
-	info.cores.logical
+	family, family, familyBase, familyExtended,
+	model, model, modelBase, modelExtended,
+	stepping,
+	cores.physical, cores.logical
 	);
 	
 	if (info.extensions.fpu) {

@@ -1711,7 +1711,7 @@ L_CACHE_INTEL_4H:
 		}
 		
 		crshrd = (((regs.eax >> 14) & 2047) + 1);	// EAX[25:14]
-		sc = cast(ushort)(info.cores.logical / crshrd); // cast for ldc 0.17.1
+		sc = cast(ushort)(mids / crshrd); // cast for ldc 0.17.1
 		ca.sharedCores = sc ? sc : 1;
 		version (Trace) trace("intel.4h mids=%u shared=%u crshrd=%u sc=%u",
 			mids, ca.sharedCores, crshrd, sc);

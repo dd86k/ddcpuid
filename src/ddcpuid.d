@@ -1661,45 +1661,27 @@ L_CACHE_INFO:
 			break;
 		}
 		
-L_CACHE_INTEL_1FH:
-		asmcpuid(regs, 0x1f, clevel);
+//L_CACHE_INTEL_1FH:
+		//TODO: Support levels 3,4,5 in CPUID.1FH
+		//      (Module, Tile, and Die)
+		asmcpuid(regs, 0x1f, 1); // Cores (logical)
 		
-		switch (regs.ch) {
-		case 0: goto L_CACHE_INTEL_4H;
-		case 1: // SMT
-			info.cores.physical =
-				cast(ushort)(regs.bx << ~((-1) << (regs.al & 0xf)));
-			break;
-		case 2: // Core
-			info.cores.physical = regs.bx;
-			break;
-		//TODO: Support hybrid/big.little configurations
-		case 3, 4, 5: break; // Module/Tile/Die
-		default: assert(0, "implement cache type");
-		}
+		info.cores.logical = regs.bx;
 		
-		++clevel;
-		goto L_CACHE_INTEL_1FH;
+		asmcpuid(regs, 0x1f, 0); // SMT (architectural states per core)
+		
+		info.cores.physical = cast(ushort)(info.cores.logical / regs.bx);
+		
+		goto L_CACHE_INTEL_4H;
 		
 L_CACHE_INTEL_BH:
-		asmcpuid(regs, 0xb, clevel);
+		asmcpuid(regs, 0xb, 1); // Cores (logical)
 		
-		levelShift = regs.eax & 0xf;
+		info.cores.logical = regs.bx;
 		
-		switch (regs.ch) { // levelType
-		case 0: goto L_CACHE_INTEL_4H;
-		case 1: // SMT
-			info.cores.physical =
-				cast(ushort)(regs.bx << ~((-1) << (regs.al & 0xf)));
-			break;
-		case 2: // Core
-			info.cores.logical = regs.bx;
-			break;
-		default: assert(0, "implement cache type");
-		}
+		asmcpuid(regs, 0xb, 0); // SMT (architectural states per core)
 		
-		++clevel;
-		goto L_CACHE_INTEL_BH;
+		info.cores.physical = cast(ushort)(info.cores.logical / regs.bx);
 		
 L_CACHE_INTEL_4H:
 		asmcpuid(regs, 4, info.cache.levels);

@@ -41,7 +41,7 @@ enum : uint {
 }
 
 /// Command-line options
-struct options_t {
+struct options_t { align(1):
 //	FILE *file;	/// Dump
 	int maxLevel;	/// Maximum leaf for -r (-S)
 	int maxSub;	/// Maximum subleaf for -r (-s)
@@ -50,19 +50,21 @@ struct options_t {
 	bool override_;	/// Override leaves (-o)
 	bool getLevel;	/// Get x86-64 optimization feature level
 	bool getDetails;	/// Get the boring details
+	bool[3] reserved;	/// 
 }
 
 immutable const(char) *secret = r"
+                            ############
                      ######################
                 ###########################
             #################
          ############              #######
-       #########     _       _    ### R #####
-     #######        | |     | |    ###########
-   #######       ___| |  ___| |         ########
-  #####         / __  | / __  |            ######
- #####         | (__| || (__| |              #####
-####            \_____| \_____|               ####
+       #########     _      _     ### R #####
+     #######        | |    | |     ###########
+   #######        __| |  __| |          ########
+  #####          / _  | / _  |             ######
+ #####          | (_| || (_| |               #####
+####             \____| \____|                ####
 ###                             _              ###
 ###      [_]            [_]    | |              ##
 ##        _  _ __   ___  _   __| | ____        ###
@@ -88,12 +90,13 @@ void clih() {
 	" ddcpuid [OPTIONS...]\n"~
 	"\n"~
 	"OPTIONS\n"~
-	" -r, --table   Show raw CPUID data in a table\n"~
-	" -S            Table: Set leaf (EAX) input value\n"~
-	" -s            Table: Set subleaf (ECX) input value\n"~
-	" -D, --dump    Dump CPUID data into binary\n"~
-	" -o            Override maximum leaves to 0x20, 0x4000_0020, and 0x8000_0020\n"~
-	" -l, --level   Print the processor's feature level\n"~
+	" -d, --details  Show details processor information\n"~
+	" -r, --table    Show raw CPUID data in a table\n"~
+	" -S             Table: Set leaf (EAX) input value\n"~
+	" -s             Table: Set subleaf (ECX) input value\n"~
+//	" -D, --dump     Dump CPUID data into binary\n"~
+	" -o             Override maximum leaves to 0x20, 0x4000_0020, and 0x8000_0020\n"~
+	" -l, --level    Print the processor's feature level\n"~
 	"\n"~
 	"PAGES\n"~
 	" --version    Print version screen and quit\n"~
@@ -332,7 +335,7 @@ int main(int argc, const(char) **argv) {
 				continue;
 			}
 			if (strcmp(arg, "details") == 0) {
-				options.getLevel = true;
+				options.getDetails = true;
 				continue;
 			}
 			if (strcmp(arg, "version") == 0) {
@@ -359,6 +362,7 @@ int main(int argc, const(char) **argv) {
 			while ((o = *arg) != 0) {
 				++arg;
 				switch (o) {
+				case 'd': options.getDetails = true; continue;
 				case 'l': options.getLevel = true; continue;
 				case 'o': options.override_ = true; continue;
 				case 'r': options.table = true; continue;
@@ -394,14 +398,13 @@ int main(int argc, const(char) **argv) {
 						return 2;
 					}
 					continue;
-				case 'd': options.getDetails = true; continue;
 				case 'h': clih; return 0;
 				case 'V': cliv; return 0;
 				default:
 					printf("Unknown parameter: '-%c'\n", o);
 					return 1;
 				}
-			}
+			} // while
 		} // else if
 	} // for
 	
@@ -525,7 +528,7 @@ int main(int argc, const(char) **argv) {
 			case VBoxMin:    virtVendor = "VirtualBox Minimal"; break;
 			default:         virtVendor = "Unknown";
 			}
-			printf("Paravirtualization: %s\n", virtVendor);
+			printf("ParaVirt.:   %s\n", virtVendor);
 		}
 		
 		for (size_t i; i < info.cache.levels; ++i) {
@@ -678,7 +681,7 @@ int main(int argc, const(char) **argv) {
 	for (uint i; i < info.cache.levels; ++i) {
 		CACHEINFO *cache = &info.cache.level[i];
 		cc = adjust(cache.size);
-		printf("\n\tL%u-%c: %ux %4u %ciB, %u ways, %u parts, %u B, %u sets",
+		printf("\nLevel %u-%c   : %ux %4u %ciB, %u ways, %u parts, %u B, %u sets",
 			cache.level, cache.type, cache.sharedCores, cache.size, cc,
 			cache.ways, cache.partitions, cache.lineSize, cache.sets
 		);
@@ -826,8 +829,7 @@ int main(int argc, const(char) **argv) {
 	}
 	
 	printf("\nMemory      :");
-	if (info.memory.physBits) printf(" PhysicalBits=%u", info.memory.physBits);
-	if (info.memory.lineBits) printf(" LinearBits=%u", info.memory.lineBits);
+	
 	if (info.memory.pae) printf(" PAE");
 	if (info.memory.pse) printf(" PSE");
 	if (info.memory.pse36) printf(" PSE-36");
@@ -849,7 +851,10 @@ int main(int argc, const(char) **argv) {
 	if (info.memory.fsrepmov) printf(" FSRM");
 	if (info.memory.lam) printf(" LAM");
 	
-	printf("\nDebugging   :");
+	with (info.memory)
+	printf("\nPhysicalBits: %u\nLinearBits  : %u\nDebugging   :",
+		physBits, lineBits);
+	
 	if (info.debugging.mca) printf(" MCA");
 	if (info.debugging.mce) printf(" MCE");
 	if (info.debugging.de) printf(" DE");
@@ -864,16 +869,21 @@ int main(int argc, const(char) **argv) {
 	if (info.security.ia32_arch_capabilities) printf(" IA32_ARCH_CAPABILITIES");
 	printSecurity(info);
 	
-	printf("\nMisc.       : HLeaf=0x%x HVLeaf=0x%x HELeaf=0x%x Type=%s BrandIndex=%u",
-		info.maxLeaf, info.maxLeafVirt, info.maxLeafExtended,
-		info.typeString, info.brandIndex);
+	with (info)
+	printf(
+	"\nMax. Leaf   : 0x%x\n"~
+	"Max. V-Leaf : 0x%x\n"~
+	"Max. E-Leaf : 0x%x\n"~
+	"Type        : %s\n"~
+	"Brand Index : %u\n",
+		maxLeaf, maxLeafVirt, maxLeafExtended, typeString, brandIndex);
+	
+	printf("Misc.       :");
 	if (info.misc.xtpr) printf(" xTPR");
 	if (info.misc.psn) printf(" PSN");
 	if (info.misc.pcid) printf(" PCID");
 	if (info.misc.fsgsbase) printf(" FSGSBASE");
 	if (info.misc.uintr) printf(" UINTR");
-	
-	putchar('\n');
 	
 	return 0;
 }

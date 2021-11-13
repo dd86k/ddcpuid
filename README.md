@@ -52,7 +52,7 @@ AVX:         AVX
 AMX:         None
 Others:      AES-NI
 Mitigations: L1D_FLUSH MD_CLEAR
-Paravirtualization: Hyper-V
+ParaVirt.:   Hyper-V
 Cache L1-D:  2x 32KB    (64KB)
 Cache L1-I:  2x 32KB    (64KB)
 Cache L2-U:  2x 256KB   (512KB)

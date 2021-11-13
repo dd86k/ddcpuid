@@ -52,6 +52,31 @@ struct options_t {
 	bool getDetails;	/// Get the boring details
 }
 
+immutable const(char) *secret = r"
+                     ######################
+                ###########################
+            #################
+         ############              #######
+       #########     _       _    ### R #####
+     #######        | |     | |    ###########
+   #######       ___| |  ___| |         ########
+  #####         / __  | / __  |            ######
+ #####         | (__| || (__| |              #####
+####            \_____| \_____|               ####
+###                             _              ###
+###      [_]            [_]    | |              ##
+##        _  _ __   ___  _   __| | ____        ###
+###      | || '_  \/ __/| | / _  |/ __ \       ###
+###      | || | | |\__ \| || (_| ||  __/      ####
+ ###     |_||_| |_||___/|_| \____|\____|    #####
+ #####                                     #####
+  ######                               ######
+    #######                          #######
+      #########                ###########
+        ###############################
+            ######################
+";
+
 //TODO: Consider having a CPUINFO instance globally to avoid parameter spam
 
 /// print help page
@@ -320,6 +345,10 @@ int main(int argc, const(char) **argv) {
 			}
 			if (strcmp(arg, "help") == 0) {
 				clih;
+				return 0;
+			}
+			if (strcmp(arg, "inside") == 0) {
+				puts(secret);
 				return 0;
 			}
 			printf("Unknown parameter: '%s'\n", arg);

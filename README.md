@@ -1,29 +1,6 @@
 # ddcpuid, CPUID tool
 
-ddcpuid is a x86 processor information tool. Currently supports Intel and AMD
-processors.
-
-- Can be used as a stand-alone tool or as a DUB library.
-- Fully supports DMD, GDC, and LDC.
-- BetterC compatible, and used by default for the application.
-- The library does not rely on any runtime (C, D) nor the OS.
-- Surpasses CPU-Z, [Intel's Go CPUID](https://github.com/intel-go/cpuid/) module, and Druntime's `core.cpuid` module.
-- _Currently featuring 240 CPUID bits documented and counting!_
-
-Want to better understand x86 and their technologies? There's the
-[ddcpuid Technical Manual](https://dd86k.space/docs/ddcpuid-manual.pdf) (PDF)!
-
-Officially supports these vendors:
-- `"GenuineIntel"` - Intel Corporation
-- `"AuthenticAMD"` - Advanced Micro Devices Inc.
-- `"KVMKVMKVM\0\0\0"` - Linux built-in Kernel Virtual Machine
-- `"Microsoft Hv"` - Microsoft Hyper-V interface
-- `"VBoxVBoxVBox"` - VirtualBox Hyper-V interface
-- `"\0\0\0\0\0\0\0\0\0\0\0\0"` - VirtualBox minimal interface
-
-# Command Output Examples
-
-## On Host Computer
+ddcpuid is a x86 processor information tool.
 
 ```
 $ ddcpuid
@@ -42,7 +19,27 @@ Cache L2-U:  4x 256KB   (1MB)
 Cache L3-U:  1x 8MB     (8MB)
 ```
 
-## In a Virtual Guest with 2 Cores Allocated
+- Can be used as a stand-alone tool or as a library. DUB compatible.
+- Fully supports DMD, GDC, and LDC compilers.
+- BetterC compatible, and used by default for the application.
+- Library does not rely on external functions (e.g., C runtime, Druntime, OS).
+- Surpasses CPU-Z, [Intel's Go CPUID](https://github.com/intel-go/cpuid/) module, and Druntime's `core.cpuid` module in terms of x86-related information.
+- _Currently featuring 240 CPUID bits documented and counting!_
+
+Want to better understand x86 and their technologies? There's the
+[ddcpuid Manual](https://dd86k.space/docs/ddcpuid-manual.pdf) (PDF)!
+
+Officially supports these vendors:
+- `"GenuineIntel"` - Intel Corporation
+- `"AuthenticAMD"` - Advanced Micro Devices Inc.
+- `"KVMKVMKVM\0\0\0"` - Linux built-in Kernel Virtual Machine
+- `"Microsoft Hv"` - Microsoft Hyper-V interface
+- `"VBoxVBoxVBox"` - VirtualBox Hyper-V interface
+- `"\0\0\0\0\0\0\0\0\0\0\0\0"` - VirtualBox minimal interface
+
+# 1. Output Examples
+
+## 1.1. In a Virtual Guest with 2 Cores Allocated
 
 ```
 $ ddcpuid
@@ -62,16 +59,16 @@ Cache L2-U:  2x 256KB   (512KB)
 Cache L3-U:  2x 8MB     (16MB)
 ```
 
-NOTE: Yep, the total cache may be influenced by the virtual environment.
+NOTE: The total cache may be influenced by the virtual environment.
 
-## Feature Level
+## 1.3. Feature Level
 
 ```
 $ ddcpuid --level
 x86-64-v2
 ```
 
-## CPUID Table on Host Computer
+## 1.4. Default CPUID Table on Host Computer
 
 ```
 $ ddcpuid --table
@@ -102,18 +99,18 @@ $ ddcpuid --table
 | 80000008 |        0 |     3024 |        0 |        0 |        0 |
 ```
 
-# Compiling
+# 2. Compiling
 
-The best way to compile ddcpuid is using DUB.
+The best way to compile ddcpuid is by using DUB.
 
 Compilers supported:
 - DMD >= 2.068.0 (best supported)
-  - For earlier versions (tested on dmd 2.067.1), see [manual compilation](#manually).
-- LDC >= 1.0.0 (best optimizations, see [LDC Issues](#ldc-issues))
-  - For 0.17.1, see how to perform a [manual compilation](#manually).
-- GDC >= 7.0.0 (good optimizations, see [GDC Issues](#gdc-issues))
+  - For earlier versions (tested on dmd 2.067.1), see [manual compilation](#23-manually).
+- LDC >= 1.0.0 (best optimizations, see [LDC Issues](#25-ldc-issues))
+  - For 0.17.1, see how to perform a [manual compilation](#23-manually).
+- GDC >= 7.0.0 (good optimizations, see [GDC Issues](#24-gdc-issues))
 
-## DUB
+## 2.1. DUB
 
 Using dub(1) is rather straightforward.
 
@@ -126,7 +123,7 @@ To select a different compiler: `dub build --compiler=ldc2`
 
 For more information, visit [this page](https://dub.pm/commandline.html).
 
-## Makefile
+## 2.2. Makefile
 
 The Makefile relies on GNU Make (gmake/gnumake).
 
@@ -144,7 +141,7 @@ Examples:
 - `make`: Produce a debug build
 - `make release DC=ldc`: Produce a release build with LDC
 
-## Manually
+## 2.3. Manually
 
 Since ddcpuid only consists of two source files, both being in the `src`
 folder, it's still pretty simple to perform a compilation by hand.
@@ -165,16 +162,16 @@ gdc -fno-druntime -release -O -fbounds-check=off src/ddcpuid.d src/main.d -oddcp
 
 You get the idea.
 
-## GDC Issues
+## 2.4. GDC Issues
 
-### GDC and betterC
+### 2.4.1. GDC and betterC
 
 Versions earlier than 11 will not compile using `-fno-druntime` due to linking
 issues: `undefined reference to '__gdc_personality_v0'`.
 
-## LDC Issues
+## 2.5. LDC Issues
 
-### Legacy stdio Definitions
+### 2.5.1. Legacy stdio Definitions
 
 On Windows, LDC versions 1.13 and 1.14 do not include
 `legacy_stdio_definitions.lib` when linking, making it impossible to compile

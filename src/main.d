@@ -35,21 +35,24 @@ template CVER(int v) {
 template BIT(int n) if (n <= 31) { enum uint BIT = 1 << n; }
 
 enum : uint {
-	maxLeaf	= 0x20, /// Maximum leaf override
-	MAX_VLEAF	= 0x4000_0020, /// Maximum virt leaf override
-	MAX_ELEAF	= 0x8000_0020, /// Maximum extended leaf override
+	MAX_LEAF	= 0x20, /// Maximum leaf override
+	MAX_VLEAF	= 0x4000_0000 + MAX_LEAF, /// Maximum virt leaf override
+	MAX_ELEAF	= 0x8000_0000 + MAX_LEAF, /// Maximum extended leaf override
 }
 
 /// Command-line options
 struct options_t {
-	FILE *file;	/// Dump
+//	FILE *file;	/// Dump
 	int maxLevel;	/// Maximum leaf for -r (-S)
 	int maxSub;	/// Maximum subleaf for -r (-s)
-	bool hasLevel;	/// 
+	bool hasLevel;	/// If -S has been used
 	bool table;	/// Raw table (-r)
 	bool override_;	/// Override leaves (-o)
-	bool optlevel;	/// Get x86-64 optimization feature level
+	bool getLevel;	/// Get x86-64 optimization feature level
+	bool getDetails;	/// Get the boring details
 }
+
+//TODO: Consider having a CPUINFO instance globally to avoid parameter spam
 
 /// print help page
 void clih() {
@@ -85,16 +88,16 @@ void cliv() {
 	);
 }
 
-void outcpuid(uint leaf, uint sub, FILE *file) {
+void outcpuid(uint leaf, uint sub/*, FILE *file*/) {
 	REGISTERS regs = void;
 	asmcpuid(regs, leaf, sub);
-	if (file) {
+/*	if (file) {
 		dumpWrite(file, &leaf, leaf.sizeof);
 		dumpWrite(file, &sub,  sub.sizeof);
 		dumpWrite(file, &regs, regs.sizeof);
-	} else {
+	} else {*/
 		printcpuid(regs, leaf, sub);
-	}
+//	}
 }
 
 /// Print cpuid table entry into stdout.
@@ -116,7 +119,7 @@ void printcpuid(ref REGISTERS regs, uint leaf, uint sub) {
 //       ubyte  : reserved
 //       uint[6]: leaf, subleaf, eax, ebx, ecx, edx
 
-int dumpOpen(FILE **file, const(char) *path) {
+/*int dumpOpen(FILE **file, const(char) *path) {
 	return (*file = fopen(path, "w+b")) == null ? errno : 0;
 }
 
@@ -124,32 +127,187 @@ int dumpWrite(FILE *file, const(void) *data, size_t size) {
 	return fwrite(data, size, 1, file) != 1;
 }
 
-/*int dumpRead(FILE *file) {
+int dumpRead(FILE *file) {
 	
 }*/
 
+const(char) *classification(ref CPUINFO info) {
+	// That's a story for another time
+	if (info.extensions.x86_64 == false)	goto L_X86_64_NONE;
+	
+	// v4
+	if (info.avx.avx512f && info.avx.avx512bw &&
+		info.avx.avx512cd && info.avx.avx512dq &&
+		info.avx.avx512vl) {
+		return "x86-64-v4";
+	}
+	
+	// v3
+	if (info.avx.avx2 && info.avx.avx &&
+		info.extensions.bmi2 && info.extensions.bmi1 &&
+		info.extensions.f16c && info.extensions.fma3 &&
+		info.extras.lzcnt && info.extras.movbe &&
+		info.extras.osxsave) {
+		return "x86-64-v3";
+	}
+	
+	// v2
+	if (info.sse.sse42 && info.sse.sse41 &&
+		info.sse.ssse3 && info.sse.sse3 &&
+		info.extensions.lahf64 && info.extras.popcnt &&
+		info.extras.cmpxchg16b) {
+		return "x86-64-v2";
+	}
+	
+	// baseline
+	if (info.sse.sse2 && info.sse.sse &&
+		info.extensions.mmx && info.extras.fxsr &&
+		info.extras.cmpxchg8b && info.extras.cmov &&
+		info.extensions.fpu && info.extras.syscall) {
+		return "x86-64"; // v1/baseline
+	}
+		
+L_X86_64_NONE:
+	return "i386";
+}
+
+char adjust(ref uint size) {
+	if (size >= 1024) {
+		size >>= 10;
+		return 'M';
+	}
+	return 'K';
+}
+
+void printTechs(ref CPUINFO info) {
+	switch (info.vendorId) {
+	case Vendor.Intel:
+		if (info.tech.eist) printf(" EIST");
+		if (info.tech.turboboost) {
+			printf(" TurboBoost");
+			if (info.tech.turboboost30) printf("-3.0");
+		}
+		if (info.memory.tsx) {
+			printf(" TSX");
+			if (info.memory.hle)
+				printf(" +HLE");
+			if (info.memory.rtm)
+				printf(" +RTM");
+			if (info.memory.tsxldtrk)
+				printf(" +TSXLDTRK");
+		}
+		if (info.tech.smx) printf(" Intel-TXT/SMX");
+		if (info.sgx.enabled) {
+			printf(" SGX");
+			if (info.sgx.maxSize) {
+				printf(" maxSize=%u maxSize64=%u",
+					1 << info.sgx.maxSize,
+					1 << info.sgx.maxSize64);
+			}
+		}
+		break;
+	case Vendor.AMD:
+		if (info.tech.turboboost) printf(" Core-Performance-Boost");
+		break;
+	default:
+	}
+	if (info.tech.htt) printf(" HTT");
+}
+void printSSE(ref CPUINFO info) {
+	printf(" SSE");
+	if (info.sse.sse2) printf(" SSE2");
+	if (info.sse.sse3) printf(" SSE3");
+	if (info.sse.ssse3) printf(" SSSE3");
+	if (info.sse.sse41) printf(" SSE4.1");
+	if (info.sse.sse42) printf(" SSE4.2");
+	if (info.sse.sse4a) printf(" SSE4a");
+}
+void printAVX(ref CPUINFO info) {
+	printf(" AVX");
+	if (info.avx.avx2) printf(" AVX2");
+	if (info.avx.avx512f) {
+		printf(" AVX512F");
+		if (info.avx.avx512er) printf(" +ER");
+		if (info.avx.avx512pf) printf(" +PF");
+		if (info.avx.avx512cd) printf(" +CD");
+		if (info.avx.avx512dq) printf(" +DQ");
+		if (info.avx.avx512bw) printf(" +BW");
+		if (info.avx.avx512vl) printf(" +VL");
+		if (info.avx.avx512_ifma) printf(" +IFMA");
+		if (info.avx.avx512_vbmi) printf(" +VBMI");
+		if (info.avx.avx512_4vnniw) printf(" +4VNNIW");
+		if (info.avx.avx512_4fmaps) printf(" +4FMAPS");
+		if (info.avx.avx512_vbmi2) printf(" +VBMI2");
+		if (info.avx.avx512_gfni) printf(" +GFNI");
+		if (info.avx.avx512_vaes) printf(" +VAES");
+		if (info.avx.avx512_vnni) printf(" +VNNI");
+		if (info.avx.avx512_bitalg) printf(" +BITALG");
+		if (info.avx.avx512_bf16) printf(" +BF16");
+		if (info.avx.avx512_vp2intersect) printf(" +VP2INTERSECT");
+	}
+	if (info.extensions.xop) printf(" XOP");
+}
+void printFMA(ref CPUINFO info) {
+	if (info.extensions.fma3) printf(" FMA3");
+	if (info.extensions.fma4) printf(" FMA4");
+}
+void printAMX(ref CPUINFO info) {
+	printf(" AMX");
+	if (info.amx.bf16) printf(" +BF16");
+	if (info.amx.int8) printf(" +INT8");
+	if (info.amx.xtilecfg) printf(" +XTILECFG");
+	if (info.amx.xtiledata) printf(" +XTILEDATA");
+	if (info.amx.xfd) printf(" +XFD");
+}
+void printOthers(ref CPUINFO info) {
+	if (info.extensions.aes_ni) printf(" AES-NI");
+	if (info.extensions.adx) printf(" ADX");
+	if (info.extensions.sha) printf(" SHA");
+	if (info.extensions.tbm) printf(" TBM");
+	if (info.extensions.bmi1) printf(" BMI1");
+	if (info.extensions.bmi2) printf(" BMI2");
+	if (info.extensions.waitpkg) printf(" WAITPKG");
+}
+void printSecurity(ref CPUINFO info) {
+	if (info.security.ibpb) printf(" IBPB");
+	if (info.security.ibrs) printf(" IBRS");
+	if (info.security.ibrsAlwaysOn) printf(" IBRS_ON");	// AMD
+	if (info.security.ibrsPreferred) printf(" IBRS_PREF");	// AMD
+	if (info.security.stibp) printf(" STIBP");
+	if (info.security.stibpAlwaysOn) printf(" STIBP_ON");	// AMD
+	if (info.security.ssbd) printf(" SSBD");
+	if (info.security.l1dFlush) printf(" L1D_FLUSH");	// Intel
+	if (info.security.md_clear) printf(" MD_CLEAR");	// Intel
+	if (info.security.cetIbt) printf(" CET_IBT");	// Intel
+	if (info.security.cetSs) printf(" CET_SS");	// Intel
+}
+
 int main(int argc, const(char) **argv) {
-	options_t opts;	/// Command-line options
+	options_t options;	/// Command-line options
 	
 	const(char) *arg = void;
-	int e = void;
+//	int e = void;
 	for (int argi = 1; argi < argc; ++argi) {
 		if (argv[argi][1] == '-') { // Long arguments
 			arg = argv[argi] + 2;
-			if (strcmp(arg, "dump") == 0) {
+/*			if (strcmp(arg, "dump") == 0) {
 				if (++argi >= argc) {
 					puts("Missing argument: path");
 					return 1;
 				}
-				e = dumpOpen(&opts.file, argv[argi]);
+				e = dumpOpen(&options.file, argv[argi]);
 				if (e) {
 					printf("Couldn't open file: %s\n", strerror(e));
 					return 2;
 				}
 				continue;
-			}
+			}*/
 			if (strcmp(arg, "level") == 0) {
-				opts.optlevel = true;
+				options.getLevel = true;
+				continue;
+			}
+			if (strcmp(arg, "details") == 0) {
+				options.getLevel = true;
 				continue;
 			}
 			if (strcmp(arg, "version") == 0) {
@@ -172,27 +330,27 @@ int main(int argc, const(char) **argv) {
 			while ((o = *arg) != 0) {
 				++arg;
 				switch (o) {
-				case 'l': opts.optlevel = true; continue;
-				case 'o': opts.override_ = true; continue;
-				case 'r': opts.table = true; continue;
-				case 'D':
+				case 'l': options.getLevel = true; continue;
+				case 'o': options.override_ = true; continue;
+				case 'r': options.table = true; continue;
+/*				case 'D':
 					if (++argi >= argc) {
 						puts("Missing parameter: file");
 						return 1;
 					}
-					e = dumpOpen(&opts.file, argv[argi]);
+					e = dumpOpen(&options.file, argv[argi]);
 					if (e) {
 						printf("Couldn't open file: %s\n", strerror(e));
 						return 2;
 					}
-					continue;
+					continue;*/
 				case 'S':
 					if (++argi >= argc) {
 						puts("Missing parameter: leaf");
 						return 1;
 					}
-					opts.hasLevel = sscanf(argv[argi], "%i", &opts.maxLevel) == 1;
-					if (opts.hasLevel == false) {
+					options.hasLevel = sscanf(argv[argi], "%i", &options.maxLevel) == 1;
+					if (options.hasLevel == false) {
 						puts("Could not parse level (-S)");
 						return 2;
 					}
@@ -202,11 +360,12 @@ int main(int argc, const(char) **argv) {
 						puts("Missing parameter: sub-leaf (-s)");
 						return 1;
 					}
-					if (sscanf(argv[argi], "%i", &opts.maxSub) != 1) {
+					if (sscanf(argv[argi], "%i", &options.maxSub) != 1) {
 						puts("Could not parse sub-level (-s)");
 						return 2;
 					}
 					continue;
+				case 'd': options.getDetails = true; continue;
 				case 'h': clih; return 0;
 				case 'V': cliv; return 0;
 				default:
@@ -219,95 +378,56 @@ int main(int argc, const(char) **argv) {
 	
 	CPUINFO info;
 	
-	if (opts.override_ == false) {
+	if (options.override_ == false) {
 		getLeaves(info);
 	} else {
-		info.maxLeaf = maxLeaf;
+		info.maxLeaf = MAX_LEAF;
 		info.maxLeafVirt = MAX_VLEAF;
 		info.maxLeafExtended = MAX_ELEAF;
 	}
 	
-	if (opts.table || opts.file) { // -r|-D
+	if (options.table/* || options.file*/) { // -r|-D
 		uint l = void, s = void;
+		//TODO: outcpuid should just accept ref options_t and s
 
-		if (opts.file) {
-			__gshared const(char) *HEADER = "ddcu\x01\x00\x00\x00";
-			dumpWrite(opts.file, HEADER, 8);
-		} else {
+//		if (options.file) {
+//			__gshared const(char) *HEADER = "ddcu\x01\x00\x00\x00";
+//			dumpWrite(options.file, HEADER, 8);
+//		} else {
 			puts(
 			"| Leaf     | Sub-leaf | EAX      | EBX      | ECX      | EDX      |\n"~
 			"|----------|----------|----------|----------|----------|----------|"
 			);
-		}
+//		}
 
-		if (opts.hasLevel) {
-			for (s = 0; s <= opts.maxSub; ++s)
-				outcpuid(opts.maxLevel, s, opts.file);
+		if (options.hasLevel) {
+			for (s = 0; s <= options.maxSub; ++s)
+				outcpuid(options.maxLevel, s/*, options.file*/);
 			return 0;
 		}
 		
 		// Normal
 		for (l = 0; l <= info.maxLeaf; ++l)
-			for (s = 0; s <= opts.maxSub; ++s)
-				outcpuid(l, s, opts.file);
+			for (s = 0; s <= options.maxSub; ++s)
+				outcpuid(l, s/*, options.file*/);
 		
 		// Paravirtualization
 		if (info.maxLeafVirt > 0x4000_0000)
 		for (l = 0x4000_0000; l <= info.maxLeafVirt; ++l)
-			for (s = 0; s <= opts.maxSub; ++s)
-				outcpuid(l, s, opts.file);
+			for (s = 0; s <= options.maxSub; ++s)
+				outcpuid(l, s/*, options.file*/);
 		
 		// Extended
 		for (l = 0x8000_0000; l <= info.maxLeafExtended; ++l)
-			for (s = 0; s <= opts.maxSub; ++s)
-				outcpuid(l, s, opts.file);
+			for (s = 0; s <= options.maxSub; ++s)
+				outcpuid(l, s/*, options.file*/);
 		return 0;
 	}
 	
 	getInfo(info);
 	
-	if (opts.optlevel) {
-		// That's a story for another time
-		if (info.extensions.x86_64 == false)	goto L_X86_64_NONE;
-		
-		// v4
-		if (info.avx.avx512f && info.avx.avx512bw &&
-			info.avx.avx512cd && info.avx.avx512dq &&
-			info.avx.avx512vl) {
-			puts("x86-64-v4");
-			return 0;
-		}
-		
-		// v3
-		if (info.avx.avx2 && info.avx.avx &&
-			info.extensions.bmi2 && info.extensions.bmi1 &&
-			info.extensions.f16c && info.extensions.fma3 &&
-			info.extras.lzcnt && info.extras.movbe &&
-			info.extras.osxsave) {
-			puts("x86-64-v3");
-			return 0;
-		}
-		
-		// v2
-		if (info.sse.sse42 && info.sse.sse41 &&
-			info.sse.ssse3 && info.sse.sse3 &&
-			info.extensions.lahf64 && info.extras.popcnt &&
-			info.extras.cmpxchg16b) {
-			puts("x86-64-v2");
-			return 0;
-		}
-		
-		// baseline
-		if (info.sse.sse2 && info.sse.sse &&
-			info.extensions.mmx && info.extras.fxsr &&
-			info.extras.cmpxchg8b && info.extras.cmov &&
-			info.extensions.fpu && info.extras.syscall) {
-			puts("x86-64"); // v1/baseline
-			return 0;
-		}
-		
-L_X86_64_NONE:
-		puts("none");
+	if (options.getLevel) {
+		puts(classification(info));
 		return 0;
 	}
 	
@@ -319,6 +439,80 @@ L_X86_64_NONE:
 	// Brand string left space trimming
 	// Extremely common in Intel but let's also do it for others
 	while (*brand == ' ') ++brand;
+	
+	uint csize = void; /// Level cache size
+	uint tsize = void; /// Total cache size
+	char ct = void; /// Level cache size prefix
+	char cc = void; /// Total cache size prefix
+	
+	if (options.getDetails == false) { // Summary
+		with (info) printf(
+		"Name:        %.12s %.48s\n"~
+		"Identifier:  Family %u Model %u Stepping %u\n"~
+		"Cores:       %u cores %u threads\n"~
+		"Techs:       %s",
+		vendor, brand,
+		family, model, stepping,
+		cores.physical, cores.logical,
+		classification(info)
+		);
+		
+		printTechs(info);
+		
+		immutable const(char) *none = " None";
+		
+		printf("\nSSE:        ");
+		if (info.sse.sse) {
+			printSSE(info);
+			putchar('\n');
+		} else puts(none);
+		
+		printf("AVX:        ");
+		if (info.avx.avx) {
+			printAVX(info);
+			putchar('\n');
+		} else puts(none);
+		
+		printf("AMX:        ");
+		if (info.amx.enabled) {
+			printAMX(info);
+			putchar('\n');
+		} else puts(none);
+		
+		printf("Others:     ");
+		printOthers(info);
+		putchar('\n');
+		
+		printf("Mitigations:");
+		printSecurity(info);
+		putchar('\n');
+		
+		if (info.virt.vendorId) {
+			const(char) *virtVendor = void;
+			switch (info.virt.vendorId) with (VirtVendor) {
+			case KVM:        virtVendor = "KVM"; break;
+			case HyperV:     virtVendor = "Hyper-V"; break;
+			case VBoxHyperV: virtVendor = "VirtualBox Hyper-V"; break;
+			case VBoxMin:    virtVendor = "VirtualBox Minimal"; break;
+			default:         virtVendor = "Unknown";
+			}
+			printf("Paravirtualization: %s\n", virtVendor);
+		}
+		
+		for (size_t i; i < info.cache.levels; ++i) {
+			CACHEINFO *cache = &info.cache.level[i];
+			csize = cache.size;
+			tsize = csize * cache.sharedCores;
+			ct = adjust(tsize);
+			cc = adjust(csize);
+			printf("Cache L%u-%c:  %ux %u%cB\t(%u%cB)\n",
+				cache.level, cache.type,
+				cache.sharedCores,
+				csize, cc, tsize, ct);
+		}
+		
+		return 0;
+	}
 	
 	//
 	// ANCHOR Processor basic information
@@ -358,16 +552,7 @@ L_X86_64_NONE:
 		printf(" 3DNow!");
 		if (info.extensions._3DNowExtended) printf(" Ext3DNow!");
 	}
-	if (info.sse.sse) {
-		printf(" SSE");
-		if (info.sse.sse2) printf(" SSE2");
-		if (info.sse.sse3) printf(" SSE3");
-		if (info.sse.ssse3) printf(" SSSE3");
-		if (info.sse.sse41) printf(" SSE4.1");
-		if (info.sse.sse42) printf(" SSE4.2");
-		if (info.sse.sse4a) printf(" SSE4a");
-		if (info.extensions.xop) printf(" XOP");
-	}
+	if (info.sse.sse) printSSE(info);
 	if (info.extensions.x86_64) {
 		switch (info.vendorId) {
 		case Vendor.Intel: printf(" Intel64/x86-64"); break;
@@ -388,45 +573,10 @@ L_X86_64_NONE:
 		case Vendor.VIA: printf(" VIA-VT/VMX"); break;
 		default: printf(" VMX");
 		}
-	if (info.extensions.aes_ni) printf(" AES-NI");
-	if (info.avx.avx) printf(" AVX");
-	if (info.avx.avx2) printf(" AVX2");
-	if (info.avx.avx512f) {
-		printf(" AVX512F");
-		if (info.avx.avx512er) printf(" +ER");
-		if (info.avx.avx512pf) printf(" +PF");
-		if (info.avx.avx512cd) printf(" +CD");
-		if (info.avx.avx512dq) printf(" +DQ");
-		if (info.avx.avx512bw) printf(" +BW");
-		if (info.avx.avx512vl) printf(" +VL");
-		if (info.avx.avx512_ifma) printf(" +IFMA");
-		if (info.avx.avx512_vbmi) printf(" +VBMI");
-		if (info.avx.avx512_4vnniw) printf(" +4VNNIW");
-		if (info.avx.avx512_4fmaps) printf(" +4FMAPS");
-		if (info.avx.avx512_vbmi2) printf(" +VBMI2");
-		if (info.avx.avx512_gfni) printf(" +GFNI");
-		if (info.avx.avx512_vaes) printf(" +VAES");
-		if (info.avx.avx512_vnni) printf(" +VNNI");
-		if (info.avx.avx512_bitalg) printf(" +BITALG");
-		if (info.avx.avx512_bf16) printf(" +BF16");
-		if (info.avx.avx512_vp2intersect) printf(" +VP2INTERSECT");
-	}
-	if (info.extensions.adx) printf(" ADX");
-	if (info.extensions.sha) printf(" SHA");
-	if (info.extensions.fma3) printf(" FMA3");
-	if (info.extensions.fma4) printf(" FMA4");
-	if (info.extensions.tbm) printf(" TBM");
-	if (info.extensions.bmi1) printf(" BMI1");
-	if (info.extensions.bmi2) printf(" BMI2");
-	if (info.extensions.waitpkg) printf(" WAITPKG");
-	if (info.amx.enabled) {
-		printf(" AMX");
-		if (info.amx.bf16) printf(" +BF16");
-		if (info.amx.int8) printf(" +INT8");
-		if (info.amx.xtilecfg) printf(" +XTILECFG");
-		if (info.amx.xtiledata) printf(" +XTILEDATA");
-		if (info.amx.xfd) printf(" +XFD");
-	}
+	if (info.avx.avx) printAVX(info);
+	printFMA(info);
+	printOthers(info);
+	if (info.amx.enabled) printAMX(info);
 	
 	//
 	// ANCHOR Extra/lone instructions
@@ -480,39 +630,7 @@ L_X86_64_NONE:
 	//
 	
 	printf("\nTechnologies:");
-	
-	switch (info.vendorId) {
-	case Vendor.Intel:
-		if (info.tech.eist) printf(" EIST");
-		if (info.tech.turboboost) {
-			printf(" TurboBoost");
-			if (info.tech.turboboost30) printf("-3.0");
-		}
-		if (info.memory.tsx) {
-			printf(" TSX");
-			if (info.memory.hle)
-				printf(" +HLE");
-			if (info.memory.rtm)
-				printf(" +RTM");
-			if (info.memory.tsxldtrk)
-				printf(" +TSXLDTRK");
-		}
-		if (info.tech.smx) printf(" Intel-TXT/SMX");
-		if (info.sgx.enabled) {
-			printf(" SGX");
-			if (info.sgx.maxSize) {
-				printf(" maxSize=%u maxSize64=%u",
-					1 << info.sgx.maxSize,
-					1 << info.sgx.maxSize64);
-			}
-		}
-		break;
-	case Vendor.AMD:
-		if (info.tech.turboboost) printf(" Core-Performance-Boost");
-		break;
-	default:
-	}
-	if (info.tech.htt) printf(" HTT");
+	printTechs(info);
 	
 	//
 	// ANCHOR Cache information
@@ -530,13 +648,9 @@ L_X86_64_NONE:
 	
 	for (uint i; i < info.cache.levels; ++i) {
 		CACHEINFO *cache = &info.cache.level[i];
-		char c = 'K';
-		if (cache.size >= 1024) {
-			cache.size >>= 10;
-			c = 'M';
-		}
+		cc = adjust(cache.size);
 		printf("\n\tL%u-%c: %ux %4u %ciB, %u ways, %u parts, %u B, %u sets",
-			cache.level, cache.type, cache.sharedCores, cache.size, c,
+			cache.level, cache.type, cache.sharedCores, cache.size, cc,
 			cache.ways, cache.partitions, cache.lineSize, cache.sets
 		);
 		if (cache.features & BIT!(0)) printf(" +SI"); // Self Initiative
@@ -719,17 +833,7 @@ L_X86_64_NONE:
 	
 	printf("\nSecurity    :");
 	if (info.security.ia32_arch_capabilities) printf(" IA32_ARCH_CAPABILITIES");
-	if (info.security.ibpb) printf(" IBPB");
-	if (info.security.ibrs) printf(" IBRS");
-	if (info.security.ibrsAlwaysOn) printf(" IBRS_ON");	// AMD
-	if (info.security.ibrsPreferred) printf(" IBRS_PREF");	// AMD
-	if (info.security.stibp) printf(" STIBP");
-	if (info.security.stibpAlwaysOn) printf(" STIBP_ON");	// AMD
-	if (info.security.ssbd) printf(" SSBD");
-	if (info.security.l1dFlush) printf(" L1D_FLUSH");	// Intel
-	if (info.security.md_clear) printf(" MD_CLEAR");	// Intel
-	if (info.security.cetIbt) printf(" CET_IBT");	// Intel
-	if (info.security.cetSs) printf(" CET_SS");	// Intel
+	printSecurity(info);
 	
 	printf("\nMisc.       : HLeaf=0x%x HVLeaf=0x%x HELeaf=0x%x Type=%s BrandIndex=%u",
 		info.maxLeaf, info.maxLeafVirt, info.maxLeafExtended,

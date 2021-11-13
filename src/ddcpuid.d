@@ -36,9 +36,7 @@ module ddcpuid;
 //       Besides, final compiled binary is plenty fine on every compiler.
 // NOTE: GAS syntax reminder
 //       asm { "asm;\n\t" : "constraint" output : "constraint" input : clobbers }
-// NOTE: bhyve doesn't not emit cpuid bits past 0x40000000, so not supported
-
-//TODO: Maybe an internal structure
+// NOTE: bhyve doesn't not emit cpuid bits within 0x40000000, so not supported
 
 @system:
 extern (C):
@@ -158,7 +156,7 @@ struct CACHEINFO { align(1):
 		ushort lines;	/// AMD legacy way of saying sets.
 	}
 	ushort ways;	/// Number of ways per line.
-	ushort sets; /// Number of cache sets.
+	uint sets; /// Number of cache sets.
 	/// Cache size in kilobytes.
 	// (Ways + 1) * (Partitions + 1) * (LineSize + 1) * (Sets + 1)
 	// (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
@@ -1069,18 +1067,12 @@ void getVirtVendor(ref CPUINFO info) {
 /// phase.
 /// 
 /// Params: info = CPUINFO structure
-//TODO: bool skipCache = false (for -l)
 pragma(inline, false)
 void getInfo(ref CPUINFO info) {
 	ushort sc = void;	/// raw cores shared across cache level
 	ushort crshrd = void;	/// actual count of shared cores
-	ushort clevel;	/// current cache level
 	ubyte type = void;	/// cache type
 	ubyte mids = void;	/// maximum IDs to this cache
-	ubyte maxAddrIDs = void;	/// Maximum number of addressable IDs for logical processors in this physical package
-	int SMTSelectMask = void;
-	int SMTMaskWidth = void;
-	int levelShift = void;
 	
 	getVendor(info);
 	getBrand(info);
@@ -1695,10 +1687,10 @@ L_CACHE_INTEL_4H:
 		
 		ca.type = CACHE_TYPE[type];
 		ca.level = regs.al >> 5;
-		ca.lineSize = (regs.bx & 0x7FF) + 1;
-		ca.partitions = cast(ubyte)(((regs.ebx >> 12) & 0x7FF) + 1);
-		ca.ways = cast(ubyte)((regs.ebx >> 22) + 1);
-		ca.sets = regs.cl + 1;
+		ca.lineSize = (regs.bx & 0xfff) + 1; // bits 11-0
+		ca.partitions = ((regs.ebx >> 12) & 0x3ff) + 1; // bits 21-12
+		ca.ways = ((regs.ebx >> 22) + 1); // bits 31-22
+		ca.sets = regs.ecx + 1;
 		if (regs.eax & BIT!(8)) ca.features = 1;
 		if (regs.eax & BIT!(9)) ca.features |= BIT!(1);
 		if (regs.edx & BIT!(0)) ca.features |= BIT!(2);
@@ -1767,24 +1759,24 @@ L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 		if (type == 0 || info.cache.levels >= CACHE_MAX_LEVEL) break;
 		
 		ca.type = CACHE_TYPE[type];
-		ca.level = cast(ubyte)((regs.eax >> 5) & 7);
-		ca.lineSize = cast(ubyte)((regs.ebx & 0x7FF) + 1);
-		ca.partitions = cast(ubyte)(((regs.ebx >> 12) & 0x7FF) + 1);
-		ca.ways = cast(ubyte)((regs.ebx >> 22) + 1);
-		ca.sets = cast(ushort)(regs.ecx + 1);
+		ca.level = (regs.eax >> 5) & 7;
+		ca.lineSize = (regs.ebx & 0xfff) + 1;
+		ca.partitions = ((regs.ebx >> 12) & 0x3ff) + 1;
+		ca.ways = (regs.ebx >> 22) + 1;
+		ca.sets = regs.ecx + 1;
 		if (regs.eax & BIT!(8)) ca.features = 1;
 		if (regs.eax & BIT!(9)) ca.features |= BIT!(1);
 		if (regs.edx & BIT!(0)) ca.features |= BIT!(2);
 		if (regs.edx & BIT!(1)) ca.features |= BIT!(3);
 		ca.size = (ca.sets * ca.lineSize * ca.partitions * ca.ways) >> 10;
 		
-		crshrd = (((regs.eax >> 14) & 2047) + 1);	// EAX[25:14]
+		crshrd = (((regs.eax >> 14) & 0xfff) + 1); // bits 25-14
 		sc = cast(ushort)(info.acpi.maxApicId / crshrd); // cast for ldc 0.17.1
 		ca.sharedCores = sc ? sc : 1;
 		
-		if (info.cores.logical == 0) { // skip if already populated
-			info.cores.logical = info.acpi.maxApicId;
-			info.cores.physical = info.tech.htt ? info.acpi.maxApicId >> 1 : info.acpi.maxApicId;
+		if (info.cores.logical == 0) with (info.cores) { // skip if already populated
+			logical = info.acpi.maxApicId;
+			physical = info.tech.htt ? logical >> 1 : info.acpi.maxApicId;
 		}
 		
 		version (Trace) trace("amd.8000_001Dh mids=%u shared=%u crshrd=%u sc=%u",

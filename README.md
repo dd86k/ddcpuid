@@ -27,49 +27,42 @@ Officially supports these vendors:
 
 ```
 $ ddcpuid
-Vendor      : GenuineIntel
-Brand       : Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
-Identifier  : Family 6 (0x6) [0x6:0x0] Model 58 (0x3a) [0xa:0x3] Stepping 9
-Cores       : 8 threads
-Extensions  : x87/FPU +F16C MMX SSE SSE2 SSE3 SSSE3 SSE4.1 SSE4.2 Intel64/x86-64 +LAHF64 VT-x/VMX AES-NI AVX
-Extra       : MONITOR+MWAIT +MIN=64 +MAX=64 PCLMULQDQ CMPXCHG8B CMPXCHG16B RDRAND RDMSR+WRMSR SYSENTER+SYSEXIT SYSCALL+SYSRET RDTSC +TSC-Deadline +TSC-Invariant RDTSCP CMOV FCOMI+FCMOV POPCNT XSAVE+XRSTOR XSETBV+XGETBV FXSAVE+FXRSTOR
-Technologies: EIST TurboBoost Intel-TXT/SMX HTT
-Cache       : CLFLUSH=64B SS
-        L1-D: 4x   32 KiB, 8 ways, 1 parts, 64 B, 64 sets +SI
-        L1-I: 4x   32 KiB, 8 ways, 1 parts, 64 B, 64 sets +SI
-        L2-U: 4x  256 KiB, 8 ways, 1 parts, 64 B, 512 sets +SI
-        L3-U: 1x    8 MiB, 16 ways, 1 parts, 64 B, 8192 sets +SI +CI +CCI
-ACPI        : ACPI APIC x2APIC ARAT TM TM2 APIC-ID=6 MAX-ID=16
-Virtual     : VME
-Memory      : P-Bits=36 L-Bits=48 PAE PSE PSE-36 Intel-XD/NX PAT MTRR PGE SMEP
-Debugging   : MCA MCE DE DS DS-CPL DTES64 PDCM PBE
-Security    : IBRS STIBP SSBD L1D_FLUSH MD_CLEAR
-Misc.       : HLeaf=0xd HVLeaf=0x0 HELeaf=0x80000008 Type=Original Index=0 xTPR PCID FSGSBASE
+Name:        GenuineIntel Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
+Identifier:  Family 6 Model 58 Stepping 9
+Cores:       4 cores 8 threads
+Techs:       x86-64-v2 EIST TurboBoost Intel-TXT/SMX HTT
+SSE:         SSE SSE2 SSE3 SSSE3 SSE4.1 SSE4.2
+AVX:         AVX
+AMX:         None
+Others:      AES-NI
+Mitigations: IBRS STIBP SSBD L1D_FLUSH MD_CLEAR
+Cache L1-D:  4x 32KB    (128KB)
+Cache L1-I:  4x 32KB    (128KB)
+Cache L2-U:  4x 256KB   (1MB)
+Cache L3-U:  1x 8MB     (8MB)
 ```
 
-## In Virtual Environment
+## In a Virtual Guest with 2 Cores Allocated
 
 ```
 $ ddcpuid
-Vendor      : GenuineIntel
-Brand       : Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
-Identifier  : Family 6 (0x6) [0x6:0x0] Model 58 (0x3a) [0xa:0x3] Stepping 9
-Cores       : 2 threads
-Extensions  : x87/FPU MMX SSE SSE2 SSE3 SSSE3 SSE4.2 Intel64/x86-64 +LAHF64 AES-NI AVX
-Extra       : PCLMULQDQ CMPXCHG8B CMPXCHG16B RDRAND RDMSR+WRMSR SYSENTER+SYSEXIT SYSCALL+SYSRET RDTSC +TSC-Invariant RDTSCP CMOV FCOMI+FCMOV POPCNT XSAVE+XRSTOR XSETBV+XGETBV FXSAVE+FXRSTOR
-Technologies: HTT
-Cache       : CLFLUSH=64B
-	L1-D: 2x   32 KiB, 8 ways, 1 parts, 64 B, 64 sets +SI
-	L1-I: 2x   32 KiB, 8 ways, 1 parts, 64 B, 64 sets +SI
-	L2-U: 2x  256 KiB, 8 ways, 1 parts, 64 B, 512 sets +SI
-	L3-U: 2x    8 MiB, 16 ways, 1 parts, 64 B, 8192 sets +SI +CI +CCI
-ACPI        : APIC x2APIC APIC-ID=1 MAX-ID=2
-Virtual     : VME HOST=KVMKVMKVM KVM_FEATURE_CLOCKSOURCE KVM_FEATURE_CLOCKSOURCE2 KVM_FEATURE_PV_UNHAULT KVM_FEATURE_CLOCSOURCE_STABLE_BIT
-Memory      : P-Bits=36 L-Bits=48 PAE PSE PSE-36 Intel-XD/NX PAT MTRR PGE
-Debugging   : MCA MCE DE
-Security    : L1D_FLUSH MD_CLEAR
-Misc.       : HLeaf=0xd HVLeaf=0x40000001 HELeaf=0x80000008 Type=Original Index=0 PCID FSGSBASE
+Name:        GenuineIntel Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
+Identifier:  Family 6 Model 58 Stepping 9
+Cores:       2 cores 2 threads
+Techs:       x86-64 HTT
+SSE:         SSE SSE2 SSE3 SSSE3 SSE4.2
+AVX:         AVX
+AMX:         None
+Others:      AES-NI
+Mitigations: L1D_FLUSH MD_CLEAR
+Paravirtualization: Hyper-V
+Cache L1-D:  2x 32KB    (64KB)
+Cache L1-I:  2x 32KB    (64KB)
+Cache L2-U:  2x 256KB   (512KB)
+Cache L3-U:  2x 8MB     (16MB)
 ```
+
+NOTE: Yep, the total cache may be influenced by the virtual environment.
 
 ## Feature Level
 

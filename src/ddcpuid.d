@@ -38,6 +38,8 @@ module ddcpuid;
 //       asm { "asm;\n\t" : "constraint" output : "constraint" input : clobbers }
 // NOTE: bhyve doesn't not emit cpuid bits past 0x40000000, so not supported
 
+//TODO: Maybe an internal structure
+
 @system:
 extern (C):
 
@@ -207,6 +209,7 @@ struct CPUINFO { align(1):
 	
 	// Identifier
 	
+	uint identifier;	/// Raw identifier (EAX)
 	ubyte family;	/// Effective family identifier
 	ubyte familyBase;	/// Base family identifier
 	ubyte familyExtended;	/// Extended family identifier
@@ -1091,6 +1094,7 @@ void getInfo(ref CPUINFO info) {
 	asmcpuid(regs, 1);
 	
 	// EAX
+	info.identifier = regs.eax;
 	info.stepping   = regs.eax & 0xF;        // EAX[3:0]
 	info.modelBase  = regs.eax >>  4 &  0xF; // EAX[7:4]
 	info.familyBase = regs.eax >>  8 &  0xF; // EAX[11:8]
@@ -1687,8 +1691,7 @@ L_CACHE_INTEL_4H:
 		asmcpuid(regs, 4, info.cache.levels);
 		
 		type = regs.eax & CACHE_MASK; // EAX[4:0]
-		if (type == 0) break;
-		if (info.cache.levels >= CACHE_MAX_LEVEL) break;
+		if (type == 0 || info.cache.levels >= CACHE_MAX_LEVEL) break;
 		
 		ca.type = CACHE_TYPE[type];
 		ca.level = regs.al >> 5;
@@ -1719,6 +1722,33 @@ L_CACHE_INTEL_4H:
 		++info.cache.levels; ++ca;
 		goto L_CACHE_INTEL_4H;
 	case Vendor.AMD:
+		/*if (info.maxLeafExtended < 0x8000_001e) goto L_AMD_TOPOLOGY_EXT_8H;
+		
+		asmcpuid(regs, 0x8000_0001);
+		
+		if (regs.ecx & BIT!(22)) { // Topology extensions support
+			asmcpuid(regs, 0x8000_001e);
+			
+			info.cores.logical = regs.ch + 1;
+			info.cores.physical = regs.dh & 7;
+			goto L_AMD_CACHE;
+		}*/
+		
+/*L_AMD_TOPOLOGY_EXT_8H:
+		// See APM Volume 3 Appendix E.5
+		// For some reason, CPUID Fn8000_001E_EBX is not mentioned there
+		asmcpuid(regs, 0x8000_0008);
+		
+		type = regs.cx >> 12; // ApicIdSize
+		
+		if (type) { // Extended
+			info.cores.physical = regs.cl + 1;
+			info.cores.logical = cast(ushort)(1 << type);
+		} else { // Legacy
+			info.cores.logical = info.cores.physical = regs.cl + 1;
+		}*/
+
+//L_AMD_CACHE:
 		if (info.maxLeafExtended < 0x8000_001D)
 			goto L_CACHE_AMD_EXT_5H;
 		if (info.maxLeafExtended < 0x8000_0005) {
@@ -1731,11 +1761,10 @@ L_CACHE_INTEL_4H:
 		//
 		
 L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
-		asmcpuid(regs, 0x8000_001D, info.cache.levels);
+		asmcpuid(regs, 0x8000_001d, info.cache.levels);
 		
 		type = regs.eax & CACHE_MASK; // EAX[4:0]
-		if (type == 0) break;
-		if (info.cache.levels >= CACHE_MAX_LEVEL) goto L_CACHE_AMD_TOPOLOGY;
+		if (type == 0 || info.cache.levels >= CACHE_MAX_LEVEL) break;
 		
 		ca.type = CACHE_TYPE[type];
 		ca.level = cast(ubyte)((regs.eax >> 5) & 7);
@@ -1750,11 +1779,16 @@ L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 		ca.size = (ca.sets * ca.lineSize * ca.partitions * ca.ways) >> 10;
 		
 		crshrd = (((regs.eax >> 14) & 2047) + 1);	// EAX[25:14]
-		sc = cast(ushort)(info.cores.logical / crshrd); // cast for ldc 0.17.1
+		sc = cast(ushort)(info.acpi.maxApicId / crshrd); // cast for ldc 0.17.1
 		ca.sharedCores = sc ? sc : 1;
-
-		version (Trace) trace("amd.8000_001Dh logical=%u shared=%u crshrd=%u sc=%u",
-			info.cores.logical, ca.sharedCores, crshrd, sc);
+		
+		if (info.cores.logical == 0) { // skip if already populated
+			info.cores.logical = info.acpi.maxApicId;
+			info.cores.physical = info.tech.htt ? info.acpi.maxApicId >> 1 : info.acpi.maxApicId;
+		}
+		
+		version (Trace) trace("amd.8000_001Dh mids=%u shared=%u crshrd=%u sc=%u",
+			mids, ca.sharedCores, crshrd, sc);
 		
 		++info.cache.levels; ++ca;
 		goto L_CACHE_AMD_EXT_1DH;
@@ -1818,19 +1852,6 @@ L_CACHE_AMD_EXT_5H:
 				info.cache.level[3].sets = 1;
 				info.cache.levels = 4;
 			}
-		}
-
-L_CACHE_AMD_TOPOLOGY: // See APM Volume 3 Appendix E.5
-		// For some reason, CPUID Fn8000_001E_EBX is not mentioned there
-		asmcpuid(regs, 0x8000_0008);
-		
-		type = regs.cx >> 12; // ApicIdSize
-		
-		if (type) { // Extended
-			info.cores.physical = regs.cl + 1;
-			info.cores.logical = cast(ushort)(1 << type);
-		} else { // Legacy
-			info.cores.logical = info.cores.physical = regs.cl + 1;
 		}
 		break;
 	default:

@@ -327,12 +327,21 @@ L_X86_64_NONE:
 	with (info) printf(
 	"Vendor      : %.12s\n"~
 	"Brand       : %.48s\n"~
-	"Identifier  : Family %u (0x%x) [0x%x:0x%x] Model %u (0x%x) [0x%x:0x%x] Stepping %u\n"~
-	"Cores       : %u cores %u threads\n"~
+	"Identifier  : 0x%x\n"~
+	"Family      : 0x%x\n"~
+	"BaseFamily  : 0x%x\n"~
+	"ExtFamily   : 0x%x\n"~
+	"Model       : 0x%x\n"~
+	"BaseModel   : 0x%x\n"~
+	"ExtModel    : 0x%x\n"~
+	"Stepping    : 0x%x\n"~
+	"Cores       : %u\n"~
+	"Threads     : %u\n"~
 	"Extensions  :",
 	vendor, brand,
-	family, family, familyBase, familyExtended,
-	model, model, modelBase, modelExtended,
+	identifier,
+	family, familyBase, familyExtended,
+	model, modelBase, modelExtended,
 	stepping,
 	cores.physical, cores.logical
 	);

@@ -2,11 +2,12 @@
 
 ddcpuid is a x86 processor information tool.
 
-```
-$ ddcpuid
+```shell
+$ ddcpuid # Summary is the default mode
 Name:        GenuineIntel Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
-Identifier:  Family 6 Model 58 Stepping 9
+Identifier:  Family 0x6 Model 0x3a Stepping 0x9
 Cores:       4 cores 8 threads
+Max. Memory: 64GB physical 256TB linear
 Techs:       x86-64-v2 EIST TurboBoost Intel-TXT/SMX HTT
 SSE:         SSE SSE2 SSE3 SSSE3 SSE4.1 SSE4.2
 AVX:         AVX
@@ -41,22 +42,23 @@ Officially supports these vendors:
 
 ## 1.1. In a Virtual Guest with 2 Cores Allocated
 
-```
+```shell
 $ ddcpuid
 Name:        GenuineIntel Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
-Identifier:  Family 6 Model 58 Stepping 9
+Identifier:  Family 0x6 Model 0x3a Stepping 0x9
 Cores:       2 cores 2 threads
+Max. Memory: 64GB physical 256TB linear
 Techs:       x86-64 HTT
 SSE:         SSE SSE2 SSE3 SSSE3 SSE4.2
 AVX:         AVX
 AMX:         None
 Others:      AES-NI
 Mitigations: L1D_FLUSH MD_CLEAR
-ParaVirt.:   Hyper-V
-Cache L1-D:  2x 32KB    (64KB)
-Cache L1-I:  2x 32KB    (64KB)
-Cache L2-U:  2x 256KB   (512KB)
-Cache L3-U:  2x 8MB     (16MB)
+ParaVirt.:   KVM
+Cache L1-D:  2x 32KB	(64KB)
+Cache L1-I:  2x 32KB	(64KB)
+Cache L2-U:  2x 256KB	(512KB)
+Cache L3-U:  2x 8MB	(16MB)
 ```
 
 NOTE: The total cache may be influenced by the virtual environment.

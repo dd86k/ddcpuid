@@ -584,10 +584,8 @@ struct CPUINFO { align(1):
 
 // EAX[4:0], 0-31, but there aren't that many
 // So we limit it to 0-7
-private
-enum CACHE_MASK = 7; // Max 31
-private
-immutable const(char)* CACHE_TYPE = "?DIU????";
+private enum CACHE_MASK = 7; // Max 31
+private immutable const(char)* CACHE_TYPE = "?DIU????";
 
 private
 immutable const(char)*[4] PROCESSOR_TYPE = [ "Original", "OverDrive", "Dual", "Reserved" ];

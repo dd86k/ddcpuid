@@ -476,8 +476,13 @@ int main(int argc, const(char) **argv) {
 	uint tsize = void; /// Total cache size
 	char ct = void; /// Level cache size prefix
 	char cc = void; /// Total cache size prefix
+	CACHEINFO *cache = void;	/// Current cache level
 	
-	if (options.getDetails == false) { // Summary
+	//
+	// ANCHOR Summary
+	//
+	
+	if (options.getDetails == false) {
 		with (info) printf(
 		"Name:        %.12s %.48s\n"~
 		"Identifier:  Family %u Model %u Stepping %u\n"~
@@ -532,14 +537,14 @@ int main(int argc, const(char) **argv) {
 		}
 		
 		for (size_t i; i < info.cache.levels; ++i) {
-			CACHEINFO *cache = &info.cache.level[i];
+			cache = &info.cache.level[i];
 			csize = cache.size;
 			tsize = csize * cache.sharedCores;
-			ct = adjust(tsize);
 			cc = adjust(csize);
+			ct = adjust(tsize);
+			with (cache)
 			printf("Cache L%u-%c:  %ux %u%cB\t(%u%cB)\n",
-				cache.level, cache.type,
-				cache.sharedCores,
+				level, type, sharedCores,
 				csize, cc, tsize, ct);
 		}
 		
@@ -547,7 +552,7 @@ int main(int argc, const(char) **argv) {
 	}
 	
 	//
-	// ANCHOR Processor basic information
+	// ANCHOR Detailed view
 	//
 	
 	with (info) printf(
@@ -679,7 +684,7 @@ int main(int argc, const(char) **argv) {
 	if (info.cache.wbnoinvd) printf(" WBNOINVD");
 	
 	for (uint i; i < info.cache.levels; ++i) {
-		CACHEINFO *cache = &info.cache.level[i];
+		cache = &info.cache.level[i];
 		cc = adjust(cache.size);
 		printf("\nLevel %u-%c   : %ux %4u %ciB, %u ways, %u parts, %u B, %u sets",
 			cache.level, cache.type, cache.sharedCores, cache.size, cc,
@@ -720,7 +725,7 @@ int main(int argc, const(char) **argv) {
 			printf(" APIC_FREQ_KHZ=%u", info.virt.vbox.apic_freq_khz);
 		break;
 	case VirtVendor.HyperV:
-		printf(" OPENSOURCE=%d vendorId=%d OS=%d MAJOR=%d MINOR=%d SERVICE=%d BUILD=%d",
+		printf(" OPENSOURCE=%d VENDOR_ID=%d OS=%d MAJOR=%d MINOR=%d SERVICE=%d BUILD=%d",
 			info.virt.hv.guest_opensource,
 			info.virt.hv.guest_vendor_id,
 			info.virt.hv.guest_os,
@@ -875,15 +880,17 @@ int main(int argc, const(char) **argv) {
 	"Max. V-Leaf : 0x%x\n"~
 	"Max. E-Leaf : 0x%x\n"~
 	"Type        : %s\n"~
-	"Brand Index : %u\n",
+	"Brand Index : %u\n"~
+	"Misc.       :",
 		maxLeaf, maxLeafVirt, maxLeafExtended, typeString, brandIndex);
 	
-	printf("Misc.       :");
 	if (info.misc.xtpr) printf(" xTPR");
 	if (info.misc.psn) printf(" PSN");
 	if (info.misc.pcid) printf(" PCID");
 	if (info.misc.fsgsbase) printf(" FSGSBASE");
 	if (info.misc.uintr) printf(" UINTR");
+	
+	putchar('\n');
 	
 	return 0;
 }

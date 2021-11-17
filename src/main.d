@@ -90,7 +90,7 @@ void clih() {
 	" ddcpuid [OPTIONS...]\n"~
 	"\n"~
 	"OPTIONS\n"~
-	" -d, --details  Show details processor information\n"~
+	" -d, --details  Show detailed processor information\n"~
 	" -r, --table    Show raw CPUID data in a table\n"~
 	" -S             Table: Set leaf (EAX) input value\n"~
 	" -s             Table: Set subleaf (ECX) input value\n"~
@@ -520,7 +520,7 @@ int main(int argc, const(char) **argv) {
 		"Name:        %.12s %.48s\n"~
 		"Identifier:  Family 0x%x Model 0x%x Stepping 0x%x\n"~
 		"Cores:       %u cores %u threads\n"~
-		"Max. Memory: %u%cB physical %u%cB linear\n"~
+		"Max. Memory: %u%cB physical %u%cB virtual\n"~
 		"Techs:       %s",
 		vendor, brand,
 		family, model, stepping,

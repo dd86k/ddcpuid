@@ -55,7 +55,7 @@ version (DigitalMars) {
 	
 } else static assert(0, "Unsupported compiler");
 
-enum DDCPUID_VERSION   = "0.18.1";	/// Library version
+enum DDCPUID_VERSION   = "0.19.0";	/// Library version
 private enum CACHE_LEVELS = 6;	/// For buffer
 private enum CACHE_MAX_LEVEL = CACHE_LEVELS - 1;
 private enum VENDOR_OFFSET     = CPUINFO.vendorString.offsetof;

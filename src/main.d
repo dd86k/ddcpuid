@@ -206,6 +206,35 @@ char adjust(ref uint size) {
 	}
 	return 'K';
 }
+char adjustBits(ref uint size, int bitpos) {
+	immutable char[8] SIZE = [ 0, 'K', 'M', 'G', 'T', 'P', 'E', 'Z' ];
+	size_t s;
+	while (bitpos > 10) {
+		bitpos -= 10;
+		++s;
+	}
+	size = 1 << bitpos;
+	return SIZE[s];
+}
+//TODO: Make DUB to include this main, somehow
+/// adjustBits
+@system unittest {
+	uint size;
+	assert(adjustBits(size, 0) == 0);
+	assert(size == 1);
+	assert(adjustBits(size, 1) == 0);
+	assert(size == 2);
+	assert(adjustBits(size, 10) == 'K');
+	assert(size == 1);
+	assert(adjustBits(size, 11) == 'K');
+	assert(size == 2);
+	assert(adjustBits(size, 20) == 'M');
+	assert(size == 1);
+	assert(adjustBits(size, 36) == 'G');
+	assert(size == 64);
+	assert(adjustBits(size, 48) == 'T');
+	assert(size == 256);
+}
 
 void printTechs(ref CPUINFO info) {
 	switch (info.vendorId) {
@@ -483,14 +512,20 @@ int main(int argc, const(char) **argv) {
 	//
 	
 	if (options.getDetails == false) {
+		uint maxPhys = void;
+		uint maxLine = void;
+		char cphys = adjustBits(maxPhys, info.memory.physBits);
+		char cline = adjustBits(maxLine, info.memory.lineBits);
 		with (info) printf(
 		"Name:        %.12s %.48s\n"~
-		"Identifier:  Family %u Model %u Stepping %u\n"~
+		"Identifier:  Family 0x%x Model 0x%x Stepping 0x%x\n"~
 		"Cores:       %u cores %u threads\n"~
+		"Max. Memory: %u%cB physical %u%cB linear\n"~
 		"Techs:       %s",
 		vendor, brand,
 		family, model, stepping,
 		cores.physical, cores.logical,
+		maxPhys, cphys, maxLine, cline,
 		classification(info)
 		);
 		

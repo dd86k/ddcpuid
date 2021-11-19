@@ -108,11 +108,11 @@ void clih() {
 /// print version page
 void cliv() {
 	puts(
-	"ddcpuid-"~DDCPUID_PLATFORM~" v"~DDCPUID_VERSION~" ("~__TIMESTAMP__~")\n"~
+	"ddcpuid-"~DDCPUID_PLATFORM~" "~DDCPUID_VERSION~" (built: "~__TIMESTAMP__~")\n"~
 	"Copyright (c) 2016-2021 dd86k <dd@dax.moe>\n"~
 	"License: MIT License <http://opensource.org/licenses/MIT>\n"~
-	"Project page: <https://github.com/dd86k/ddcpuid>\n"~
-	"Compiler: "~__VENDOR__~" v"~CVER!(__VERSION__)
+	"Homepage: <https://github.com/dd86k/ddcpuid>\n"~
+	"Compiler: "~__VENDOR__~" "~CVER!(__VERSION__)
 	);
 }
 
@@ -200,16 +200,30 @@ L_X86_64_NONE:
 }
 
 char adjust(ref uint size) {
+	version (Trace) trace("size=%u", size);
 	if (size >= 1024) {
 		size >>= 10;
 		return 'M';
 	}
 	return 'K';
 }
+/// adjust
+@system unittest {
+	uint size = 1;
+	assert(adjust(size) == 'K');
+	assert(size == 1);
+	size = 1024;
+	assert(adjust(size) == 'M');
+	assert(size == 1);
+	size = 4096;
+	assert(adjust(size) == 'M');
+	assert(size == 4);
+}
 char adjustBits(ref uint size, int bitpos) {
+	version (Trace) trace("size=%u bit=%d", size, bitpos);
 	immutable char[8] SIZE = [ 0, 'K', 'M', 'G', 'T', 'P', 'E', 'Z' ];
 	size_t s;
-	while (bitpos > 10) {
+	while (bitpos >= 10) {
 		bitpos -= 10;
 		++s;
 	}
@@ -339,6 +353,7 @@ void printSecurity(ref CPUINFO info) {
 	if (info.security.cetSs) printf(" CET_SS");	// Intel
 }
 
+version (unittest) {} else
 int main(int argc, const(char) **argv) {
 	options_t options;	/// Command-line options
 	

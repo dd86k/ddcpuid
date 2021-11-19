@@ -516,10 +516,6 @@ int main(int argc, const(char) **argv) {
 	// Extremely common in Intel but let's also do it for others
 	while (*brand == ' ') ++brand;
 	
-	float csize = void; /// Level cache size
-	float tsize = void; /// Total cache size
-	char ct = void; /// Level cache size prefix
-	char cc = void; /// Total cache size prefix
 	CACHEINFO *cache = void;	/// Current cache level
 	
 	//
@@ -588,10 +584,10 @@ int main(int argc, const(char) **argv) {
 		
 		for (size_t i; i < info.cache.levels; ++i) {
 			cache = &info.cache.level[i];
-			csize = cache.size;
-			tsize = csize * cache.sharedCores;
-			cc = adjust(csize);
-			ct = adjust(tsize);
+			float csize = cache.size;
+			float tsize = csize * cache.sharedCores;
+			char cc = adjust(csize);
+			char ct = adjust(tsize);
 			with (cache)
 			printf("Cache L%u-%c:  %ux %g%cB\t(%g%cB)\n",
 				level, type, sharedCores,
@@ -735,8 +731,8 @@ int main(int argc, const(char) **argv) {
 	
 	for (uint i; i < info.cache.levels; ++i) {
 		cache = &info.cache.level[i];
-		printf("\nLevel %u-%c   : %ux %4u %ciB, %u ways, %u parts, %u B, %u sets",
-			cache.level, cache.type, cache.sharedCores, cache.size, cc,
+		printf("\nLevel %u-%c   : %ux %5u KB, %u ways, %u parts, %u B, %u sets",
+			cache.level, cache.type, cache.sharedCores, cache.size,
 			cache.ways, cache.partitions, cache.lineSize, cache.sets
 		);
 		if (cache.features & BIT!(0)) printf(" +SI"); // Self Initiative

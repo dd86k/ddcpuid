@@ -7,17 +7,17 @@ $ ddcpuid # Summary is the default mode
 Name:        GenuineIntel Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
 Identifier:  Family 0x6 Model 0x3a Stepping 0x9
 Cores:       4 cores 8 threads
-Max. Memory: 64GB physical 256TB linear
+Max. Memory: 64GB physical 256TB virtual
 Techs:       x86-64-v2 EIST TurboBoost Intel-TXT/SMX HTT
 SSE:         SSE SSE2 SSE3 SSSE3 SSE4.1 SSE4.2
 AVX:         AVX
 AMX:         None
 Others:      AES-NI
 Mitigations: IBRS STIBP SSBD L1D_FLUSH MD_CLEAR
-Cache L1-D:  4x 32KB    (128KB)
-Cache L1-I:  4x 32KB    (128KB)
-Cache L2-U:  4x 256KB   (1MB)
-Cache L3-U:  1x 8MB     (8MB)
+Cache L1-D:  4x 32KB    (128KB)  SI
+Cache L1-I:  4x 32KB    (128KB)  SI
+Cache L2-U:  4x 256KB   (1MB)    SI
+Cache L3-U:  1x 8MB     (8MB)    SI CI CCI
 ```
 
 - Can be used as a stand-alone tool or as a library. DUB compatible.
@@ -47,21 +47,21 @@ $ ddcpuid
 Name:        GenuineIntel Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
 Identifier:  Family 0x6 Model 0x3a Stepping 0x9
 Cores:       2 cores 2 threads
-Max. Memory: 64GB physical 256TB linear
+Max. Memory: 64GB physical 256TB virtual
 Techs:       x86-64 HTT
 SSE:         SSE SSE2 SSE3 SSSE3 SSE4.2
 AVX:         AVX
 AMX:         None
 Others:      AES-NI
 Mitigations: L1D_FLUSH MD_CLEAR
-ParaVirt.:   KVM
-Cache L1-D:  2x 32KB	(64KB)
-Cache L1-I:  2x 32KB	(64KB)
-Cache L2-U:  2x 256KB	(512KB)
-Cache L3-U:  2x 8MB	(16MB)
+ParaVirt.:   Hyper-V
+Cache L1-D:  2x 32KB    (64KB)   SI
+Cache L1-I:  2x 32KB    (64KB)   SI
+Cache L2-U:  2x 256KB   (512KB)  SI
+Cache L3-U:  2x 8MB     (16MB)   SI CI CCI
 ```
 
-NOTE: The total cache may be influenced by the virtual environment.
+NOTE: Features may be influenced by the virtual environment.
 
 ## 1.3. Feature Level
 
@@ -77,7 +77,7 @@ $ ddcpuid --table
 | Leaf     | Sub-leaf | EAX      | EBX      | ECX      | EDX      |
 |----------|----------|----------|----------|----------|----------|
 |        0 |        0 |        d | 756e6547 | 6c65746e | 49656e69 |
-|        1 |        0 |    306a9 |  3100800 | 7fbae3ff | bfebfbff |
+|        1 |        0 |    306a9 |  5100800 | 7fbae3ff | bfebfbff |
 |        2 |        0 | 76035a01 |   f0b2ff |        0 |   ca0000 |
 |        3 |        0 |        0 |        0 |        0 |        0 |
 |        4 |        0 | 1c004121 |  1c0003f |       3f |        0 |
@@ -87,7 +87,7 @@ $ ddcpuid --table
 |        8 |        0 |        0 |        0 |        0 |        0 |
 |        9 |        0 |        0 |        0 |        0 |        0 |
 |        a |        0 |  7300403 |        0 |        0 |      603 |
-|        b |        0 |        1 |        2 |      100 |        0 |
+|        b |        0 |        1 |        2 |      100 |        4 |
 |        c |        0 |        0 |        0 |        0 |        0 |
 |        d |        0 |        7 |      340 |      340 |        0 |
 | 80000000 |        0 | 80000008 |        0 |        0 |        0 |

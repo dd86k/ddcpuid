@@ -352,6 +352,13 @@ void printSecurity(ref CPUINFO info) {
 	if (info.security.cetIbt) printf(" CET_IBT");	// Intel
 	if (info.security.cetSs) printf(" CET_SS");	// Intel
 }
+void printCacheFeats(ushort feats) {
+	if (feats & BIT!(0)) printf(" SI"); // Self Initiative
+	if (feats & BIT!(1)) printf(" FA"); // Fully Associative
+	if (feats & BIT!(2)) printf(" NWBV"); // No Write-Back Validation
+	if (feats & BIT!(3)) printf(" CI"); // Cache Inclusive
+	if (feats & BIT!(4)) printf(" CCI"); // Complex Cache Indexing
+}
 
 version (unittest) {} else
 int main(int argc, const(char) **argv) {
@@ -374,6 +381,10 @@ int main(int argc, const(char) **argv) {
 				}
 				continue;
 			}*/
+			if (strcmp(arg, "table") == 0) {
+				options.table = true;
+				continue;
+			}
 			if (strcmp(arg, "level") == 0) {
 				options.getLevel = true;
 				continue;
@@ -589,9 +600,11 @@ int main(int argc, const(char) **argv) {
 			char cc = adjust(csize);
 			char ct = adjust(tsize);
 			with (cache)
-			printf("Cache L%u-%c:  %ux %g%cB\t(%g%cB)\n",
+			printf("Cache L%u-%c:  %ux %g%cB\t(%g%cB)\t",
 				level, type, sharedCores,
 				csize, cc, tsize, ct);
+			printCacheFeats(cache.features);
+			putchar('\n');
 		}
 		
 		return 0;
@@ -735,11 +748,7 @@ int main(int argc, const(char) **argv) {
 			cache.level, cache.type, cache.sharedCores, cache.size,
 			cache.ways, cache.partitions, cache.lineSize, cache.sets
 		);
-		if (cache.features & BIT!(0)) printf(" +SI"); // Self Initiative
-		if (cache.features & BIT!(1)) printf(" +FA"); // Fully Associative
-		if (cache.features & BIT!(2)) printf(" +NWBV"); // No Write-Back Validation
-		if (cache.features & BIT!(3)) printf(" +CI"); // Cache Inclusive
-		if (cache.features & BIT!(4)) printf(" +CCI"); // Complex Cache Indexing
+		printCacheFeats(cache.features);
 	}
 	
 	printf("\nACPI        :");

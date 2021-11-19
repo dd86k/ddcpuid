@@ -593,7 +593,7 @@ int main(int argc, const(char) **argv) {
 			cc = adjust(csize);
 			ct = adjust(tsize);
 			with (cache)
-			printf("Cache L%u-%c:  %ux %.0f%cB\t(%.0f%cB)\n",
+			printf("Cache L%u-%c:  %ux %g%cB\t(%g%cB)\n",
 				level, type, sharedCores,
 				csize, cc, tsize, ct);
 		}

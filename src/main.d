@@ -194,15 +194,15 @@ const(char) *classification(ref CPUINFO info) {
 		info.extensions.fpu && info.extras.syscall) {
 		return "x86-64"; // v1/baseline
 	}
-		
+	
 L_X86_64_NONE:
 	return "i386";
 }
 
-char adjust(ref uint size) {
+char adjust(ref float size) {
 	version (Trace) trace("size=%u", size);
-	if (size >= 1024) {
-		size >>= 10;
+	if (size >= 1024.0) {
+		size /= 1024;
 		return 'M';
 	}
 	return 'K';
@@ -233,7 +233,7 @@ char adjustBits(ref uint size, int bitpos) {
 //TODO: Make DUB to include this main, somehow
 /// adjustBits
 @system unittest {
-	uint size;
+	float size;
 	assert(adjustBits(size, 0) == 0);
 	assert(size == 1);
 	assert(adjustBits(size, 1) == 0);
@@ -516,8 +516,8 @@ int main(int argc, const(char) **argv) {
 	// Extremely common in Intel but let's also do it for others
 	while (*brand == ' ') ++brand;
 	
-	uint csize = void; /// Level cache size
-	uint tsize = void; /// Total cache size
+	float csize = void; /// Level cache size
+	float tsize = void; /// Total cache size
 	char ct = void; /// Level cache size prefix
 	char cc = void; /// Total cache size prefix
 	CACHEINFO *cache = void;	/// Current cache level
@@ -593,7 +593,7 @@ int main(int argc, const(char) **argv) {
 			cc = adjust(csize);
 			ct = adjust(tsize);
 			with (cache)
-			printf("Cache L%u-%c:  %ux %u%cB\t(%u%cB)\n",
+			printf("Cache L%u-%c:  %ux %.0f%cB\t(%.0f%cB)\n",
 				level, type, sharedCores,
 				csize, cc, tsize, ct);
 		}
@@ -735,7 +735,6 @@ int main(int argc, const(char) **argv) {
 	
 	for (uint i; i < info.cache.levels; ++i) {
 		cache = &info.cache.level[i];
-		cc = adjust(cache.size);
 		printf("\nLevel %u-%c   : %ux %4u %ciB, %u ways, %u parts, %u B, %u sets",
 			cache.level, cache.type, cache.sharedCores, cache.size, cc,
 			cache.ways, cache.partitions, cache.lineSize, cache.sets

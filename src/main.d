@@ -250,6 +250,20 @@ char adjustBits(ref uint size, int bitpos) {
 	assert(size == 256);
 }
 
+void printLegacy(ref CPUINFO info) {
+	if (info.extensions.fpu) {
+		printf(" x87/FPU");
+		if (info.extensions.f16c) printf(" +F16C");
+	}
+	if (info.extensions.mmx) {
+		printf(" MMX");
+		if (info.extensions.mmxExtended) printf(" ExtMMX");
+	}
+	if (info.extensions._3DNow) {
+		printf(" 3DNow!");
+		if (info.extensions._3DNowExtended) printf(" Ext3DNow!");
+	}
+}
 void printTechs(ref CPUINFO info) {
 	switch (info.vendorId) {
 	case Vendor.Intel:
@@ -579,6 +593,7 @@ int main(int argc, const(char) **argv) {
 		} else puts(none);
 		
 		printf("Others:     ");
+		printLegacy(info);
 		printOthers(info);
 		putchar('\n');
 		
@@ -641,18 +656,7 @@ int main(int argc, const(char) **argv) {
 	cores.physical, cores.logical
 	);
 	
-	if (info.extensions.fpu) {
-		printf(" x87/FPU");
-		if (info.extensions.f16c) printf(" +F16C");
-	}
-	if (info.extensions.mmx) {
-		printf(" MMX");
-		if (info.extensions.mmxExtended) printf(" ExtMMX");
-	}
-	if (info.extensions._3DNow) {
-		printf(" 3DNow!");
-		if (info.extensions._3DNowExtended) printf(" Ext3DNow!");
-	}
+	printLegacy(info);
 	if (info.sse.sse) printSSE(info);
 	if (info.extensions.x86_64) {
 		switch (info.vendorId) {

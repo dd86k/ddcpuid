@@ -290,7 +290,9 @@ struct CPUINFO { align(1):
 	align(2) AMX amx;	/// Intel AMX
 	
 	struct SGX {
-		bool enabled;	/// If SGX is enabled
+		bool supported;	/// If SGX is supported (and enabled)
+		bool sgx1;	/// SGX1
+		bool sgx2;	/// SGX2
 		ubyte maxSize;	/// 2^n maximum enclave size in non-64-bit
 		ubyte maxSize64;	/// 2^n maximum enclave size in 64-bit
 	}
@@ -338,7 +340,6 @@ struct CPUINFO { align(1):
 		bool turboboost;	/// Intel TurboBoost/AMD CorePerformanceBoost
 		bool turboboost30;	/// Intel TurboBoost 3.0
 		bool smx;	/// Intel TXT
-		bool sgx;	/// Intel SGX
 		bool htt;	/// (HTT) HyperThreading Technology
 	}
 	align(2) Technologies tech;	/// Processor technologies
@@ -1228,7 +1229,7 @@ void getInfo(ref CPUINFO info) {
 	switch (info.vendorId) {
 	case Vendor.Intel:
 		// EBX
-		info.sgx.enabled	= (regs.ebx & BIT!(2)) != 0;
+		info.sgx.supported	= (regs.ebx & BIT!(2)) != 0;
 		info.memory.hle	= (regs.ebx & BIT!(4)) != 0;
 		info.cache.invpcid	= (regs.ebx & BIT!(10)) != 0;
 		info.memory.rtm	= (regs.ebx & BIT!(11)) != 0;
@@ -1338,14 +1339,15 @@ void getInfo(ref CPUINFO info) {
 	// Leaf 12H
 	//
 	
-	if (info.maxLeafVirt < 0x12) goto L_VIRT;
+	if (info.maxLeaf < 0x12) goto L_VIRT;
 	
 	switch (info.vendorId) {
 	case Vendor.Intel:
-		if (info.sgx.enabled == false) goto L_VIRT;
 		asmcpuid(regs, 0x12);
-		info.sgx.maxSize   = regs.al;
-		info.sgx.maxSize64 = regs.ah;
+		info.sgx.sgx1 = (regs.al & BIT!(0)) != 0;
+		info.sgx.sgx2 = (regs.al & BIT!(1)) != 0;
+		info.sgx.maxSize   = regs.dl;
+		info.sgx.maxSize64 = regs.dh;
 		break;
 	default:
 	}

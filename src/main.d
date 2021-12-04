@@ -268,12 +268,17 @@ void printTechs(ref CPUINFO info) {
 				printf(" +TSXLDTRK");
 		}
 		if (info.tech.smx) printf(" Intel-TXT/SMX");
-		if (info.sgx.enabled) {
-			printf(" SGX");
+		if (info.sgx.supported) {
+			if (info.sgx.sgx1) printf(" SGX1");
+			if (info.sgx.sgx2) printf(" SGX2");
 			if (info.sgx.maxSize) {
-				printf(" maxSize=%u maxSize64=%u",
+				uint s32 = void, s64 = void;
+				char m32 = adjustBits(s32, info.sgx.maxSize);
+				char m64 = adjustBits(s64, info.sgx.maxSize64);
+				/*printf(" +maxSize=%u%c +maxSize64=%u%c",
 					1 << info.sgx.maxSize,
-					1 << info.sgx.maxSize64);
+					1 << info.sgx.maxSize64);*/
+				printf(" +maxSize=%u%c +maxSize64=%u%c", s32, m32, s64, m64);
 			}
 		}
 		break;

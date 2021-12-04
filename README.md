@@ -101,6 +101,10 @@ $ ddcpuid --table
 | 80000008 |        0 |     3024 |        0 |        0 |        0 |
 ```
 
+## 1.5. Detailed information output
+
+For more information in the fashion of cpuid(1), use the `-d` or `--details` switches.
+
 # 2. Compiling
 
 The best way to compile ddcpuid is by using DUB.

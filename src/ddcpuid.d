@@ -360,7 +360,7 @@ struct CPUINFO { align(1):
 	align(2) CacheInfo cache;	/// Cache information
 	
 	/// ACPI information.
-	struct AcpiInfo {
+	struct SysInfo {
 		bool available;	/// ACPI
 		bool apic;	/// APIC
 		bool x2apic;	/// x2APIC
@@ -370,7 +370,7 @@ struct CPUINFO { align(1):
 		ubyte maxApicId;	/// Maximum APIC ID
 		ubyte apicId;	/// Initial APIC ID (running core where CPUID was called)
 	}
-	align(2) AcpiInfo acpi;	/// ACPI features
+	align(2) SysInfo sys;	/// System features
 	
 	/// Virtualization features. If a paravirtual interface is available,
 	/// its information will be found here.
@@ -1110,22 +1110,22 @@ void getInfo(ref CPUINFO info) {
 		info.virt.available	= (regs.ecx & BIT!(5)) != 0;
 		info.tech.smx	= (regs.ecx & BIT!(6)) != 0;
 		info.tech.eist	= (regs.ecx & BIT!(7)) != 0;
-		info.acpi.tm2	= (regs.ecx & BIT!(8)) != 0;
+		info.sys.tm2	= (regs.ecx & BIT!(8)) != 0;
 		info.cache.cnxtId	= (regs.ecx & BIT!(10)) != 0;
 		info.debugging.sdbg	= (regs.ecx & BIT!(11)) != 0;
 		info.misc.xtpr	= (regs.ecx & BIT!(14)) != 0;
 		info.debugging.pdcm	= (regs.ecx & BIT!(15)) != 0;
 		info.misc.pcid	= (regs.ecx & BIT!(17)) != 0;
 		info.debugging.mca	= (regs.ecx & BIT!(18)) != 0;
-		info.acpi.x2apic	= (regs.ecx & BIT!(21)) != 0;
+		info.sys.x2apic	= (regs.ecx & BIT!(21)) != 0;
 		info.extras.rdtscDeadline	= (regs.ecx & BIT!(24)) != 0;
 		
 		// EDX
 		info.misc.psn	= (regs.edx & BIT!(18)) != 0;
 		info.debugging.ds	= (regs.edx & BIT!(21)) != 0;
-		info.acpi.available	= (regs.edx & BIT!(22)) != 0;
+		info.sys.available	= (regs.edx & BIT!(22)) != 0;
 		info.cache.ss	= (regs.edx & BIT!(27)) != 0;
-		info.acpi.tm	= (regs.edx & BIT!(29)) != 0;
+		info.sys.tm	= (regs.edx & BIT!(29)) != 0;
 		info.debugging.pbe	= regs.edx >= BIT!(31);
 		break;
 	case Vendor.AMD:
@@ -1141,8 +1141,8 @@ void getInfo(ref CPUINFO info) {
 	}
 	
 	// EBX
-	info.acpi.apicId = regs.ebx >> 24;
-	info.acpi.maxApicId = cast(ubyte)(regs.ebx >> 16);
+	info.sys.apicId = regs.ebx >> 24;
+	info.sys.maxApicId = cast(ubyte)(regs.ebx >> 16);
 	info.cache.clflushLinesize = regs.bh;
 	info.brandIndex = regs.bl;
 	
@@ -1174,7 +1174,7 @@ void getInfo(ref CPUINFO info) {
 	info.memory.pae	= (regs.edx & BIT!(6)) != 0;
 	info.debugging.mce	= (regs.edx & BIT!(7)) != 0;
 	info.extras.cmpxchg8b	= (regs.edx & BIT!(8)) != 0;
-	info.acpi.apic	= (regs.edx & BIT!(9)) != 0;
+	info.sys.apic	= (regs.edx & BIT!(9)) != 0;
 	info.extras.sysenter	= (regs.edx & BIT!(11)) != 0;
 	info.memory.mtrr	= (regs.edx & BIT!(12)) != 0;
 	info.memory.pge	= (regs.edx & BIT!(13)) != 0;
@@ -1216,7 +1216,7 @@ void getInfo(ref CPUINFO info) {
 	default:
 	}
 	
-	info.acpi.arat = (regs.eax & BIT!(2)) != 0;
+	info.sys.arat = (regs.eax & BIT!(2)) != 0;
 	
 	//
 	// Leaf 7H
@@ -1553,7 +1553,7 @@ L_EXTENDED:
 	case Vendor.AMD:
 		// ecx
 		info.virt.available	= (regs.ecx & BIT!(2)) != 0;
-		info.acpi.x2apic	= (regs.ecx & BIT!(3)) != 0;
+		info.sys.x2apic	= (regs.ecx & BIT!(3)) != 0;
 		info.sse.sse4a	= (regs.ecx & BIT!(6)) != 0;
 		info.extensions.xop	= (regs.ecx & BIT!(11)) != 0;
 		info.extras.skinit	= (regs.ecx & BIT!(12)) != 0;
@@ -1592,7 +1592,7 @@ L_EXTENDED:
 		info.extras.rdseed	= (regs.ebx & BIT!(28)) != 0;
 		break;
 	case Vendor.AMD:
-		info.acpi.tm	= (regs.edx & BIT!(4)) != 0;
+		info.sys.tm	= (regs.edx & BIT!(4)) != 0;
 		info.tech.turboboost	= (regs.edx & BIT!(9)) != 0;
 		break;
 	default:
@@ -1771,12 +1771,12 @@ L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 		ca.size = (ca.sets * ca.lineSize * ca.partitions * ca.ways) >> 10;
 		
 		crshrd = (((regs.eax >> 14) & 0xfff) + 1); // bits 25-14
-		sc = cast(ushort)(info.acpi.maxApicId / crshrd); // cast for ldc 0.17.1
+		sc = cast(ushort)(info.sys.maxApicId / crshrd); // cast for ldc 0.17.1
 		ca.sharedCores = sc ? sc : 1;
 		
 		if (info.cores.logical == 0) with (info.cores) { // skip if already populated
-			logical = info.acpi.maxApicId;
-			physical = info.tech.htt ? logical >> 1 : info.acpi.maxApicId;
+			logical = info.sys.maxApicId;
+			physical = info.tech.htt ? logical >> 1 : info.sys.maxApicId;
 		}
 		
 		version (Trace) trace("amd.8000_001Dh mids=%u shared=%u crshrd=%u sc=%u",

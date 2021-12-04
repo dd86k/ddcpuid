@@ -275,7 +275,7 @@ void printTechs(ref CPUINFO info) {
 				uint s32 = void, s64 = void;
 				char m32 = adjustBits(s32, info.sgx.maxSize);
 				char m64 = adjustBits(s64, info.sgx.maxSize64);
-				/*printf(" +maxSize=%u%c +maxSize64=%u%c",
+				/*printf(" +maxSize=%u +maxSize64=%u",
 					1 << info.sgx.maxSize,
 					1 << info.sgx.maxSize64);*/
 				printf(" +maxSize=%u%c +maxSize64=%u%c", s32, m32, s64, m64);
@@ -756,15 +756,15 @@ int main(int argc, const(char) **argv) {
 		printCacheFeats(cache.features);
 	}
 	
-	printf("\nACPI        :");
-	if (info.acpi.available) printf(" ACPI");
-	if (info.acpi.apic) printf(" APIC");
-	if (info.acpi.x2apic) printf(" x2APIC");
-	if (info.acpi.arat) printf(" ARAT");
-	if (info.acpi.tm) printf(" TM");
-	if (info.acpi.tm2) printf(" TM2");
-	printf(" APIC-ID=%u", info.acpi.apicId);
-	if (info.acpi.maxApicId) printf(" MAX-ID=%u", info.acpi.maxApicId);
+	printf("\nSystem      :");
+	if (info.sys.available) printf(" ACPI");
+	if (info.sys.apic) printf(" APIC");
+	if (info.sys.x2apic) printf(" x2APIC");
+	if (info.sys.arat) printf(" ARAT");
+	if (info.sys.tm) printf(" TM");
+	if (info.sys.tm2) printf(" TM2");
+	printf(" APIC-ID=%u", info.sys.apicId);
+	if (info.sys.maxApicId) printf(" MAX-ID=%u", info.sys.maxApicId);
 	
 	printf("\nVirtual     :");
 	if (info.virt.vme) printf(" VME");

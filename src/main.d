@@ -283,9 +283,13 @@ void printTechs(ref CPUINFO info) {
 		}
 		if (info.tech.smx) printf(" Intel-TXT/SMX");
 		if (info.sgx.supported) {
-			printf(" SGX");
-			if (info.sgx.sgx1) printf(" SGX1");
-			if (info.sgx.sgx2) printf(" SGX2");
+			// NOTE: SGX system configuration
+			//       "enabled" in BIOS: only CPUID.7h.EBX[2]
+			//       "user controlled" in BIOS: SGX1/SGX2/size bits
+			if (info.sgx.sgx1 && info.sgx.sgx2) {
+				if (info.sgx.sgx1) printf(" SGX1");
+				if (info.sgx.sgx2) printf(" SGX2");
+			} else printf(" SGX"); // Fallback per-say
 			if (info.sgx.maxSize) {
 				uint s32 = void, s64 = void;
 				char m32 = adjustBits(s32, info.sgx.maxSize);
@@ -293,7 +297,7 @@ void printTechs(ref CPUINFO info) {
 				/*printf(" +maxSize=%u +maxSize64=%u",
 					1 << info.sgx.maxSize,
 					1 << info.sgx.maxSize64);*/
-				printf(" +maxSize=%u%c +maxSize64=%u%c", s32, m32, s64, m64);
+				printf(" +maxSize=%u%cB +maxSize64=%u%cB", s32, m32, s64, m64);
 			}
 		}
 		break;

@@ -283,6 +283,7 @@ void printTechs(ref CPUINFO info) {
 		}
 		if (info.tech.smx) printf(" Intel-TXT/SMX");
 		if (info.sgx.supported) {
+			printf(" SGX");
 			if (info.sgx.sgx1) printf(" SGX1");
 			if (info.sgx.sgx2) printf(" SGX2");
 			if (info.sgx.maxSize) {

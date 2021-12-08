@@ -12,7 +12,7 @@ Techs:       x86-64-v2 EIST TurboBoost Intel-TXT/SMX HTT
 SSE:         SSE SSE2 SSE3 SSSE3 SSE4.1 SSE4.2
 AVX:         AVX
 AMX:         None
-Others:      AES-NI
+Others:      x87/FPU +F16C MMX AES-NI
 Mitigations: IBRS STIBP SSBD L1D_FLUSH MD_CLEAR
 Cache L1-D:  4x 32KB    (128KB)  SI
 Cache L1-I:  4x 32KB    (128KB)  SI
@@ -52,7 +52,7 @@ Techs:       x86-64 HTT
 SSE:         SSE SSE2 SSE3 SSSE3 SSE4.2
 AVX:         AVX
 AMX:         None
-Others:      AES-NI
+Others:      x87/FPU MMX AES-NI
 Mitigations: L1D_FLUSH MD_CLEAR
 ParaVirt.:   Hyper-V
 Cache L1-D:  2x 32KB    (64KB)   SI

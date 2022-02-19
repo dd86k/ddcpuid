@@ -1096,12 +1096,12 @@ void getInfo(ref CPUINFO info) {
 	
 	switch (info.vendorId) {
 	case Vendor.Intel:
-		info.family = info.familyBase != 0 ?
+		info.family = info.familyBase != 0xf ?
 			info.familyBase :
-			cast(ubyte)(info.familyExtended + info.familyBase);
+			cast(ushort)(info.familyExtended + info.familyBase);
 		
 		info.model = info.familyBase == 6 || info.familyBase == 0 ?
-			cast(ubyte)((info.modelExtended << 4) + info.modelBase) :
+			cast(ushort)((info.modelExtended << 4) + info.modelBase) :
 			info.modelBase; // DisplayModel = Model_ID;
 		
 		// ECX

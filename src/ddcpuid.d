@@ -41,6 +41,8 @@ module ddcpuid;
 //TODO: Consider restructing
 //      Static structure return pointer
 //      struct MAXLEAVES + struct CPUINFO
+//TODO: Rename "stages" to L_STAGE_EXTENDED/L_STAGE_TOPOLOGY.
+//TODO: Tiny pure function to just (uint reg, int bit)
 
 @system:
 extern (C):
@@ -1049,14 +1051,20 @@ void getBrandIdentifierIntel(ref CPUINFO info) {
 	// This function exist for processors that does not support the
 	// brand name table.
 	// At least do i486SL-Pentium II
-	// Examples:
-	// 0x513, 0x515, 0x517:    Pentium 60
-	// 0x52c: Pentium
-	// 0x524, 0x525, 0x526:    Pentium 75
-	// 0x2524, 0x2525, 0x2526: Pentium 75
 	switch (info.family) {
-	case 5:
+	case 5: // i586, Pentium
+		if (info.model >= 4) {
+			strcpy48(info.brandString, "Intel(R) Pentium(R) MMX");
+			return;
+		}
 		strcpy48(info.brandString, "Intel(R) Pentium(R)");
+		return;
+	case 6: // i686, Pentium Pro
+		if (info.model >= 3) {
+			strcpy48(info.brandString, "Intel(R) Pentium(R) II");
+			return;
+		}
+		strcpy48(info.brandString, "Intel(R) Pentium(R) Pro");
 		return;
 	default:
 		strcpy48(info.brandString, "Unknown");
@@ -1069,10 +1077,11 @@ private
 void getBrandIdentifierAmd(ref CPUINFO info) {
 	// This function exist for processors that does not support the
 	// extended brand string which is the Am5x86 and AMD K-5 model 0.
-	// K-5 model 1 has extended brand string.
+	// K-5 model 1 has extended brand string so case 5 is only model 0.
+	// AMD has no official names for these.
 	switch (info.family) {
-	case 4:  strcpy48(info.brandString, "Am5x86"); return;
-	case 5:  strcpy48(info.brandString, "K5"); return;
+	case 4:  strcpy48(info.brandString, "AMD Am5x86"); return;
+	case 5:  strcpy48(info.brandString, "AMD K5"); return;
 	default: strcpy48(info.brandString, "Unknown"); return;
 	}
 }
@@ -1324,11 +1333,7 @@ void getInfo(ref CPUINFO info) {
 	// Legacy processor topology
 	// It's done here rather than the end because even with CPUID.03h,
 	// there are no extensions with processors of the time.
-	if (info.maxLeaf < 4) {
-		with (info.cores) logical = physical = 1;
-		info.cache.levels = 0;
-		return;
-	}
+	if (info.maxLeaf < 4) goto L_EXTENDED;
 	
 	//
 	// Leaf 5H
@@ -1689,6 +1694,8 @@ L_VIRT:
 	
 L_EXTENDED:
 	
+	if (info.maxLeafExtended < 0x8000_0000) goto L_CACHE_INFO;
+	
 	asmcpuid(regs, 0x8000_0001);
 	
 	switch (info.vendorId) {
@@ -1790,31 +1797,32 @@ L_CACHE_INFO:
 	info.cache.levels = 0;
 	CACHEINFO *ca = cast(CACHEINFO*)info.cache.level;
 	
+	//TODO: Make 1FH/BH/4H/etc. functions.
 	switch (info.vendorId) {
 	case Vendor.Intel:
-		if (info.maxLeaf < 0x1f) goto L_CACHE_INTEL_BH;
-		if (info.maxLeaf < 0xb)  goto L_CACHE_INTEL_4H;
+		if (info.maxLeaf >= 0x1f) goto L_CACHE_INTEL_1FH;
+		if (info.maxLeaf >= 0xb)  goto L_CACHE_INTEL_BH;
+		if (info.maxLeaf >= 4)    goto L_CACHE_INTEL_4H;
+		// Celeron 0xf34 has maxLeaf=03h and ext=8000_0008h
+		if (info.maxLeafExtended >= 0x8000_0005) goto L_CACHE_AMD_EXT_5H;
+		break;
 		
-//L_CACHE_INTEL_1FH:
+L_CACHE_INTEL_1FH:
 		//TODO: Support levels 3,4,5 in CPUID.1FH
 		//      (Module, Tile, and Die)
 		asmcpuid(regs, 0x1f, 1); // Cores (logical)
-		
 		info.cores.logical = regs.bx;
 		
 		asmcpuid(regs, 0x1f, 0); // SMT (architectural states per core)
-		
 		info.cores.physical = cast(ushort)(info.cores.logical / regs.bx);
 		
 		goto L_CACHE_INTEL_4H;
 		
 L_CACHE_INTEL_BH:
 		asmcpuid(regs, 0xb, 1); // Cores (logical)
-		
 		info.cores.logical = regs.bx;
 		
 		asmcpuid(regs, 0xb, 0); // SMT (architectural states per core)
-		
 		info.cores.physical = cast(ushort)(info.cores.logical / regs.bx);
 		
 L_CACHE_INTEL_4H:
@@ -1852,6 +1860,10 @@ L_CACHE_INTEL_4H:
 		++info.cache.levels; ++ca;
 		goto L_CACHE_INTEL_4H;
 	case Vendor.AMD:
+		if (info.maxLeafExtended >= 0x8000_001D) goto L_CACHE_AMD_EXT_1DH;
+		if (info.maxLeafExtended >= 0x8000_0005) goto L_CACHE_AMD_EXT_5H;
+		break;
+		
 		/*if (info.maxLeafExtended < 0x8000_001e) goto L_AMD_TOPOLOGY_EXT_8H;
 		
 		asmcpuid(regs, 0x8000_0001);
@@ -1877,14 +1889,6 @@ L_CACHE_INTEL_4H:
 		} else { // Legacy
 			info.cores.logical = info.cores.physical = regs.cl + 1;
 		}*/
-
-//L_AMD_CACHE:
-		if (info.maxLeafExtended < 0x8000_001D)
-			goto L_CACHE_AMD_EXT_5H;
-		if (info.maxLeafExtended < 0x8000_0005) {
-			with (info.cores) logical = physical = 1;
-			break;
-		}
 		
 		//
 		// AMD newer cache method
@@ -1894,7 +1898,7 @@ L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 		asmcpuid(regs, 0x8000_001d, info.cache.levels);
 		
 		type = regs.eax & CACHE_MASK; // EAX[4:0]
-		if (type == 0 || info.cache.levels >= CACHE_MAX_LEVEL) break;
+		if (type == 0 || info.cache.levels >= CACHE_MAX_LEVEL) return;
 		
 		ca.type = CACHE_TYPE[type];
 		ca.level = (regs.eax >> 5) & 7;
@@ -1949,7 +1953,7 @@ L_CACHE_AMD_EXT_5H:
 		info.cache.levels = 2;
 		
 		if (info.maxLeafExtended < 0x8000_0006)
-			break; // No L2/L3
+			return; // No L2/L3
 		
 		// See Table E-4. L2/L3 Cache and TLB Associativity Field Encoding
 		static immutable ubyte[16] _amd_cache_ways = [
@@ -1983,7 +1987,9 @@ L_CACHE_AMD_EXT_5H:
 				info.cache.levels = 4;
 			}
 		}
-		break;
+		return;
 	default:
 	}
+	
+	with (info) cores.physical = cores.logical = 1;
 }

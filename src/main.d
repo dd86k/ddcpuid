@@ -161,7 +161,7 @@ int dumpRead(FILE *file) {
 	
 }*/
 
-const(char) *classification(ref CPUINFO info) {
+const(char) *baseline(ref CPUINFO info) {
 	// That's a story for another time
 	if (info.extensions.x86_64 == false)	goto L_X86_64_NONE;
 	
@@ -189,15 +189,18 @@ const(char) *classification(ref CPUINFO info) {
 		return "x86-64-v2";
 	}
 	
-	// baseline
-	if (info.sse.sse2 && info.sse.sse &&
+	// baseline (v1)
+	/*if (info.sse.sse2 && info.sse.sse &&
 		info.extensions.mmx && info.extras.fxsr &&
 		info.extras.cmpxchg8b && info.extras.cmov &&
 		info.extensions.fpu && info.extras.syscall) {
-		return "x86-64"; // v1/baseline
-	}
+		return "x86-64";
+	}*/
+	
+	return "x86-64"; // v1/baseline
 	
 L_X86_64_NONE:
+	//TODO: i486/i586/i686 by family/model?
 	return "i386";
 }
 
@@ -537,7 +540,7 @@ int main(int argc, const(char) **argv) {
 	getInfo(info);
 	
 	if (options.getLevel) {
-		puts(classification(info));
+		puts(baseline(info));
 		return 0;
 	}
 	
@@ -566,12 +569,13 @@ int main(int argc, const(char) **argv) {
 		"Identifier:  Family 0x%x Model 0x%x Stepping 0x%x\n"~
 		"Cores:       %u cores %u threads\n"~
 		"Max. Memory: %u%cB physical %u%cB virtual\n"~
-		"Techs:       %s",
+		"Baseline:    %s\n"~
+		"Techs:      ",
 		vendor, brand,
 		family, model, stepping,
 		cores.physical, cores.logical,
 		maxPhys, cphys, maxLine, cline,
-		classification(info)
+		baseline(info)
 		);
 		
 		printTechs(info);

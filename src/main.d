@@ -11,8 +11,8 @@
 module main;
 
 import core.stdc.errno : errno;
-import core.stdc.stdio : printf, puts, sscanf, FILE, fopen, fread, fwrite;
-import core.stdc.string : strcmp, strerror;
+import core.stdc.stdio : printf, sscanf, FILE, fopen, fread, fwrite;
+import core.stdc.string : strcmp;
 import ddcpuid;
 
 private:
@@ -20,6 +20,7 @@ private:
 extern (C):
 
 int putchar(int);
+int puts(scope const char* s);
 
 /// Compiler version template for betterC usage
 template CVER(int v) {
@@ -53,6 +54,7 @@ struct options_t { align(1):
 	bool[3] reserved;	/// 
 }
 
+// One day I'll make you italics.
 immutable const(char) *secret = r"
                             ############
                      ######################
@@ -294,9 +296,6 @@ void printTechs(ref CPUINFO info) {
 				uint s32 = void, s64 = void;
 				char m32 = adjustBits(s32, info.sgx.maxSize);
 				char m64 = adjustBits(s64, info.sgx.maxSize64);
-				/*printf(" +maxSize=%u +maxSize64=%u",
-					1 << info.sgx.maxSize,
-					1 << info.sgx.maxSize64);*/
 				printf(" +maxSize=%u%cB +maxSize64=%u%cB", s32, m32, s64, m64);
 			}
 		}

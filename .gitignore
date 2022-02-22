@@ -10,6 +10,7 @@
 dub.selections.json
 a.out
 ddcpuid
+ddcpuid-test-library
 *.s
 
 # Archives

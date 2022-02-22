@@ -38,6 +38,10 @@ module ddcpuid;
 //       asm { "asm;\n\t" : "constraint" output : "constraint" input : clobbers }
 // NOTE: bhyve doesn't not emit cpuid bits within 0x40000000, so not supported
 
+//TODO: Consider restructing
+//      Static structure return pointer
+//      struct MAXLEAVES + struct CPUINFO
+
 @system:
 extern (C):
 
@@ -207,11 +211,12 @@ struct CPUINFO { align(1):
 	
 	// Identifier
 	
-	uint identifier;	/// Raw identifier (EAX)
-	ubyte family;	/// Effective family identifier
+	uint identifier;	/// Raw identifier (CPUID.01h.EAX)
+	ushort family;	/// Effective family identifier
+	ushort model;	/// Effective model identifier
+//	const(char) *microArchitecture;	/// Microarchitecture name string
 	ubyte familyBase;	/// Base family identifier
 	ubyte familyExtended;	/// Extended family identifier
-	ubyte model;	/// Effective model identifier
 	ubyte modelBase;	/// Base model identifier
 	ubyte modelExtended;	/// Extended model identifier
 	ubyte stepping;	/// Stepping revision
@@ -832,7 +837,7 @@ void getVendor(ref CPUINFO info) {
 
 pragma(inline, false)
 private
-void getBrand(ref CPUINFO info) {
+void getBrandExtended(ref CPUINFO info) {
 	version (DMD) {
 		version (X86) asm {
 			mov EDI, info;
@@ -967,6 +972,116 @@ void getBrand(ref CPUINFO info) {
 		}
 	}
 }
+
+// Avoids depending on C runtime for library.
+/// Copy string, this exists solely for getBrandIndex
+pragma(inline, false)
+private
+void strcpy48(ref char[48] dst, const(char) *src) {
+	size_t i;
+	for (; i < 48; ++i) {
+		char c = src[i];
+		dst[i] = c;
+		if (c == 0) break;
+	}
+}
+
+@system unittest {
+	char[48] buffer = void;
+	strcpy48(buffer, "e");
+	assert(buffer[0] == 'e');
+	assert(buffer[1] == 0);
+}
+
+/// Get the legacy processor brand string.
+/// These indexes/tables were introduced in Intel's Pentium III.
+/// AMD does not use them.
+/// Params:
+/// 	info = CPUINFO structure.
+/// 	index = CPUID.01h.BL value.
+pragma(inline, false)
+private
+void getBrandIndex(ref CPUINFO info, ubyte index) {
+	switch (index) {
+	case 1, 0xA, 0xF, 0x14:
+		strcpy48(info.brandString, "Intel(R) Celeron(R)");
+		return;
+	case 2, 4:
+		strcpy48(info.brandString, "Intel(R) Pentium(R) III");
+		return;
+	case 3:
+		if (info.identifier == 0x6b1) goto case 1;
+		strcpy48(info.brandString, "Intel(R) Pentium(R) III Xeon(R)");
+		return;
+	case 6:
+		strcpy48(info.brandString, "Mobile Intel(R) Pentium(R) III");
+		return;
+	case 7, 0x13, 0x17: // Same as Intel(R) Celeron(R) M?
+		strcpy48(info.brandString, "Mobile Intel(R) Celeron(R)");
+		return;
+	case 8, 9:
+		strcpy48(info.brandString, "Intel(R) Pentium(R) 4");
+		return;
+	case 0xB:
+		if (info.identifier == 0xf13) goto case 0xC;
+	L_XEON: // Needed to avoid loop
+		strcpy48(info.brandString, "Intel(R) Xeon(R)");
+		return;
+	case 0xC:
+		strcpy48(info.brandString, "Intel(R) Xeon(R) MP");
+		return;
+	case 0xE:
+		if (info.identifier == 0xf13) goto L_XEON;
+		strcpy48(info.brandString, "Mobile Intel(R) Pentium(R) 4");
+		return;
+	case 0x11, 0x15: // Yes, really.
+		strcpy48(info.brandString, "Mobile Genuine Intel(R)");
+		return;
+	case 0x12: strcpy48(info.brandString, "Intel(R) Celeron(R) M"); return;
+	case 0x16: strcpy48(info.brandString, "Intel(R) Pentium(R) M"); return;
+	default:   strcpy48(info.brandString, "Unknown"); return;
+	}
+}
+
+pragma(inline, false)
+private
+void getBrandIdentifierIntel(ref CPUINFO info) {
+	// This function exist for processors that does not support the
+	// brand name table.
+	// At least do i486SL-Pentium II
+	// Examples:
+	// 0x513, 0x515, 0x517:    Pentium 60
+	// 0x52c: Pentium
+	// 0x524, 0x525, 0x526:    Pentium 75
+	// 0x2524, 0x2525, 0x2526: Pentium 75
+	switch (info.family) {
+	case 5:
+		strcpy48(info.brandString, "Intel(R) Pentium(R)");
+		return;
+	default:
+		strcpy48(info.brandString, "Unknown");
+		return;
+	}
+}
+
+pragma(inline, false)
+private
+void getBrandIdentifierAmd(ref CPUINFO info) {
+	// This function exist for processors that does not support the
+	// extended brand string which is the Am5x86 and AMD K-5 model 0.
+	// K-5 model 1 has extended brand string.
+	switch (info.family) {
+	case 4:  strcpy48(info.brandString, "Am5x86"); return;
+	case 5:  strcpy48(info.brandString, "K5"); return;
+	default: strcpy48(info.brandString, "Unknown"); return;
+	}
+}
+
+/*pragma(inline, false)
+private
+void getMicroArchitectureName(ref CPUINFO info) {
+	
+}*/
 
 pragma(inline, false)
 private
@@ -1072,11 +1187,9 @@ void getInfo(ref CPUINFO info) {
 	ushort crshrd = void;	/// actual count of shared cores
 	ubyte type = void;	/// cache type
 	ubyte mids = void;	/// maximum IDs to this cache
+	REGISTERS regs = void;	/// registers
 	
 	getVendor(info);
-	getBrand(info);
-	
-	REGISTERS regs = void;
 	
 	//
 	// Leaf 1H
@@ -1086,23 +1199,23 @@ void getInfo(ref CPUINFO info) {
 	
 	// EAX
 	info.identifier = regs.eax;
-	info.stepping   = regs.eax & 0xF;        // EAX[3:0]
-	info.modelBase  = regs.eax >>  4 &  0xF; // EAX[7:4]
-	info.familyBase = regs.eax >>  8 &  0xF; // EAX[11:8]
-	info.type       = regs.eax >> 12 & 0b11; // EAX[13:12]
+	info.stepping   = regs.eax & 15;       // EAX[3:0]
+	info.modelBase  = regs.eax >>  4 & 15; // EAX[7:4]
+	info.familyBase = regs.eax >>  8 & 15; // EAX[11:8]
+	info.type       = regs.eax >> 12 & 3;  // EAX[13:12]
 	info.typeString = PROCESSOR_TYPE[info.type];
-	info.modelExtended   = regs.eax >> 16 &  0xF; // EAX[19:16]
+	info.modelExtended   = regs.eax >> 16 & 15; // EAX[19:16]
 	info.familyExtended  = cast(ubyte)(regs.eax >> 20); // EAX[27:20]
 	
 	switch (info.vendorId) {
 	case Vendor.Intel:
 		info.family = info.familyBase != 0xf ?
-			info.familyBase :
+			cast(ushort)info.familyBase :
 			cast(ushort)(info.familyExtended + info.familyBase);
 		
 		info.model = info.familyBase == 6 || info.familyBase == 0 ?
 			cast(ushort)((info.modelExtended << 4) + info.modelBase) :
-			info.modelBase; // DisplayModel = Model_ID;
+			cast(ushort)info.modelBase; // DisplayModel = Model_ID;
 		
 		// ECX
 		info.debugging.dtes64	= (regs.ecx & BIT!(2)) != 0;
@@ -1127,17 +1240,36 @@ void getInfo(ref CPUINFO info) {
 		info.cache.ss	= (regs.edx & BIT!(27)) != 0;
 		info.sys.tm	= (regs.edx & BIT!(29)) != 0;
 		info.debugging.pbe	= regs.edx >= BIT!(31);
+		
+		// Brand string
+		if (info.maxLeafExtended >= 0x8000_0004)
+			getBrandExtended(info);
+		else if (regs.bl)
+			getBrandIndex(info, regs.bl);
+		else
+			getBrandIdentifierIntel(info);
 		break;
 	case Vendor.AMD:
 		if (info.familyBase < 0xF) {
 			info.family = info.familyBase;
 			info.model = info.modelBase;
 		} else {
-			info.family = cast(ubyte)(info.familyExtended + info.familyBase);
-			info.model = cast(ubyte)((info.modelExtended << 4) + info.modelBase);
+			info.family = cast(ushort)(info.familyExtended + info.familyBase);
+			info.model = cast(ushort)((info.modelExtended << 4) + info.modelBase);
 		}
+		
+		// Brand string
+		// NOTE: AMD processor never supported the string table.
+		//       The Am486DX4 and Am5x86 processors do not support the extended brand string.
+		//       The K5 model 0 does not support the extended brand string.
+		//       The K5 model 1, 2, and 3 support the extended brand string.
+		if (info.maxLeafExtended >= 0x8000_0004)
+			getBrandExtended(info);
+		else
+			getBrandIdentifierAmd(info);
 		break;
 	default:
+		strcpy48(info.brandString, "Unknown");
 	}
 	
 	// EBX
@@ -1188,6 +1320,15 @@ void getInfo(ref CPUINFO info) {
 	info.sse.sse	= (regs.edx & BIT!(25)) != 0;
 	info.sse.sse2	= (regs.edx & BIT!(26)) != 0;
 	info.tech.htt	= (regs.edx & BIT!(28)) != 0;
+	
+	// Legacy processor topology
+	// It's done here rather than the end because even with CPUID.03h,
+	// there are no extensions with processors of the time.
+	if (info.maxLeaf < 4) {
+		with (info.cores) logical = physical = 1;
+		info.cache.levels = 0;
+		return;
+	}
 	
 	//
 	// Leaf 5H
@@ -1547,6 +1688,7 @@ L_VIRT:
 	//
 	
 L_EXTENDED:
+	
 	asmcpuid(regs, 0x8000_0001);
 	
 	switch (info.vendorId) {
@@ -1652,10 +1794,6 @@ L_CACHE_INFO:
 	case Vendor.Intel:
 		if (info.maxLeaf < 0x1f) goto L_CACHE_INTEL_BH;
 		if (info.maxLeaf < 0xb)  goto L_CACHE_INTEL_4H;
-		if (info.maxLeaf < 4) {
-			with (info.cores) logical = physical = 1;
-			break;
-		}
 		
 //L_CACHE_INTEL_1FH:
 		//TODO: Support levels 3,4,5 in CPUID.1FH

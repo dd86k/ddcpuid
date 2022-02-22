@@ -50,3 +50,10 @@ buildType "release-nobounds" {
 	dflags "-betterC" platform="dmd"
 	dflags "-betterC" platform="ldc"
 }
+
+# Temp
+buildType "preview-int-promote" {
+	buildOptions "unittests" "debugMode" "debugInfo"
+	dflags "-betterC" "-preview=intpromote" platform="dmd"
+	dflags "-betterC" "-preview=intpromote" platform="ldc"
+}

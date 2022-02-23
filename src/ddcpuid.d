@@ -1829,7 +1829,7 @@ L_CACHE_INTEL_4H:
 		asmcpuid(regs, 4, info.cache.levels);
 		
 		type = regs.eax & CACHE_MASK; // EAX[4:0]
-		if (type == 0 || info.cache.levels >= CACHE_MAX_LEVEL) break;
+		if (type == 0 || info.cache.levels >= CACHE_MAX_LEVEL) return;
 		
 		ca.type = CACHE_TYPE[type];
 		ca.level = regs.al >> 5;

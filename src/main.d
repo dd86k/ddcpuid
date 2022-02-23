@@ -5,7 +5,7 @@
  *       crashes on Windows. Secondly, line buffering is used by default.
  *
  * Authors: dd86k (dd@dax.moe)
- * Copyright: © 2016-2021 dd86k
+ * Copyright: © 2016-2022 dd86k
  * License: MIT
  */
 module main;
@@ -43,7 +43,6 @@ enum : uint {
 
 /// Command-line options
 struct options_t { align(1):
-//	FILE *file;	/// Dump
 	int maxLevel;	/// Maximum leaf for -r (-S)
 	int maxSub;	/// Maximum subleaf for -r (-s)
 	bool hasLevel;	/// If -S has been used
@@ -54,7 +53,7 @@ struct options_t { align(1):
 	bool[3] reserved;	/// 
 }
 
-// One day I'll make you italics.
+// One day I'll make this italics.
 immutable const(char) *secret = r"
                             ############
                      ######################
@@ -118,16 +117,10 @@ void cliv() {
 	);
 }
 
-void outcpuid(uint leaf, uint sub/*, FILE *file*/) {
+void outcpuid(uint leaf, uint sub) {
 	REGISTERS regs = void;
-	asmcpuid(regs, leaf, sub);
-/*	if (file) {
-		dumpWrite(file, &leaf, leaf.sizeof);
-		dumpWrite(file, &sub,  sub.sizeof);
-		dumpWrite(file, &regs, regs.sizeof);
-	} else {*/
-		printcpuid(regs, leaf, sub);
-//	}
+	__cpuid(regs, leaf, sub);
+	printcpuid(regs, leaf, sub);
 }
 
 /// Print cpuid table entry into stdout.
@@ -140,26 +133,6 @@ void printcpuid(ref REGISTERS regs, uint leaf, uint sub) {
 	printf("| %8x | %8x | %8x | %8x | %8x | %8x |\n",
 		leaf, sub, eax, ebx, ecx, edx);
 }
-
-// NOTE: ddcpuid dump structure
-//       char[4]: "ddcu"
-//       ubyte  : file format version
-//       ubyte  : reserved
-//       ubyte  : reserved
-//       ubyte  : reserved
-//       uint[6]: leaf, subleaf, eax, ebx, ecx, edx
-
-/*int dumpOpen(FILE **file, const(char) *path) {
-	return (*file = fopen(path, "w+b")) == null ? errno : 0;
-}
-
-int dumpWrite(FILE *file, const(void) *data, size_t size) {
-	return fwrite(data, size, 1, file) != 1;
-}
-
-int dumpRead(FILE *file) {
-	
-}*/
 
 const(char) *baseline(ref CPUINFO info) {
 	if (info.extensions.x86_64 == false) {
@@ -560,21 +533,28 @@ int main(int argc, const(char) **argv) {
 	//
 	
 	if (options.getDetails == false) {
-		uint maxPhys = void;
-		uint maxLine = void;
-		char cphys = adjustBits(maxPhys, info.memory.physBits);
-		char cline = adjustBits(maxLine, info.memory.lineBits);
 		with (info) printf(
 		"Name:        %.12s %.48s\n"~
 		"Identifier:  Family 0x%x Model 0x%x Stepping 0x%x\n"~
-		"Cores:       %u cores %u threads\n"~
-		"Max. Memory: %u%cB physical %u%cB virtual\n"~
-		"Baseline:    %s\n"~
-		"Techs:      ",
+		"Cores:       %u cores %u threads\n",
 		vendor, brand,
 		family, model, stepping,
 		cores.physical, cores.logical,
-		maxPhys, cphys, maxLine, cline,
+		);
+		
+		if (info.memory.physBits || info.memory.lineBits) {
+			uint maxPhys = void, maxLine = void;
+			char cphys = adjustBits(maxPhys, info.memory.physBits);
+			char cline = adjustBits(maxLine, info.memory.lineBits);
+			with (info) printf(
+			"Max. Memory: %u %ciB physical %u %ciB virtual\n",
+			maxPhys, cphys, maxLine, cline,
+			);
+		}
+		
+		with (info) printf(
+		"Baseline:    %s\n"~
+		"Techs:      ",
 		baseline(info)
 		);
 		
@@ -628,9 +608,8 @@ int main(int argc, const(char) **argv) {
 			char cc = adjust(csize);
 			char ct = adjust(tsize);
 			with (cache)
-			printf("Cache L%u-%c:  %ux %g%cB\t(%g%cB)\t",
-				level, type, sharedCores,
-				csize, cc, tsize, ct);
+			printf("Cache L%u-%c:  %3ux %4g %ciB (%4g %ciB)",
+				level, type, sharedCores, csize, cc, tsize, ct);
 			printCacheFeats(cache.features);
 			putchar('\n');
 		}

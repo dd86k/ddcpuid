@@ -24,7 +24,7 @@
  * To further understand these fields, it's encouraged to consult the technical manual.
  *
  * Authors: dd86k (dd@dax.moe)
- * Copyright: © 2016-2021 dd86k
+ * Copyright: © 2016-2022 dd86k
  * License: MIT
  */
 module ddcpuid;
@@ -112,7 +112,7 @@ enum VirtVendor {
 	VBoxMin    = 0, /// Unset: VirtualBox minimal interface
 }
 
-/// Registers structure used with the asmcpuid function.
+/// Registers structure used with the __cpuid function.
 struct REGISTERS {
 	union {
 		uint eax;
@@ -620,7 +620,7 @@ version (Trace) {
 ///   level = Leaf (EAX)
 ///   sublevel = Sub-leaf (ECX)
 pragma(inline, false)
-void asmcpuid(ref REGISTERS regs, uint level, uint sublevel = 0) {
+void __cpuid(ref REGISTERS regs, uint level, uint sublevel = 0) {
 	version (DMD) {
 		version (X86) asm {
 			mov EDI, regs;
@@ -672,17 +672,18 @@ void asmcpuid(ref REGISTERS regs, uint level, uint sublevel = 0) {
 		"level=%x sub=%x -> eax=%x ebx=%x ecx=%x edx=%x",
 		level, sublevel, eax, ebx, ecx, edx);
 }
-/// 
+/// Typically these tests are done on Pentium 4 and later processors
 @system unittest {
 	REGISTERS regs;
-	asmcpuid(regs, 0);
+	__cpuid(regs, 0);
 	assert(regs.eax > 0 && regs.eax < 0x4000_0000);
-	asmcpuid(regs, 0x8000_0000);
+	__cpuid(regs, 0x8000_0000);
 	assert(regs.eax > 0x8000_0000);
 }
 
 /// Get CPU leaf levels.
 /// Params: info = CPUINFO structure
+//TODO: Seperate these and perform them on the go?
 pragma(inline, false)
 void getLeaves(ref CPUINFO info) {
 	version (DMD) {
@@ -1204,7 +1205,7 @@ void getInfo(ref CPUINFO info) {
 	// Leaf 1H
 	//
 	
-	asmcpuid(regs, 1);
+	__cpuid(regs, 1);
 	
 	// EAX
 	info.identifier = regs.eax;
@@ -1341,7 +1342,7 @@ void getInfo(ref CPUINFO info) {
 	
 	if (info.maxLeaf < 5) goto L_VIRT;
 	
-	asmcpuid(regs, 5);
+	__cpuid(regs, 5);
 	
 	info.extras.mwaitMin = regs.ax;
 	info.extras.mwaitMax = regs.bx;
@@ -1352,7 +1353,7 @@ void getInfo(ref CPUINFO info) {
 	
 	if (info.maxLeaf < 6) goto L_VIRT;
 	
-	asmcpuid(regs, 6);
+	__cpuid(regs, 6);
 	
 	switch (info.vendorId) {
 	case Vendor.Intel:
@@ -1370,7 +1371,7 @@ void getInfo(ref CPUINFO info) {
 	
 	if (info.maxLeaf < 7) goto L_VIRT;
 	
-	asmcpuid(regs, 7);
+	__cpuid(regs, 7);
 	
 	switch (info.vendorId) {
 	case Vendor.Intel:
@@ -1446,7 +1447,7 @@ void getInfo(ref CPUINFO info) {
 	
 	switch (info.vendorId) {
 	case Vendor.Intel:
-		asmcpuid(regs, 7, 1);
+		__cpuid(regs, 7, 1);
 		// a
 		info.avx.avx512_bf16	= (regs.eax & BIT!(5)) != 0;
 		info.memory.lam	= (regs.eax & BIT!(26)) != 0;
@@ -1462,7 +1463,7 @@ void getInfo(ref CPUINFO info) {
 	
 	switch (info.vendorId) {
 	case Vendor.Intel:
-		asmcpuid(regs, 0xd);
+		__cpuid(regs, 0xd);
 		info.amx.xtilecfg	= (regs.eax & BIT!(17)) != 0;
 		info.amx.xtiledata	= (regs.eax & BIT!(18)) != 0;
 		break;
@@ -1475,7 +1476,7 @@ void getInfo(ref CPUINFO info) {
 	
 	switch (info.vendorId) {
 	case Vendor.Intel:
-		asmcpuid(regs, 0xd, 1);
+		__cpuid(regs, 0xd, 1);
 		info.amx.xfd	= (regs.eax & BIT!(18)) != 0;
 		break;
 	default:
@@ -1489,7 +1490,7 @@ void getInfo(ref CPUINFO info) {
 	
 	switch (info.vendorId) {
 	case Vendor.Intel:
-		asmcpuid(regs, 0x12);
+		__cpuid(regs, 0x12);
 		info.sgx.sgx1 = (regs.al & BIT!(0)) != 0;
 		info.sgx.sgx2 = (regs.al & BIT!(1)) != 0;
 		info.sgx.maxSize   = regs.dl;
@@ -1515,7 +1516,7 @@ L_VIRT:
 	
 	switch (info.virt.vendorId) {
 	case VirtVendor.KVM:
-		asmcpuid(regs, 0x4000_0001);
+		__cpuid(regs, 0x4000_0001);
 		info.virt.kvm.feature_clocksource	= (regs.eax & BIT!(0)) != 0;
 		info.virt.kvm.feature_nop_io_delay	= (regs.eax & BIT!(1)) != 0;
 		info.virt.kvm.feature_mmu_op	= (regs.eax & BIT!(2)) != 0;
@@ -1543,7 +1544,7 @@ L_VIRT:
 	
 	switch (info.virt.vendorId) {
 	case VirtVendor.HyperV:
-		asmcpuid(regs, 0x4000_0002);
+		__cpuid(regs, 0x4000_0002);
 		info.virt.hv.guest_minor	= cast(ubyte)(regs.eax >> 24);
 		info.virt.hv.guest_service	= cast(ubyte)(regs.eax >> 16);
 		info.virt.hv.guest_build	= regs.ax;
@@ -1563,7 +1564,7 @@ L_VIRT:
 	
 	switch (info.virt.vendorId) {
 	case VirtVendor.HyperV:
-		asmcpuid(regs, 0x4000_0003);
+		__cpuid(regs, 0x4000_0003);
 		info.virt.hv.base_feat_vp_runtime_msr	= (regs.eax & BIT!(0)) != 0;
 		info.virt.hv.base_feat_part_time_ref_count_msr	= (regs.eax & BIT!(1)) != 0;
 		info.virt.hv.base_feat_basic_synic_msrs	= (regs.eax & BIT!(2)) != 0;
@@ -1630,7 +1631,7 @@ L_VIRT:
 	
 	switch (info.virt.vendorId) {
 	case VirtVendor.HyperV:
-		asmcpuid(regs, 0x4000_0004);
+		__cpuid(regs, 0x4000_0004);
 		info.virt.hv.hint_hypercall_for_process_switch	= (regs.eax & BIT!(0)) != 0;
 		info.virt.hv.hint_hypercall_for_tlb_flush	= (regs.eax & BIT!(1)) != 0;
 		info.virt.hv.hint_hypercall_for_tlb_shootdown	= (regs.eax & BIT!(2)) != 0;
@@ -1658,7 +1659,7 @@ L_VIRT:
 	
 	switch (info.virt.vendorId) {
 	case VirtVendor.HyperV:
-		asmcpuid(regs, 0x4000_0006);
+		__cpuid(regs, 0x4000_0006);
 		info.virt.hv.host_feat_avic	= (regs.eax & BIT!(0)) != 0;
 		info.virt.hv.host_feat_msr_bitmap	= (regs.eax & BIT!(1)) != 0;
 		info.virt.hv.host_feat_perf_counter	= (regs.eax & BIT!(2)) != 0;
@@ -1681,7 +1682,7 @@ L_VIRT:
 	
 	switch (info.virt.vendorId) {
 	case VirtVendor.VBoxMin: // VBox Minimal
-		asmcpuid(regs, 0x4000_0010);
+		__cpuid(regs, 0x4000_0010);
 		info.virt.vbox.tsc_freq_khz = regs.eax;
 		info.virt.vbox.apic_freq_khz = regs.ebx;
 		break;
@@ -1696,7 +1697,7 @@ L_EXTENDED:
 	
 	if (info.maxLeafExtended < 0x8000_0000) goto L_CACHE_INFO;
 	
-	asmcpuid(regs, 0x8000_0001);
+	__cpuid(regs, 0x8000_0001);
 	
 	switch (info.vendorId) {
 	case Vendor.AMD:
@@ -1734,7 +1735,7 @@ L_EXTENDED:
 	
 	if (info.maxLeafExtended < 0x8000_0007) goto L_CACHE_INFO;
 	
-	asmcpuid(regs, 0x8000_0007);
+	__cpuid(regs, 0x8000_0007);
 	
 	switch (info.vendorId) {
 	case Vendor.Intel:
@@ -1755,7 +1756,7 @@ L_EXTENDED:
 	
 	if (info.maxLeafExtended < 0x8000_0008) goto L_CACHE_INFO;
 	
-	asmcpuid(regs, 0x8000_0008);
+	__cpuid(regs, 0x8000_0008);
 	
 	switch (info.vendorId) {
 	case Vendor.Intel:
@@ -1781,7 +1782,7 @@ L_EXTENDED:
 
 	if (info.maxLeafExtended < 0x8000_000A) goto L_CACHE_INFO;
 	
-	asmcpuid(regs, 0x8000_000A);
+	__cpuid(regs, 0x8000_000A);
 	
 	switch (info.vendorId) {
 	case Vendor.AMD:
@@ -1810,23 +1811,23 @@ L_CACHE_INFO:
 L_CACHE_INTEL_1FH:
 		//TODO: Support levels 3,4,5 in CPUID.1FH
 		//      (Module, Tile, and Die)
-		asmcpuid(regs, 0x1f, 1); // Cores (logical)
+		__cpuid(regs, 0x1f, 1); // Cores (logical)
 		info.cores.logical = regs.bx;
 		
-		asmcpuid(regs, 0x1f, 0); // SMT (architectural states per core)
+		__cpuid(regs, 0x1f, 0); // SMT (architectural states per core)
 		info.cores.physical = cast(ushort)(info.cores.logical / regs.bx);
 		
 		goto L_CACHE_INTEL_4H;
 		
 L_CACHE_INTEL_BH:
-		asmcpuid(regs, 0xb, 1); // Cores (logical)
+		__cpuid(regs, 0xb, 1); // Cores (logical)
 		info.cores.logical = regs.bx;
 		
-		asmcpuid(regs, 0xb, 0); // SMT (architectural states per core)
+		__cpuid(regs, 0xb, 0); // SMT (architectural states per core)
 		info.cores.physical = cast(ushort)(info.cores.logical / regs.bx);
 		
 L_CACHE_INTEL_4H:
-		asmcpuid(regs, 4, info.cache.levels);
+		__cpuid(regs, 4, info.cache.levels);
 		
 		type = regs.eax & CACHE_MASK; // EAX[4:0]
 		if (type == 0 || info.cache.levels >= CACHE_MAX_LEVEL) return;
@@ -1866,10 +1867,10 @@ L_CACHE_INTEL_4H:
 		
 		/*if (info.maxLeafExtended < 0x8000_001e) goto L_AMD_TOPOLOGY_EXT_8H;
 		
-		asmcpuid(regs, 0x8000_0001);
+		__cpuid(regs, 0x8000_0001);
 		
 		if (regs.ecx & BIT!(22)) { // Topology extensions support
-			asmcpuid(regs, 0x8000_001e);
+			__cpuid(regs, 0x8000_001e);
 			
 			info.cores.logical = regs.ch + 1;
 			info.cores.physical = regs.dh & 7;
@@ -1879,7 +1880,7 @@ L_CACHE_INTEL_4H:
 /*L_AMD_TOPOLOGY_EXT_8H:
 		// See APM Volume 3 Appendix E.5
 		// For some reason, CPUID Fn8000_001E_EBX is not mentioned there
-		asmcpuid(regs, 0x8000_0008);
+		__cpuid(regs, 0x8000_0008);
 		
 		type = regs.cx >> 12; // ApicIdSize
 		
@@ -1895,7 +1896,7 @@ L_CACHE_INTEL_4H:
 		//
 		
 L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
-		asmcpuid(regs, 0x8000_001d, info.cache.levels);
+		__cpuid(regs, 0x8000_001d, info.cache.levels);
 		
 		type = regs.eax & CACHE_MASK; // EAX[4:0]
 		if (type == 0 || info.cache.levels >= CACHE_MAX_LEVEL) return;
@@ -1932,7 +1933,7 @@ L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 		//
 		
 L_CACHE_AMD_EXT_5H:
-		asmcpuid(regs, 0x8000_0005);
+		__cpuid(regs, 0x8000_0005);
 		
 		info.cache.level[0].level = 1; // L1-D
 		info.cache.level[0].type = 'D'; // data
@@ -1962,7 +1963,7 @@ L_CACHE_AMD_EXT_5H:
 			0, 1, 2, 3, 4, 6, 8, 0, 16, 0, 32, 48, 64, 96, 128, 255
 		];
 		
-		asmcpuid(regs, 0x8000_0006);
+		__cpuid(regs, 0x8000_0006);
 		
 		type = regs.cx >> 12; // amd_ways_l2
 		if (type) {

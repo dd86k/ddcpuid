@@ -162,8 +162,12 @@ int dumpRead(FILE *file) {
 }*/
 
 const(char) *baseline(ref CPUINFO info) {
-	// That's a story for another time
-	if (info.extensions.x86_64 == false)	goto L_X86_64_NONE;
+	if (info.extensions.x86_64 == false) {
+		if (info.family >= 6) // Pentium Pro / II
+			return "i686";
+		// NOTE: K7 is still family 5 and didn't have SSE2.
+		return info.family == 5 ? "i586" : "i486"; // Pentium / MMX
+	}
 	
 	// v4
 	if (info.avx.avx512f && info.avx.avx512bw &&
@@ -197,11 +201,7 @@ const(char) *baseline(ref CPUINFO info) {
 		return "x86-64";
 	}*/
 	
-	return "x86-64"; // v1/baseline
-	
-L_X86_64_NONE:
-	//TODO: i486/i586/i686 by family/model?
-	return "i386";
+	return "x86-64"; // v1 anyway
 }
 
 char adjust(ref float size) {

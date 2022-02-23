@@ -1218,7 +1218,7 @@ void getInfo(ref CPUINFO info) {
 	
 	switch (info.vendorId) {
 	case Vendor.Intel:
-		info.family = info.familyBase != 0xf ?
+		info.family = info.familyBase != 15 ?
 			cast(ushort)info.familyBase :
 			cast(ushort)(info.familyExtended + info.familyBase);
 		
@@ -1259,7 +1259,7 @@ void getInfo(ref CPUINFO info) {
 			getBrandIdentifierIntel(info);
 		break;
 	case Vendor.AMD:
-		if (info.familyBase < 0xF) {
+		if (info.familyBase < 15) {
 			info.family = info.familyBase;
 			info.model = info.modelBase;
 		} else {

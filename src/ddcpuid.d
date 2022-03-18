@@ -551,7 +551,7 @@ struct CPUINFO { align(1):
 		bool mce;	/// Machine Check Exception
 		bool de;	/// Degging Extensions
 		bool ds;	/// Debug Store
-		bool dsCpl;	/// Debug Store - Curernt Privilege Level
+		bool ds_cpl;	/// Debug Store for Current Privilege Level
 		bool dtes64;	/// 64-bit Debug Store area
 		bool pdcm;	/// Perfmon And Debug Capability
 		bool sdbg;	/// Silicon Debug
@@ -1227,7 +1227,7 @@ void leaf1(ref CPUINFO info, ref REGISTERS regs) {
 		
 		// ECX
 		info.debugging.dtes64	= bit(regs.ecx, 2);
-		info.debugging.dsCpl	= bit(regs.ecx, 4);
+		info.debugging.ds_cpl	= bit(regs.ecx, 4);
 		info.virt.available	= bit(regs.ecx, 5);
 		info.tech.smx	= bit(regs.ecx, 6);
 		info.tech.eist	= bit(regs.ecx, 7);

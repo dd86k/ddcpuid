@@ -197,34 +197,33 @@ char adjust(ref float size) {
 	assert(adjust(size) == 'M');
 	assert(size == 4);
 }
-char adjustBits(ref uint size, int bitpos) {
+const(char)* adjustBits(ref uint size, int bitpos) {
 	version (Trace) trace("size=%u bit=%d", size, bitpos);
-	immutable char[8] SIZE = [ 0, 'K', 'M', 'G', 'T', 'P', 'E', 'Z' ];
+	static immutable const(char)*[8] SIZES = [
+		"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB"
+	];
 	size_t s;
-	while (bitpos >= 10) {
-		bitpos -= 10;
-		++s;
-	}
+	while (bitpos >= 10) { bitpos -= 10; ++s; }
 	size = 1 << bitpos;
-	return SIZE[s];
+	return SIZES[s];
 }
 //TODO: Make DUB to include this main, somehow
 /// adjustBits
 @system unittest {
 	float size;
-	assert(adjustBits(size, 0) == 0);
+	assert(adjustBits(size, 0) == "B");
 	assert(size == 1);
-	assert(adjustBits(size, 1) == 0);
+	assert(adjustBits(size, 1) == "B");
 	assert(size == 2);
-	assert(adjustBits(size, 10) == 'K');
+	assert(adjustBits(size, 10) == "KiB");
 	assert(size == 1);
-	assert(adjustBits(size, 11) == 'K');
+	assert(adjustBits(size, 11) == "KiB");
 	assert(size == 2);
-	assert(adjustBits(size, 20) == 'M');
+	assert(adjustBits(size, 20) == "MiB");
 	assert(size == 1);
-	assert(adjustBits(size, 36) == 'G');
+	assert(adjustBits(size, 36) == "GiB");
 	assert(size == 64);
-	assert(adjustBits(size, 48) == 'T');
+	assert(adjustBits(size, 48) == "TiB");
 	assert(size == 256);
 }
 
@@ -270,9 +269,9 @@ void printTechs(ref CPUINFO info) {
 			} else printf(" SGX"); // Fallback per-say
 			if (info.sgx.maxSize) {
 				uint s32 = void, s64 = void;
-				char m32 = adjustBits(s32, info.sgx.maxSize);
-				char m64 = adjustBits(s64, info.sgx.maxSize64);
-				printf(" +maxSize=%u%cB +maxSize64=%u%cB", s32, m32, s64, m64);
+				const(char) *m32 = adjustBits(s32, info.sgx.maxSize);
+				const(char) *m64 = adjustBits(s64, info.sgx.maxSize64);
+				printf(" +maxSize=%u%s +maxSize64=%u%s", s32, m32, s64, m64);
 			}
 		}
 		break;
@@ -517,10 +516,10 @@ int main(int argc, const(char) **argv) {
 		
 		if (info.memory.physBits || info.memory.lineBits) {
 			uint maxPhys = void, maxLine = void;
-			char cphys = adjustBits(maxPhys, info.memory.physBits);
-			char cline = adjustBits(maxLine, info.memory.lineBits);
+			const(char) *cphys = adjustBits(maxPhys, info.memory.physBits);
+			const(char) *cline = adjustBits(maxLine, info.memory.lineBits);
 			with (info) printf(
-			"Max. Memory: %u %ciB physical, %u %ciB virtual\n",
+			"Max. Memory: %u %s physical, %u %s virtual\n",
 			maxPhys, cphys, maxLine, cline,
 			);
 		}
@@ -717,7 +716,7 @@ int main(int argc, const(char) **argv) {
 	
 	for (uint i; i < info.cache.levels; ++i) {
 		cache = &info.cache.level[i];
-		printf("\nLevel %u-%c   : %2ux %6u KB, %u ways, %u parts, %u B, %u sets",
+		printf("\nLevel %u-%c   : %2ux %6u KiB, %u ways, %u parts, %u B, %u sets",
 			cache.level, cache.type, cache.sharedCores, cache.size,
 			cache.ways, cache.partitions, cache.lineSize, cache.sets
 		);

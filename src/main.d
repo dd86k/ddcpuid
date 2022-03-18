@@ -518,7 +518,7 @@ int main(int argc, const(char) **argv) {
 			char cphys = adjustBits(maxPhys, info.memory.physBits);
 			char cline = adjustBits(maxLine, info.memory.lineBits);
 			with (info) printf(
-			"Max. Memory: %u %ciB physical %u %ciB virtual\n",
+			"Max. Memory: %u %ciB physical, %u %ciB virtual\n",
 			maxPhys, cphys, maxLine, cline,
 			);
 		}

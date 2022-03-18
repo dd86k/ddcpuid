@@ -622,7 +622,7 @@ private bool bit(uint val, int pos) pure @safe {
 }
 
 @safe unittest {
-	assert(bit(2, 1));
+	assert(bit(2, 1)); // bit 1 of 2 is set (2[1], so 0b11[1])
 }
 
 /// Query processor with CPUID.
@@ -1924,7 +1924,7 @@ private struct LeafExtInfo {
 
 /// Fetch CPU information.
 /// Params: info = CPUINFO structure
-//TODO: rename as cpuinfo
+//TODO: rename as ddcpuid_cpuinfo
 pragma(inline, false)
 void getInfo(ref CPUINFO info) {
 	static immutable LeafInfo[] regulars = [
@@ -1941,7 +1941,7 @@ void getInfo(ref CPUINFO info) {
 		{ 0x8000_0001,	&leaf8000_0001 },
 		{ 0x8000_0007,	&leaf8000_0007 },
 		{ 0x8000_0008,	&leaf8000_0008 },
-		{ 0x8000_000A,	&leaf8000_000A },
+		{ 0x8000_000a,	&leaf8000_000A },
 	];
 	REGISTERS regs = void;	/// registers
 	
@@ -1954,7 +1954,7 @@ void getInfo(ref CPUINFO info) {
 	setModelName(info, regs.bl);
 	
 	foreach (ref immutable(LeafInfo) l; regulars) {
-		if (l.leaf >= info.maxLeaf) break;
+		if (l.leaf > info.maxLeaf) break;
 		
 		__cpuid(regs, l.leaf, l.sub);
 		l.func(info, regs);
@@ -1991,7 +1991,7 @@ void getInfo(ref CPUINFO info) {
 	// Extended leaves
 	if (info.maxLeafExtended >= 0x8000_0000) {
 		foreach (ref immutable(LeafExtInfo) l; extended) {
-			if (l.leaf >= info.maxLeafExtended) break;
+			if (l.leaf > info.maxLeafExtended) break;
 			
 			__cpuid(regs, l.leaf);
 			l.func(info, regs);

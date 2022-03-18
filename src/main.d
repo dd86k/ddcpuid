@@ -10,17 +10,16 @@
  */
 module main;
 
-import core.stdc.errno : errno;
-import core.stdc.stdio : printf, sscanf, FILE, fopen, fread, fwrite;
-import core.stdc.string : strcmp;
+import core.stdc.stdio : printf, sscanf;
+import core.stdc.string : strcmp, strtok;
 import ddcpuid;
 
 private:
 @system:
 extern (C):
 
-int putchar(int);
-int puts(scope const char* s);
+int putchar(int);	// because wrong extern
+int puts(scope const char* s);	// because wrong extern
 
 /// Compiler version template for betterC usage
 template CVER(int v) {
@@ -241,6 +240,9 @@ void printLegacy(ref CPUINFO info) {
 		if (info.extensions._3DNowExtended) printf(" ext3dnow!");
 	}
 }
+void printExtensions(ref CPUINFO info) {
+	
+}
 void printTechs(ref CPUINFO info) {
 	switch (info.vendor.id) with (Vendor) {
 	case Intel:
@@ -329,6 +331,28 @@ void printAMX(ref CPUINFO info) {
 	if (info.amx.xfd) printf(" +xfd");
 }
 void printOthers(ref CPUINFO info) {
+	const(char) *tstr = void;
+	if (info.extensions.x86_64) {
+		switch (info.vendor.id) with (Vendor) {
+		case Intel:	tstr = " intel64/x86-64"; break;
+		case AMD:	tstr = " amd64/x86-64"; break;
+		default:	tstr = " x86-64";
+		}
+		printf(tstr);
+		if (info.extensions.lahf64)
+			printf(" +lahf64");
+	}
+	if (info.virt.available)
+		switch (info.vendor.id) with (Vendor) {
+		case Intel: printf(" vt-x/vmx"); break;
+		case AMD: // SVM
+			printf(" amd-v/vmx");
+			if (info.virt.version_)
+				printf(" +svm=v%u", info.virt.version_);
+			break;
+		case VIA: printf(" via-vt/vmx"); break;
+		default: printf(" vmx");
+		}
 	if (info.extensions.aes_ni) printf(" aes-ni");
 	if (info.extensions.adx) printf(" adx");
 	if (info.extensions.sha) printf(" sha");
@@ -359,6 +383,8 @@ void printCacheFeats(ushort feats) {
 	if (feats & BIT!(3)) printf(" ci"); // Cache Inclusive
 	if (feats & BIT!(4)) printf(" cci"); // Complex Cache Indexing
 }
+
+
 
 //TODO: --no-header for -c/--cpuid
 version (unittest) {} else
@@ -534,6 +560,10 @@ int main(int argc, const(char) **argv) {
 		
 		immutable const(char) *none = " None";
 		
+		printf("\nExtensions: ");
+		printLegacy(info);
+		printOthers(info);
+		
 		printf("\nSSE:        ");
 		if (info.sse.sse) {
 			printSSE(info);
@@ -551,11 +581,6 @@ int main(int argc, const(char) **argv) {
 			printAMX(info);
 			putchar('\n');
 		} else puts(none);
-		
-		printf("Others:     ");
-		printLegacy(info);
-		printOthers(info);
-		putchar('\n');
 		
 		printf("Mitigations:");
 		printSecurity(info);
@@ -616,31 +641,11 @@ int main(int argc, const(char) **argv) {
 	cores.physical, cores.logical
 	);
 	
-	const(char) *tstr = void;
+	// Extensions
 	
+	const(char) *tstr = void;
 	printLegacy(info);
 	if (info.sse.sse) printSSE(info);
-	if (info.extensions.x86_64) {
-		switch (info.vendor.id) with (Vendor) {
-		case Intel:	tstr = " intel64/x86-64"; break;
-		case AMD:	tstr = " amd64/x86-64"; break;
-		default:	tstr = " x86-64";
-		}
-		printf(tstr);
-		if (info.extensions.lahf64)
-			printf(" +LAHF64");
-	}
-	if (info.virt.available)
-		switch (info.vendor.id) with (Vendor) {
-		case Intel: printf(" vt-x/vmx"); break;
-		case AMD: // SVM
-			printf(" amd-v/vmx");
-			if (info.virt.version_)
-				printf(":v%u", info.virt.version_);
-			break;
-		case VIA: printf(" via-vt/vmx"); break;
-		default: printf(" vmx");
-		}
 	if (info.avx.avx) printAVX(info);
 	printFMA(info);
 	printOthers(info);

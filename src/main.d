@@ -109,7 +109,7 @@ void clih() {
 void cliv() {
 	puts(
 	"ddcpuid-"~DDCPUID_PLATFORM~" "~DDCPUID_VERSION~" (built: "~__TIMESTAMP__~")\n"~
-	"Copyright (c) 2016-2021 dd86k <dd@dax.moe>\n"~
+	"Copyright (c) 2016-2022 dd86k <dd@dax.moe>\n"~
 	"License: MIT License <http://opensource.org/licenses/MIT>\n"~
 	"Homepage: <https://github.com/dd86k/ddcpuid>\n"~
 	"Compiler: "~__VENDOR__~" "~CVER!(__VERSION__)

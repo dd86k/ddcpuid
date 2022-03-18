@@ -48,8 +48,8 @@ struct options_t { align(1):
 	bool hasLevel;	/// If -S has been used
 	bool table;	/// Raw table (-r)
 	bool override_;	/// Override leaves (-o)
-	bool getBaseline;	/// Get x86-64 optimization feature level or baseline
-	bool getDetails;	/// Get the boring details
+	bool baseline;	/// Get x86-64 optimization feature level or baseline
+	bool all;	/// Get all processor details
 	bool[3] reserved;	/// 
 }
 
@@ -89,19 +89,20 @@ void clih() {
 	" ddcpuid [OPTIONS...]\n"~
 	"\n"~
 	"OPTIONS\n"~
-	" -d, --details    Show detailed processor information\n"~
+	" -d, --details    (Deprecated) Alias of --all\n"~
+	" -a, --all        Show all processor information\n"~
 	" -r, --table      Show raw CPUID data in a table\n"~
 	" -S               Table: Set leaf (EAX) input value\n"~
 	" -s               Table: Set subleaf (ECX) input value\n"~
 //	" -D, --dump       Dump CPUID data into binary\n"~
 	" -o               Override maximum leaves to 0x20, 0x4000_0020, and 0x8000_0020\n"~
-	" -l, --level      (Deprecated) Alias to --baseline\n"~
+	" -l, --level      (Deprecated) Alias of --baseline\n"~
 	" -b, --baseline   Print the processor's feature level\n"~
 	"\n"~
 	"PAGES\n"~
+	" -h, --help   Print this help screen and quit\n"~
 	" --version    Print version screen and quit\n"~
-	" --ver        Print version and quit\n"~
-	" -h, --help   Print this help screen and quit"
+	" --ver        Print version and quit\n"
 	);
 }
 
@@ -351,6 +352,8 @@ void printSecurity(ref CPUINFO info) {
 	if (info.security.cetSs) printf(" CET_SS");	// Intel
 }
 void printCacheFeats(ushort feats) {
+	if (feats == 0) return;
+	putchar(',');
 	if (feats & BIT!(0)) printf(" SI"); // Self Initiative
 	if (feats & BIT!(1)) printf(" FA"); // Fully Associative
 	if (feats & BIT!(2)) printf(" NWBV"); // No Write-Back Validation
@@ -372,11 +375,11 @@ int main(int argc, const(char) **argv) {
 				continue;
 			}
 			if (strcmp(arg, "level") == 0 || strcmp(arg, "baseline") == 0) {
-				options.getBaseline = true;
+				options.baseline = true;
 				continue;
 			}
-			if (strcmp(arg, "details") == 0) {
-				options.getDetails = true;
+			if (strcmp(arg, "details") == 0 || strcmp(arg, "all") == 0) {
+				options.all = true;
 				continue;
 			}
 			if (strcmp(arg, "version") == 0) {
@@ -403,8 +406,8 @@ int main(int argc, const(char) **argv) {
 			while ((o = *arg) != 0) {
 				++arg;
 				switch (o) {
-				case 'd': options.getDetails = true; continue;
-				case 'l', 'b': options.getBaseline = true; continue;
+				case 'a', 'd': options.all = true; continue;
+				case 'b', 'l': options.baseline = true; continue;
 				case 'o': options.override_ = true; continue;
 				case 'r': options.table = true; continue;
 				case 'S':
@@ -482,7 +485,7 @@ int main(int argc, const(char) **argv) {
 	
 	getInfo(info);
 	
-	if (options.getBaseline) {
+	if (options.baseline) {
 		puts(baseline(info));
 		return 0;
 	}
@@ -502,7 +505,7 @@ int main(int argc, const(char) **argv) {
 	// ANCHOR Summary
 	//
 	
-	if (options.getDetails == false) {
+	if (options.all == false) {
 		with (info) printf(
 		"Name:        %.12s %.48s\n"~
 		"Identifier:  Family 0x%x Model 0x%x Stepping 0x%x\n"~
@@ -581,10 +584,7 @@ int main(int argc, const(char) **argv) {
 			with (cache)
 			printf("Cache L%u-%c:  %3ux %4g %ciB, %4g %ciB total",
 				level, type, sharedCores, csize, cc, tsize, ct);
-			if (cache.features) {
-				putchar(',');
-				printCacheFeats(cache.features);
-			}
+			printCacheFeats(cache.features);
 			putchar('\n');
 		}
 		
@@ -717,7 +717,7 @@ int main(int argc, const(char) **argv) {
 	
 	for (uint i; i < info.cache.levels; ++i) {
 		cache = &info.cache.level[i];
-		printf("\nLevel %u-%c   : %ux %5u KB, %u ways, %u parts, %u B, %u sets",
+		printf("\nLevel %u-%c   : %2ux %6u KB, %u ways, %u parts, %u B, %u sets",
 			cache.level, cache.type, cache.sharedCores, cache.size,
 			cache.ways, cache.partitions, cache.lineSize, cache.sets
 		);

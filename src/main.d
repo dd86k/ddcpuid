@@ -36,7 +36,7 @@ template CVER(int v) {
 template BIT(int n) if (n <= 31) { enum uint BIT = 1 << n; }
 
 enum : uint {
-	MAX_LEAF	= 0x20, /// Maximum leaf override
+	MAX_LEAF	= 0x30, /// Maximum leaf override
 	MAX_VLEAF	= 0x4000_0000 + MAX_LEAF, /// Maximum virt leaf override
 	MAX_ELEAF	= 0x8000_0000 + MAX_LEAF, /// Maximum extended leaf override
 }
@@ -48,7 +48,7 @@ struct options_t { align(1):
 	bool hasLevel;	/// If -S has been used
 	bool table;	/// Raw table (-r)
 	bool override_;	/// Override leaves (-o)
-	bool getLevel;	/// Get x86-64 optimization feature level
+	bool getBaseline;	/// Get x86-64 optimization feature level or baseline
 	bool getDetails;	/// Get the boring details
 	bool[3] reserved;	/// 
 }
@@ -80,8 +80,6 @@ immutable const(char) *secret = r"
             ######################
 ";
 
-//TODO: Consider having a CPUINFO instance globally to avoid parameter spam
-
 /// print help page
 void clih() {
 	puts(
@@ -91,13 +89,14 @@ void clih() {
 	" ddcpuid [OPTIONS...]\n"~
 	"\n"~
 	"OPTIONS\n"~
-	" -d, --details  Show detailed processor information\n"~
-	" -r, --table    Show raw CPUID data in a table\n"~
-	" -S             Table: Set leaf (EAX) input value\n"~
-	" -s             Table: Set subleaf (ECX) input value\n"~
-//	" -D, --dump     Dump CPUID data into binary\n"~
-	" -o             Override maximum leaves to 0x20, 0x4000_0020, and 0x8000_0020\n"~
-	" -l, --level    Print the processor's feature level\n"~
+	" -d, --details    Show detailed processor information\n"~
+	" -r, --table      Show raw CPUID data in a table\n"~
+	" -S               Table: Set leaf (EAX) input value\n"~
+	" -s               Table: Set subleaf (ECX) input value\n"~
+//	" -D, --dump       Dump CPUID data into binary\n"~
+	" -o               Override maximum leaves to 0x20, 0x4000_0020, and 0x8000_0020\n"~
+	" -l, --level      (Deprecated) Alias to --baseline\n"~
+	" -b, --baseline   Print the processor's feature level\n"~
 	"\n"~
 	"PAGES\n"~
 	" --version    Print version screen and quit\n"~
@@ -372,8 +371,8 @@ int main(int argc, const(char) **argv) {
 				options.table = true;
 				continue;
 			}
-			if (strcmp(arg, "level") == 0) {
-				options.getLevel = true;
+			if (strcmp(arg, "level") == 0 || strcmp(arg, "baseline") == 0) {
+				options.getBaseline = true;
 				continue;
 			}
 			if (strcmp(arg, "details") == 0) {
@@ -405,7 +404,7 @@ int main(int argc, const(char) **argv) {
 				++arg;
 				switch (o) {
 				case 'd': options.getDetails = true; continue;
-				case 'l': options.getLevel = true; continue;
+				case 'l', 'b': options.getBaseline = true; continue;
 				case 'o': options.override_ = true; continue;
 				case 'r': options.table = true; continue;
 				case 'S':
@@ -483,7 +482,7 @@ int main(int argc, const(char) **argv) {
 	
 	getInfo(info);
 	
-	if (options.getLevel) {
+	if (options.getBaseline) {
 		puts(baseline(info));
 		return 0;
 	}

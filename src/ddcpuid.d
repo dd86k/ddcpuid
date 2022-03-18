@@ -29,23 +29,13 @@
  */
 module ddcpuid;
 
-// NOTE: Please no naked assembler.
-//       I'd rather let the compiler deal with a little bit of prolog and
-//       epilog than slamming my head into my desk violently trying to match
-//       every operating system ABI, compiler versions, and major compilers.
-//       Besides, final compiled binary is plenty fine on every compiler.
 // NOTE: GAS syntax reminder
 //       asm { "asm;\n\t" : "constraint" output : "constraint" input : clobbers }
-// NOTE: bhyve doesn't not emit cpuid bits within 0x40000000, so not supported
-
-//TODO: Consider restructing
-//      Static structure return pointer
-//      struct MAXLEAVES + struct CPUINFO
-//TODO: Rename "stages" to L_STAGE_EXTENDED/L_STAGE_TOPOLOGY.
-//TODO: Tiny pure function to just (uint reg, int bit)
 
 @system:
 extern (C):
+
+//TODO: Consider ddcpuid_* function prefix since we extern to C
 
 version (X86)
 	enum DDCPUID_PLATFORM = "x86"; /// Target platform
@@ -64,14 +54,8 @@ version (DigitalMars) {
 enum DDCPUID_VERSION   = "0.19.1";	/// Library version
 private enum CACHE_LEVELS = 6;	/// For buffer
 private enum CACHE_MAX_LEVEL = CACHE_LEVELS - 1;
-private enum VENDOR_OFFSET     = CPUINFO.vendorString.offsetof;
-private enum BRAND_OFFSET      = CPUINFO.brandString.offsetof;
-private enum VIRTVENDOR_OFFSET = CPUINFO.virt.offsetof + CPUINFO.virt.vendorString.offsetof;
 
 version (PrintInfo) {
-	pragma(msg, "VENDOR_OFFSET\t", VENDOR_OFFSET);
-	pragma(msg, "BRAND_OFFSET\t", BRAND_OFFSET);
-	pragma(msg, "VIRTVENDOR_OFFSET\t", VIRTVENDOR_OFFSET);
 	pragma(msg, "CPUINFO.sizeof\t", CPUINFO.sizeof);
 	pragma(msg, "CACHE.sizeof\t", CACHEINFO.sizeof);
 }
@@ -93,9 +77,9 @@ template ID(char[4] c) {
 /// They are validated in the getVendor function, so they are safe to use.
 enum Vendor {
 	Other = 0,
-	Intel = ID!("Genu"),	/// `"GenuineIntel"`: Intel
-	AMD   = ID!("Auth"),	/// `"AuthenticAMD"`: AMD
-	VIA   = ID!("VIA "),	/// `"VIA VIA VIA "`: VIA
+	Intel = ID!"Genu",	/// `"GenuineIntel"`: Intel
+	AMD   = ID!"Auth",	/// `"AuthenticAMD"`: AMD
+	VIA   = ID!"VIA ",	/// `"VIA VIA VIA "`: VIA
 }
 
 /// Virtual Vendor ID, used as the interface type.
@@ -104,12 +88,13 @@ enum Vendor {
 /// They are validated in the getVendor function, so they are safe to use.
 /// The VBoxHyperV ID will be adjusted for HyperV since it's the same interface,
 /// but simply a different implementation.
+// NOTE: bhyve doesn't not emit cpuid bits within 0x40000000, so not supported
 enum VirtVendor {
 	Other = 0,
-	KVM        = ID!("KVMK"), /// `"KVMKVMKVM\0\0\0"`: KVM
-	HyperV     = ID!("Micr"), /// `"Microsoft Hv"`: Hyper-V interface
-	VBoxHyperV = ID!("VBox"), /// `"VBoxVBoxVBox"`: VirtualBox's Hyper-V interface
-	VBoxMin    = 0, /// Unset: VirtualBox minimal interface
+	KVM        = ID!"KVMK",	/// `"KVMKVMKVM\0\0\0"`: KVM
+	HyperV     = ID!"Micr",	/// `"Microsoft Hv"`: Hyper-V interface
+	VBoxHyperV = ID!"VBox",	/// `"VBoxVBoxVBox"`: VirtualBox's Hyper-V interface
+	VBoxMin    = 0,	/// Unset: VirtualBox minimal interface
 }
 
 /// Registers structure used with the __cpuid function.
@@ -145,17 +130,15 @@ struct REGISTERS {
 	assert(regs.ah  == 0xcc);
 }
 
+/// 
+struct Maximum { align(1):
+	uint leaf;	/// Maximum leaf.
+	uint virtLeaf;	/// Maximum virtualization leaf.
+	uint extLeaf;	/// Maximum extended leaf.
+}
+
 /// CPU cache entry
 struct CACHEINFO { align(1):
-	deprecated union {
-		package uint __bundle1;
-		struct {
-			ubyte linesize; /// Size of the line in bytes
-			ubyte partitions_;	/// Number of partitions
-			ubyte ways_;	/// Number of ways per line
-			package ubyte _amdsize;	/// (AMD, legacy) Size in KiB
-		}
-	}
 	ushort lineSize;	/// Size of the line in bytes.
 	union {
 		ushort partitions;	/// Number of partitions.
@@ -180,25 +163,52 @@ struct CACHEINFO { align(1):
 	char type = 0;	/// Type entry character: 'D'=Data, 'I'=Instructions, 'U'=Unified
 }
 
+struct VendorString { align(1):
+	union {
+		struct { uint ebx, edx, ecx; }
+		char[12] string_;
+	}
+	Vendor id;	/// Validated vendor ID
+}
+
+@system unittest {
+	VendorString s;
+	s.string_ = "AuthenticAMD";
+	assert(s.ebx == ID!"Auth");
+	assert(s.edx == ID!"enti");
+	assert(s.ecx == ID!"cAMD");
+}
+
+struct VirtVendorString { align(1):
+	union {
+		struct { uint ebx, ecx, edx; }
+		char[12] string_;
+	}
+	VirtVendor id;	/// Validated vendor ID
+}
+
+@system unittest {
+	VirtVendorString s;
+	s.string_ = "AuthenticAMD";
+	assert(s.ebx == ID!"Auth");
+	assert(s.ecx == ID!"enti");
+	assert(s.edx == ID!"cAMD");
+}
+
 /// CPU information structure
 struct CPUINFO { align(1):
 	uint maxLeaf;	/// Highest cpuid leaf
 	uint maxLeafVirt;	/// Highest cpuid virtualization leaf
 	uint maxLeafExtended;	/// Highest cpuid extended leaf
 	
-	// Vendor strings
+	// Vendor/brand strings
+	
+	VendorString vendor;
+	VirtVendorString virtVendor;
 	
 	union {
-		package uint[3] vendor32;	/// Vendor 32-bit parts
-		char[12] vendorString;	/// Vendor String
-	}
-	union {
-		package uint[12] brand32;	// For init
+		private uint[12] brand32;	// For init only
 		char[48] brandString;	/// Processor Brand String
-	}
-	union {
-		package uint vendorId32;
-		Vendor vendorId;	/// Validated vendor ID
 	}
 	ubyte brandIndex;	/// Brand string index (not used)
 	
@@ -386,14 +396,7 @@ struct CPUINFO { align(1):
 		ubyte version_;	/// (AMD) Virtualization platform version
 		bool vme;	/// Enhanced vm8086
 		bool apicv;	/// (AMD) APICv. Intel's is available via a MSR.
-		union {
-			package uint[3] vendor32;
-			char[12] vendorString;	/// Paravirtualization interface vendor string
-		}
-		union {
-			package uint vendorId32;
-			VirtVendor vendorId;	/// Effective paravirtualization vendor id
-		}
+		VirtVendorString vendor;
 		
 		struct VBox {
 			uint tsc_freq_khz;	/// (VBox) Timestamp counter frequency in KHz
@@ -537,13 +540,8 @@ struct CPUINFO { align(1):
 		bool _5pl;	/// 5-level paging
 		bool fsrepmov;	/// Fast Short REP MOVSB optimization
 		bool lam;	/// Linear Address Masking
-		union {
-			package ushort b_8000_0008_ax;
-			struct {
-				ubyte physBits;	/// Memory physical bits
-				ubyte lineBits;	/// Memory linear bits
-			}
-		}
+		ubyte physBits;	/// Memory physical bits
+		ubyte lineBits;	/// Memory linear bits
 	}
 	align (2) Memory memory;	/// Memory features
 	
@@ -614,6 +612,19 @@ version (Trace) {
 	}
 }
 
+/// Test if a bit is set.
+/// Params:
+/// 	val = 32-bit content.
+/// 	pos = Bit position 
+/// Returns: True if bit set.
+private bool bit(uint val, int pos) pure @safe {
+	return (val & (1 << pos)) != 0;
+}
+
+@safe unittest {
+	assert(bit(2, 1));
+}
+
 /// Query processor with CPUID.
 /// Params:
 ///   regs = REGISTERS structure
@@ -681,99 +692,90 @@ void __cpuid(ref REGISTERS regs, uint level, uint sublevel = 0) {
 	assert(regs.eax > 0x8000_0000);
 }
 
-/// Get CPU leaf levels.
-/// Params: info = CPUINFO structure
-//TODO: Seperate these and perform them on the go?
-pragma(inline, false)
-void getLeaves(ref CPUINFO info) {
+private uint maximumLeaf() {
 	version (DMD) {
-		version (X86) asm {
-			mov EDI, info;
-			mov EAX, 0;
+		asm {
+			xor EAX,EAX;
 			cpuid;
-			mov [EDI + info.maxLeaf.offsetof], EAX;
-			mov EAX, 0x4000_0000;
-			cpuid;
-			mov [EDI + info.maxLeafVirt.offsetof], EAX;
-			mov EAX, 0x8000_0000;
-			cpuid;
-			mov [EDI + info.maxLeafExtended.offsetof], EAX;
-		} else version (X86_64) asm {
-			mov RDI, info;
-			mov EAX, 0;
-			cpuid;
-			mov [RDI + info.maxLeaf.offsetof], EAX;
-			mov EAX, 0x4000_0000;
-			cpuid;
-			mov [RDI + info.maxLeafVirt.offsetof], EAX;
-			mov EAX, 0x8000_0000;
-			cpuid;
-			mov [RDI + info.maxLeafExtended.offsetof], EAX;
 		}
 	} else version (GDC) {
 		asm {
-			"cpuid"
-			: "=a" (info.maxLeaf)
-			: "a" (0);
-		}
-		asm {
-			"cpuid"
-			: "=a" (info.maxLeafVirt)
-			: "a" (0x40000000);
-		}
-		asm {
-			"cpuid"
-			: "=a" (info.maxLeafExtended)
-			: "a" (0x80000000);
+			"xor %eax,%eax\t\n"~
+			"cpuid";
 		}
 	} else version (LDC) {
-		version (X86) asm {
-			lea EDI, info;
-			mov EAX, 0;
+		asm {
+			xor EAX,EAX;
 			cpuid;
-			mov [EDI + info.maxLeaf.offsetof], EAX;
-			mov EAX, 0x4000_0000;
-			cpuid;
-			mov [EDI + info.maxLeafVirt.offsetof], EAX;
-			mov EAX, 0x8000_0000;
-			cpuid;
-			mov [EDI + info.maxLeafExtended.offsetof], EAX;
-		} else version (X86_64) asm {
-			lea RDI, info;
-			mov EAX, 0;
-			cpuid;
-			mov [RDI + info.maxLeaf.offsetof], EAX;
-			mov EAX, 0x4000_0000;
-			cpuid;
-			mov [RDI + info.maxLeafVirt.offsetof], EAX;
-			mov EAX, 0x8000_0000;
-			cpuid;
-			mov [RDI + info.maxLeafExtended.offsetof], EAX;
 		}
 	}
-	version (Trace) with(info) trace(
-		"leaf=%x vleaf=%x eleaf=%x",
-		maxLeaf, maxLeafVirt, maxLeafExtended);
 }
 
-/// Fetch CPU vendor
+private uint maximumVirtLeaf() {
+	version (DMD) {
+		asm {
+			mov EAX,0x4000_0000;
+			cpuid;
+		}
+	} else version (GDC) {
+		asm {
+			"mov 0x40000000,%eax\t\n"~
+			"cpuid";
+		}
+	} else version (LDC) {
+		asm {
+			mov EAX,0x4000_0000;
+			cpuid;
+		}
+	}
+}
+
+private uint maximumExtendedLeaf() {
+	version (DMD) {
+		asm {
+			mov EAX,0x8000_0000;
+			cpuid;
+		}
+	} else version (GDC) {
+		asm {
+			"mov 0x80000000,%eax\t\n"~
+			"cpuid";
+		}
+	} else version (LDC) {
+		asm {
+			mov EAX,0x8000_0000;
+			cpuid;
+		}
+	}
+}
+
+/// Get CPU leaf levels.
+/// Params: info = CPUINFO structure
 pragma(inline, false)
-void getVendor(ref CPUINFO info) {
+void getLeaves(ref CPUINFO info) {
+	info.maxLeaf = maximumLeaf;
+	info.maxLeafVirt = maximumVirtLeaf;
+	info.maxLeafExtended = maximumExtendedLeaf;
+}
+
+pragma(inline, false)
+private
+void vendor(ref char[12] string_) {
 	version (DMD) {
 		version (X86) asm {
-			mov EDI, info;
+			mov EDI, string_;
 			mov EAX, 0;
 			cpuid;
-			mov [EDI + VENDOR_OFFSET], EBX;
-			mov [EDI + VENDOR_OFFSET + 4], EDX;
-			mov [EDI + VENDOR_OFFSET + 8], ECX;
+			mov [EDI], EBX;
+			mov [EDI + 4], EDX;
+			mov [EDI + 8], ECX;
 		} else asm { // x86-64
-			mov RDI, info;
+			mov RDI, string_;
 			mov EAX, 0;
 			cpuid;
-			mov [RDI + VENDOR_OFFSET], EBX;
-			mov [RDI + VENDOR_OFFSET + 4], EDX;
-			mov [RDI + VENDOR_OFFSET + 8], ECX;
+			mov [RDI], EBX;
+			mov [RDI + 4], EDX;
+			mov [RDI + 8], ECX;
 		}
 	} else version (GDC) {
 		version (X86) asm {
@@ -784,7 +786,7 @@ void getVendor(ref CPUINFO info) {
 			"mov %%edx, 4(%%edi)\n\t"~
 			"mov %%ecx, 8(%%edi)"
 			:
-			: "m" (info.vendor)
+			: "m" (string_)
 			: "edi", "eax", "ebx", "ecx", "edx";
 		} else asm { // x86-64
 			"lea %0, %%rdi\n\t"~
@@ -794,94 +796,94 @@ void getVendor(ref CPUINFO info) {
 			"mov %%edx, 4(%%rdi)\n\t"~
 			"mov %%ecx, 8(%%rdi)"
 			:
-			: "m" (info.vendor)
+			: "m" (string_)
 			: "rdi", "rax", "rbx", "rcx", "rdx";
 		}
 	} else version (LDC) {
 		version (X86) asm {
-			lea EDI, info;
+			lea EDI, string_;
 			mov EAX, 0;
 			cpuid;
-			mov [EDI + VENDOR_OFFSET], EBX;
-			mov [EDI + VENDOR_OFFSET + 4], EDX;
-			mov [EDI + VENDOR_OFFSET + 8], ECX;
+			mov [EDI], EBX;
+			mov [EDI + 4], EDX;
+			mov [EDI + 8], ECX;
 		} else asm { // x86-64
-			lea RDI, info;
+			lea RDI, string_;
 			mov EAX, 0;
 			cpuid;
-			mov [RDI + VENDOR_OFFSET], EBX;
-			mov [RDI + VENDOR_OFFSET + 4], EDX;
-			mov [RDI + VENDOR_OFFSET + 8], ECX;
+			mov [RDI], EBX;
+			mov [RDI + 4], EDX;
+			mov [RDI + 8], ECX;
 		}
 	}
-	
+}
+
+private
+Vendor vendorId(ref VendorString vendor) {
 	// Vendor string verification
 	// If the rest of the string doesn't correspond, the id is unset
-	switch (info.vendor32[0]) {
-	case Vendor.Intel:	// "GenuineIntel"
-		if (info.vendor32[1] != ID!("ineI")) goto default;
-		if (info.vendor32[2] != ID!("ntel")) goto default;
-		break;
-	case Vendor.AMD:	// "AuthenticAMD"
-		if (info.vendor32[1] != ID!("enti")) goto default;
-		if (info.vendor32[2] != ID!("cAMD")) goto default;
-		break;
-	case Vendor.VIA:	// "VIA VIA VIA "
-		if (info.vendor32[1] != ID!("VIA ")) goto default;
-		if (info.vendor32[2] != ID!("VIA ")) goto default;
-		break;
+	switch (vendor.ebx) with (Vendor) {
+	case Intel:	// "GenuineIntel"
+		if (vendor.edx != ID!("ineI")) break;
+		if (vendor.ecx != ID!("ntel")) break;
+		return Vendor.Intel;
+	case AMD:	// "AuthenticAMD"
+		if (vendor.edx != ID!("enti")) break;
+		if (vendor.ecx != ID!("cAMD")) break;
+		return Vendor.AMD;
+	case VIA:	// "VIA VIA VIA "
+		if (vendor.edx != ID!("VIA ")) break;
+		if (vendor.ecx != ID!("VIA ")) break;
+		return Vendor.VIA;
 	default: // Unknown
-		info.vendorId32 = 0;
-		return;
 	}
-	
-	info.vendorId32 = info.vendor32[0];
+	return Vendor.Other;
 }
 
 pragma(inline, false)
 private
-void getBrandExtended(ref CPUINFO info) {
+void extendedBrand(ref char[48] string_) {
 	version (DMD) {
 		version (X86) asm {
-			mov EDI, info;
+			mov EDI, string_;
 			mov EAX, 0x8000_0002;
 			cpuid;
-			mov [EDI + BRAND_OFFSET], EAX;
-			mov [EDI + BRAND_OFFSET +  4], EBX;
-			mov [EDI + BRAND_OFFSET +  8], ECX;
-			mov [EDI + BRAND_OFFSET + 12], EDX;
+			mov [EDI], EAX;
+			mov [EDI +  4], EBX;
+			mov [EDI +  8], ECX;
+			mov [EDI + 12], EDX;
 			mov EAX, 0x8000_0003;
 			cpuid;
-			mov [EDI + BRAND_OFFSET + 16], EAX;
-			mov [EDI + BRAND_OFFSET + 20], EBX;
-			mov [EDI + BRAND_OFFSET + 24], ECX;
-			mov [EDI + BRAND_OFFSET + 28], EDX;
+			mov [EDI + 16], EAX;
+			mov [EDI + 20], EBX;
+			mov [EDI + 24], ECX;
+			mov [EDI + 28], EDX;
 			mov EAX, 0x8000_0004;
 			cpuid;
-			mov [EDI + BRAND_OFFSET + 32], EAX;
-			mov [EDI + BRAND_OFFSET + 36], EBX;
-			mov [EDI + BRAND_OFFSET + 40], ECX;
-			mov [EDI + BRAND_OFFSET + 44], EDX;
+			mov [EDI + 32], EAX;
+			mov [EDI + 36], EBX;
+			mov [EDI + 40], ECX;
+			mov [EDI + 44], EDX;
 		} else version (X86_64) asm {
-			mov RDI, info;
+			mov RDI, string_;
 			mov EAX, 0x8000_0002;
 			cpuid;
-			mov [RDI + BRAND_OFFSET], EAX;
-			mov [RDI + BRAND_OFFSET +  4], EBX;
-			mov [RDI + BRAND_OFFSET +  8], ECX;
-			mov [RDI + BRAND_OFFSET + 12], EDX;
+			mov [RDI], EAX;
+			mov [RDI +  4], EBX;
+			mov [RDI +  8], ECX;
+			mov [RDI + 12], EDX;
 			mov EAX, 0x8000_0003;
 			cpuid;
-			mov [RDI + BRAND_OFFSET + 16], EAX;
-			mov [RDI + BRAND_OFFSET + 20], EBX;
-			mov [RDI + BRAND_OFFSET + 24], ECX;
-			mov [RDI + BRAND_OFFSET + 28], EDX;
+			mov [RDI + 16], EAX;
+			mov [RDI + 20], EBX;
+			mov [RDI + 24], ECX;
+			mov [RDI + 28], EDX;
 			mov EAX, 0x8000_0004;
 			cpuid;
-			mov [RDI + BRAND_OFFSET + 32], EAX;
-			mov [RDI + BRAND_OFFSET + 36], EBX;
-			mov [RDI + BRAND_OFFSET + 40], ECX;
-			mov [RDI + BRAND_OFFSET + 44], EDX;
+			mov [RDI + 32], EAX;
+			mov [RDI + 36], EBX;
+			mov [RDI + 40], ECX;
+			mov [RDI + 44], EDX;
 		}
 	} else version (GDC) {
 		version (X86) asm {
@@ -905,7 +907,7 @@ void getBrandExtended(ref CPUINFO info) {
 			"mov %%ecx, 40(%%rdi)\n\t"~
 			"mov %%edx, 44(%%rdi)"
 			:
-			: "m" (info.brand)
+			: "m" (string_)
 			: "edi", "eax", "ebx", "ecx", "edx";
 		} else version (X86_64) asm {
 			"lea %0, %%rdi\n\t"~
@@ -928,50 +930,50 @@ void getBrandExtended(ref CPUINFO info) {
 			"mov %%ecx, 40(%%rdi)\n\t"~
 			"mov %%edx, 44(%%rdi)"
 			:
-			: "m" (info.brand)
+			: "m" (string_)
 			: "rdi", "rax", "rbx", "rcx", "rdx";
 		}
 	} else version (LDC) {
 		version (X86) asm {
-			lea EDI, info;
+			lea EDI, string_;
 			mov EAX, 0x8000_0002;
 			cpuid;
-			mov [EDI + BRAND_OFFSET], EAX;
-			mov [EDI + BRAND_OFFSET +  4], EBX;
-			mov [EDI + BRAND_OFFSET +  8], ECX;
-			mov [EDI + BRAND_OFFSET + 12], EDX;
+			mov [EDI], EAX;
+			mov [EDI +  4], EBX;
+			mov [EDI +  8], ECX;
+			mov [EDI + 12], EDX;
 			mov EAX, 0x8000_0003;
 			cpuid;
-			mov [EDI + BRAND_OFFSET + 16], EAX;
-			mov [EDI + BRAND_OFFSET + 20], EBX;
-			mov [EDI + BRAND_OFFSET + 24], ECX;
-			mov [EDI + BRAND_OFFSET + 28], EDX;
+			mov [EDI + 16], EAX;
+			mov [EDI + 20], EBX;
+			mov [EDI + 24], ECX;
+			mov [EDI + 28], EDX;
 			mov EAX, 0x8000_0004;
 			cpuid;
-			mov [EDI + BRAND_OFFSET + 32], EAX;
-			mov [EDI + BRAND_OFFSET + 36], EBX;
-			mov [EDI + BRAND_OFFSET + 40], ECX;
-			mov [EDI + BRAND_OFFSET + 44], EDX;
+			mov [EDI + 32], EAX;
+			mov [EDI + 36], EBX;
+			mov [EDI + 40], ECX;
+			mov [EDI + 44], EDX;
 		} else version (X86_64) asm {
-			lea RDI, info;
+			lea RDI, string_;
 			mov EAX, 0x8000_0002;
 			cpuid;
-			mov [RDI + BRAND_OFFSET], EAX;
-			mov [RDI + BRAND_OFFSET +  4], EBX;
-			mov [RDI + BRAND_OFFSET +  8], ECX;
-			mov [RDI + BRAND_OFFSET + 12], EDX;
+			mov [RDI], EAX;
+			mov [RDI +  4], EBX;
+			mov [RDI +  8], ECX;
+			mov [RDI + 12], EDX;
 			mov EAX, 0x8000_0003;
 			cpuid;
-			mov [RDI + BRAND_OFFSET + 16], EAX;
-			mov [RDI + BRAND_OFFSET + 20], EBX;
-			mov [RDI + BRAND_OFFSET + 24], ECX;
-			mov [RDI + BRAND_OFFSET + 28], EDX;
+			mov [RDI + 16], EAX;
+			mov [RDI + 20], EBX;
+			mov [RDI + 24], ECX;
+			mov [RDI + 28], EDX;
 			mov EAX, 0x8000_0004;
 			cpuid;
-			mov [RDI + BRAND_OFFSET + 32], EAX;
-			mov [RDI + BRAND_OFFSET + 36], EBX;
-			mov [RDI + BRAND_OFFSET + 40], ECX;
-			mov [RDI + BRAND_OFFSET + 44], EDX;
+			mov [RDI + 32], EAX;
+			mov [RDI + 36], EBX;
+			mov [RDI + 40], ECX;
+			mov [RDI + 44], EDX;
 		}
 	}
 }
@@ -981,8 +983,7 @@ void getBrandExtended(ref CPUINFO info) {
 pragma(inline, false)
 private
 void strcpy48(ref char[48] dst, const(char) *src) {
-	size_t i;
-	for (; i < 48; ++i) {
+	for (size_t i; i < 48; ++i) {
 		char c = src[i];
 		dst[i] = c;
 		if (c == 0) break;
@@ -991,9 +992,10 @@ void strcpy48(ref char[48] dst, const(char) *src) {
 
 @system unittest {
 	char[48] buffer = void;
-	strcpy48(buffer, "e");
+	strcpy48(buffer, "ea");
 	assert(buffer[0] == 'e');
-	assert(buffer[1] == 0);
+	assert(buffer[1] == 'a');
+	assert(buffer[2] == 0);
 }
 
 /// Get the legacy processor brand string.
@@ -1051,7 +1053,7 @@ private
 void getBrandIdentifierIntel(ref CPUINFO info) {
 	// This function exist for processors that does not support the
 	// brand name table.
-	// At least do i486SL-Pentium II
+	// At least do from Pentium to late Pentium II processors.
 	switch (info.family) {
 	case 5: // i586, Pentium
 		if (info.model >= 4) {
@@ -1087,30 +1089,24 @@ void getBrandIdentifierAmd(ref CPUINFO info) {
 	}
 }
 
-/*pragma(inline, false)
-private
-void getMicroArchitectureName(ref CPUINFO info) {
-	
-}*/
-
 pragma(inline, false)
 private
-void getVirtVendor(ref CPUINFO info) {
+void virtualVendor(ref char[12] string_) {
 	version (DMD) {
 		version (X86) asm {
-			mov EDI, info;
+			mov EDI, string_;
 			mov EAX, 0x40000000;
 			cpuid;
-			mov [EDI + VIRTVENDOR_OFFSET], EBX;
-			mov [EDI + VIRTVENDOR_OFFSET + 4], ECX;
-			mov [EDI + VIRTVENDOR_OFFSET + 8], EDX;
+			mov [EDI], EBX;
+			mov [EDI + 4], ECX;
+			mov [EDI + 8], EDX;
 		} else asm { // x86-64
-			mov RDI, info;
+			mov RDI, string_;
 			mov EAX, 0x40000000;
 			cpuid;
-			mov [RDI + VIRTVENDOR_OFFSET], EBX;
-			mov [RDI + VIRTVENDOR_OFFSET + 4], ECX;
-			mov [RDI + VIRTVENDOR_OFFSET + 8], EDX;
+			mov [RDI], EBX;
+			mov [RDI + 4], ECX;
+			mov [RDI + 8], EDX;
 		}
 	} else version (GDC) {
 		version (X86) asm {
@@ -1121,7 +1117,7 @@ void getVirtVendor(ref CPUINFO info) {
 			"mov %%ecx, 4(%%edi)\n\t"~
 			"mov %%edx, 8(%%edi)"
 			:
-			: "m" (info.virt.vendor)
+			: "m" (string_)
 			: "edi", "eax", "ebx", "ecx", "edx";
 		} else asm { // x86-64
 			"lea %0, %%rdi\n\t"~
@@ -1131,82 +1127,84 @@ void getVirtVendor(ref CPUINFO info) {
 			"mov %%ecx, 4(%%rdi)\n\t"~
 			"mov %%edx, 8(%%rdi)"
 			:
-			: "m" (info.virt.vendor)
+			: "m" (string_)
 			: "rdi", "rax", "rbx", "rcx", "rdx";
 		}
 	} else version (LDC) {
 		version (X86) asm {
-			lea EDI, info;
+			lea EDI, string_;
 			mov EAX, 0x40000000;
 			cpuid;
-			mov [EDI + VIRTVENDOR_OFFSET], EBX;
-			mov [EDI + VIRTVENDOR_OFFSET + 4], ECX;
-			mov [EDI + VIRTVENDOR_OFFSET + 8], EDX;
+			mov [EDI], EBX;
+			mov [EDI + 4], ECX;
+			mov [EDI + 8], EDX;
 		} else asm { // x86-64
-			lea RDI, info;
+			lea RDI, string_;
 			mov EAX, 0x40000000;
 			cpuid;
-			mov [RDI + VIRTVENDOR_OFFSET], EBX;
-			mov [RDI + VIRTVENDOR_OFFSET + 4], ECX;
-			mov [RDI + VIRTVENDOR_OFFSET + 8], EDX;
+			mov [RDI], EBX;
+			mov [RDI + 4], ECX;
+			mov [RDI + 8], EDX;
 		}
 	}
-	
-	// Paravirtual vendor string verification
-	// If the rest of the string doesn't correspond, the id is unset
-	switch (info.virt.vendor32[0]) {
-	case VirtVendor.KVM:	// "KVMKVMKVM\0\0\0"
-		if (info.virt.vendor32[1] != ID!("VMKV")) goto default;
-		if (info.virt.vendor32[2] != ID!("M\0\0\0")) goto default;
-		break;
-	case VirtVendor.HyperV:	// "Microsoft Hv"
-		if (info.virt.vendor32[1] != ID!("osof")) goto default;
-		if (info.virt.vendor32[2] != ID!("t Hv")) goto default;
-		break;
-	case VirtVendor.VBoxHyperV:	// "VBoxVBoxVBox"
-		if (info.virt.vendor32[1] != ID!("VBox")) goto default;
-		if (info.virt.vendor32[2] != ID!("VBox")) goto default;
-		info.virt.vendorId = VirtVendor.HyperV;
-		return;
-	default:
-		info.virt.vendorId32 = 0;
-		return;
-	}
-	
-	info.virt.vendorId32 = info.virt.vendor32[0];
-	version (Trace) trace("id=%u", info.virt.vendorId32);
 }
 
-/// Fetch CPU information.
-/// 
-/// Here is a list of phases this function goes through:
-/// 1. Get vendor string and ID
-/// 2. Get brand string
-/// 3. Get family IDs and basic information
-/// 4. Get virtualization features
-/// 5. Get extended features
-/// 6. Get cache and core information
-///
-/// When a section is no longer capable of proceeding, it skips to the next
-/// phase.
-/// 
-/// Params: info = CPUINFO structure
 pragma(inline, false)
-void getInfo(ref CPUINFO info) {
-	ushort sc = void;	/// raw cores shared across cache level
-	ushort crshrd = void;	/// actual count of shared cores
-	ubyte type = void;	/// cache type
-	ubyte mids = void;	/// maximum IDs to this cache
-	REGISTERS regs = void;	/// registers
-	
-	getVendor(info);
-	
-	//
-	// Leaf 1H
-	//
-	
-	__cpuid(regs, 1);
-	
+private
+VirtVendor virtualVendorId(ref VirtVendorString vendor) {
+	// Paravirtual vendor string verification
+	// If the rest of the string doesn't correspond, the id is unset
+	switch (vendor.ebx) {
+	case VirtVendor.KVM:	// "KVMKVMKVM\0\0\0"
+		if (vendor.ecx != ID!("VMKV")) goto default;
+		if (vendor.edx != ID!("M\0\0\0")) goto default;
+		return VirtVendor.KVM;
+	case VirtVendor.HyperV:	// "Microsoft Hv"
+		if (vendor.ecx != ID!("osof")) goto default;
+		if (vendor.edx != ID!("t Hv")) goto default;
+		return VirtVendor.HyperV;
+	case VirtVendor.VBoxHyperV:	// "VBoxVBoxVBox"
+		if (vendor.ecx != ID!("VBox")) goto default;
+		if (vendor.edx != ID!("VBox")) goto default;
+		return VirtVendor.HyperV; // Bug according to VBox
+	default:
+		return VirtVendor.Other;
+	}
+}
+
+pragma(inline, false)
+private
+void setModelName(ref CPUINFO info, ubyte bl) {
+	switch (info.vendor.id) with (Vendor) {
+	case Intel:
+		// Brand string
+		if (info.maxLeafExtended >= 0x8000_0004)
+			extendedBrand(info.brandString);
+		else if (bl)
+			getBrandIndex(info, bl);
+		else
+			getBrandIdentifierIntel(info);
+		return;
+	case AMD, VIA:
+		// Brand string
+		// NOTE: AMD processor never supported the string table.
+		//       The Am486DX4 and Am5x86 processors do not support the extended brand string.
+		//       The K5 model 0 does not support the extended brand string.
+		//       The K5 model 1, 2, and 3 support the extended brand string.
+		if (info.maxLeafExtended >= 0x8000_0004)
+			extendedBrand(info.brandString);
+		else
+			getBrandIdentifierAmd(info);
+		return;
+	default:
+		strcpy48(info.brandString, "Unknown");
+		return;
+	}
+}
+
+pragma(inline, false)
+private
+void leaf1(ref CPUINFO info, ref REGISTERS regs) {
 	// EAX
 	info.identifier = regs.eax;
 	info.stepping   = regs.eax & 15;       // EAX[3:0]
@@ -1217,8 +1215,8 @@ void getInfo(ref CPUINFO info) {
 	info.modelExtended   = regs.eax >> 16 & 15; // EAX[19:16]
 	info.familyExtended  = cast(ubyte)(regs.eax >> 20); // EAX[27:20]
 	
-	switch (info.vendorId) {
-	case Vendor.Intel:
+	switch (info.vendor.id) with (Vendor) {
+	case Intel:
 		info.family = info.familyBase != 15 ?
 			cast(ushort)info.familyBase :
 			cast(ushort)(info.familyExtended + info.familyBase);
@@ -1228,38 +1226,30 @@ void getInfo(ref CPUINFO info) {
 			cast(ushort)info.modelBase; // DisplayModel = Model_ID;
 		
 		// ECX
-		info.debugging.dtes64	= (regs.ecx & BIT!(2)) != 0;
-		info.debugging.dsCpl	= (regs.ecx & BIT!(4)) != 0;
-		info.virt.available	= (regs.ecx & BIT!(5)) != 0;
-		info.tech.smx	= (regs.ecx & BIT!(6)) != 0;
-		info.tech.eist	= (regs.ecx & BIT!(7)) != 0;
-		info.sys.tm2	= (regs.ecx & BIT!(8)) != 0;
-		info.cache.cnxtId	= (regs.ecx & BIT!(10)) != 0;
-		info.debugging.sdbg	= (regs.ecx & BIT!(11)) != 0;
-		info.misc.xtpr	= (regs.ecx & BIT!(14)) != 0;
-		info.debugging.pdcm	= (regs.ecx & BIT!(15)) != 0;
-		info.misc.pcid	= (regs.ecx & BIT!(17)) != 0;
-		info.debugging.mca	= (regs.ecx & BIT!(18)) != 0;
-		info.sys.x2apic	= (regs.ecx & BIT!(21)) != 0;
-		info.extras.rdtscDeadline	= (regs.ecx & BIT!(24)) != 0;
+		info.debugging.dtes64	= bit(regs.ecx, 2);
+		info.debugging.dsCpl	= bit(regs.ecx, 4);
+		info.virt.available	= bit(regs.ecx, 5);
+		info.tech.smx	= bit(regs.ecx, 6);
+		info.tech.eist	= bit(regs.ecx, 7);
+		info.sys.tm2	= bit(regs.ecx, 8);
+		info.cache.cnxtId	= bit(regs.ecx, 10);
+		info.debugging.sdbg	= bit(regs.ecx, 11);
+		info.misc.xtpr	= bit(regs.ecx, 14);
+		info.debugging.pdcm	= bit(regs.ecx, 15);
+		info.misc.pcid	= bit(regs.ecx, 17);
+		info.debugging.mca	= bit(regs.ecx, 18);
+		info.sys.x2apic	= bit(regs.ecx, 21);
+		info.extras.rdtscDeadline	= bit(regs.ecx, 24);
 		
 		// EDX
-		info.misc.psn	= (regs.edx & BIT!(18)) != 0;
-		info.debugging.ds	= (regs.edx & BIT!(21)) != 0;
-		info.sys.available	= (regs.edx & BIT!(22)) != 0;
-		info.cache.ss	= (regs.edx & BIT!(27)) != 0;
-		info.sys.tm	= (regs.edx & BIT!(29)) != 0;
+		info.misc.psn	= bit(regs.edx, 18);
+		info.debugging.ds	= bit(regs.edx, 21);
+		info.sys.available	= bit(regs.edx, 22);
+		info.cache.ss	= bit(regs.edx, 27);
+		info.sys.tm	= bit(regs.edx, 29);
 		info.debugging.pbe	= regs.edx >= BIT!(31);
-		
-		// Brand string
-		if (info.maxLeafExtended >= 0x8000_0004)
-			getBrandExtended(info);
-		else if (regs.bl)
-			getBrandIndex(info, regs.bl);
-		else
-			getBrandIdentifierIntel(info);
 		break;
-	case Vendor.AMD:
+	case AMD:
 		if (info.familyBase < 15) {
 			info.family = info.familyBase;
 			info.model = info.modelBase;
@@ -1267,19 +1257,8 @@ void getInfo(ref CPUINFO info) {
 			info.family = cast(ushort)(info.familyExtended + info.familyBase);
 			info.model = cast(ushort)((info.modelExtended << 4) + info.modelBase);
 		}
-		
-		// Brand string
-		// NOTE: AMD processor never supported the string table.
-		//       The Am486DX4 and Am5x86 processors do not support the extended brand string.
-		//       The K5 model 0 does not support the extended brand string.
-		//       The K5 model 1, 2, and 3 support the extended brand string.
-		if (info.maxLeafExtended >= 0x8000_0004)
-			getBrandExtended(info);
-		else
-			getBrandIdentifierAmd(info);
 		break;
 	default:
-		strcpy48(info.brandString, "Unknown");
 	}
 	
 	// EBX
@@ -1289,262 +1268,222 @@ void getInfo(ref CPUINFO info) {
 	info.brandIndex = regs.bl;
 	
 	// ECX
-	info.sse.sse3	= (regs.ecx & BIT!(0)) != 0;
-	info.extras.pclmulqdq	= (regs.ecx & BIT!(1)) != 0;
-	info.extras.monitor	= (regs.ecx & BIT!(3)) != 0;
-	info.sse.ssse3	= (regs.ecx & BIT!(9)) != 0;
-	info.extensions.fma3	= (regs.ecx & BIT!(12)) != 0;
-	info.extras.cmpxchg16b	= (regs.ecx & BIT!(13)) != 0;
-	info.sse.sse41	= (regs.ecx & BIT!(15)) != 0;
-	info.sse.sse42	= (regs.ecx & BIT!(20)) != 0;
-	info.extras.movbe	= (regs.ecx & BIT!(22)) != 0;
-	info.extras.popcnt	= (regs.ecx & BIT!(23)) != 0;
-	info.extensions.aes_ni	= (regs.ecx & BIT!(25)) != 0;
-	info.extras.xsave	= (regs.ecx & BIT!(26)) != 0;
-	info.extras.osxsave	= (regs.ecx & BIT!(27)) != 0;
-	info.avx.avx	= (regs.ecx & BIT!(28)) != 0;
-	info.extensions.f16c	= (regs.ecx & BIT!(29)) != 0;
-	info.extras.rdrand	= (regs.ecx & BIT!(30)) != 0;
+	info.sse.sse3	= bit(regs.ecx, 0);
+	info.extras.pclmulqdq	= bit(regs.ecx, 1);
+	info.extras.monitor	= bit(regs.ecx, 3);
+	info.sse.ssse3	= bit(regs.ecx, 9);
+	info.extensions.fma3	= bit(regs.ecx, 12);
+	info.extras.cmpxchg16b	= bit(regs.ecx, 13);
+	info.sse.sse41	= bit(regs.ecx, 15);
+	info.sse.sse42	= bit(regs.ecx, 20);
+	info.extras.movbe	= bit(regs.ecx, 22);
+	info.extras.popcnt	= bit(regs.ecx, 23);
+	info.extensions.aes_ni	= bit(regs.ecx, 25);
+	info.extras.xsave	= bit(regs.ecx, 26);
+	info.extras.osxsave	= bit(regs.ecx, 27);
+	info.avx.avx	= bit(regs.ecx, 28);
+	info.extensions.f16c	= bit(regs.ecx, 29);
+	info.extras.rdrand	= bit(regs.ecx, 30);
 	
 	// EDX
-	info.extensions.fpu	= (regs.edx & BIT!(0)) != 0;
-	info.virt.vme	= (regs.edx & BIT!(1)) != 0;
-	info.debugging.de	= (regs.edx & BIT!(2)) != 0;
-	info.memory.pse	= (regs.edx & BIT!(3)) != 0;
-	info.extras.rdtsc	= (regs.edx & BIT!(4)) != 0;
-	info.extras.rdmsr	= (regs.edx & BIT!(5)) != 0;
-	info.memory.pae	= (regs.edx & BIT!(6)) != 0;
-	info.debugging.mce	= (regs.edx & BIT!(7)) != 0;
-	info.extras.cmpxchg8b	= (regs.edx & BIT!(8)) != 0;
-	info.sys.apic	= (regs.edx & BIT!(9)) != 0;
-	info.extras.sysenter	= (regs.edx & BIT!(11)) != 0;
-	info.memory.mtrr	= (regs.edx & BIT!(12)) != 0;
-	info.memory.pge	= (regs.edx & BIT!(13)) != 0;
-	info.debugging.mca	= (regs.edx & BIT!(14)) != 0;
-	info.extras.cmov	= (regs.edx & BIT!(15)) != 0;
-	info.memory.pat	= (regs.edx & BIT!(16)) != 0;
-	info.memory.pse36	= (regs.edx & BIT!(17)) != 0;
-	info.cache.clflush	= (regs.edx & BIT!(19)) != 0;
-	info.extensions.mmx	= (regs.edx & BIT!(23)) != 0;
-	info.extras.fxsr	= (regs.edx & BIT!(24)) != 0;
-	info.sse.sse	= (regs.edx & BIT!(25)) != 0;
-	info.sse.sse2	= (regs.edx & BIT!(26)) != 0;
-	info.tech.htt	= (regs.edx & BIT!(28)) != 0;
-	
-	// Legacy processor topology
-	// It's done here rather than the end because even with CPUID.03h,
-	// there are no extensions with processors of the time.
-	if (info.maxLeaf < 4) goto L_EXTENDED;
-	
-	//
-	// Leaf 5H
-	//
-	
-	if (info.maxLeaf < 5) goto L_VIRT;
-	
-	__cpuid(regs, 5);
-	
+	info.extensions.fpu	= bit(regs.edx, 0);
+	info.virt.vme	= bit(regs.edx, 1);
+	info.debugging.de	= bit(regs.edx, 2);
+	info.memory.pse	= bit(regs.edx, 3);
+	info.extras.rdtsc	= bit(regs.edx, 4);
+	info.extras.rdmsr	= bit(regs.edx, 5);
+	info.memory.pae	= bit(regs.edx, 6);
+	info.debugging.mce	= bit(regs.edx, 7);
+	info.extras.cmpxchg8b	= bit(regs.edx, 8);
+	info.sys.apic	= bit(regs.edx, 9);
+	info.extras.sysenter	= bit(regs.edx, 11);
+	info.memory.mtrr	= bit(regs.edx, 12);
+	info.memory.pge	= bit(regs.edx, 13);
+	info.debugging.mca	= bit(regs.edx, 14);
+	info.extras.cmov	= bit(regs.edx, 15);
+	info.memory.pat	= bit(regs.edx, 16);
+	info.memory.pse36	= bit(regs.edx, 17);
+	info.cache.clflush	= bit(regs.edx, 19);
+	info.extensions.mmx	= bit(regs.edx, 23);
+	info.extras.fxsr	= bit(regs.edx, 24);
+	info.sse.sse	= bit(regs.edx, 25);
+	info.sse.sse2	= bit(regs.edx, 26);
+	info.tech.htt	= bit(regs.edx, 28);
+}
+
+pragma(inline, false)
+private
+void leaf5(ref CPUINFO info, ref REGISTERS regs) {
 	info.extras.mwaitMin = regs.ax;
 	info.extras.mwaitMax = regs.bx;
-	
-	//
-	// Leaf 6H
-	//
-	
-	if (info.maxLeaf < 6) goto L_VIRT;
-	
-	__cpuid(regs, 6);
-	
-	switch (info.vendorId) {
-	case Vendor.Intel:
-		info.tech.turboboost	= (regs.eax & BIT!(1)) != 0;
-		info.tech.turboboost30	= (regs.eax & BIT!(14)) != 0;
+}
+
+pragma(inline, false)
+private
+void leaf6(ref CPUINFO info, ref REGISTERS regs) {
+	switch (info.vendor.id) with (Vendor) {
+	case Intel:
+		info.tech.turboboost	= bit(regs.eax, 1);
+		info.tech.turboboost30	= bit(regs.eax, 14);
 		break;
 	default:
 	}
 	
-	info.sys.arat = (regs.eax & BIT!(2)) != 0;
-	
-	//
-	// Leaf 7H
-	//
-	
-	if (info.maxLeaf < 7) goto L_VIRT;
-	
-	__cpuid(regs, 7);
-	
-	switch (info.vendorId) {
-	case Vendor.Intel:
+	info.sys.arat = bit(regs.eax, 2);
+}
+
+pragma(inline, false)
+private
+void leaf7(ref CPUINFO info, ref REGISTERS regs) {
+	switch (info.vendor.id) with (Vendor) {
+	case Intel:
 		// EBX
-		info.sgx.supported	= (regs.ebx & BIT!(2)) != 0;
-		info.memory.hle	= (regs.ebx & BIT!(4)) != 0;
-		info.cache.invpcid	= (regs.ebx & BIT!(10)) != 0;
-		info.memory.rtm	= (regs.ebx & BIT!(11)) != 0;
-		info.avx.avx512f	= (regs.ebx & BIT!(16)) != 0;
-		info.memory.smap	= (regs.ebx & BIT!(20)) != 0;
-		info.avx.avx512er	= (regs.ebx & BIT!(27)) != 0;
-		info.avx.avx512pf	= (regs.ebx & BIT!(26)) != 0;
-		info.avx.avx512cd	= (regs.ebx & BIT!(28)) != 0;
-		info.avx.avx512dq	= (regs.ebx & BIT!(17)) != 0;
-		info.avx.avx512bw	= (regs.ebx & BIT!(30)) != 0;
-		info.avx.avx512_ifma	= (regs.ebx & BIT!(21)) != 0;
+		info.sgx.supported	= bit(regs.ebx, 2);
+		info.memory.hle	= bit(regs.ebx, 4);
+		info.cache.invpcid	= bit(regs.ebx, 10);
+		info.memory.rtm	= bit(regs.ebx, 11);
+		info.avx.avx512f	= bit(regs.ebx, 16);
+		info.memory.smap	= bit(regs.ebx, 20);
+		info.avx.avx512er	= bit(regs.ebx, 27);
+		info.avx.avx512pf	= bit(regs.ebx, 26);
+		info.avx.avx512cd	= bit(regs.ebx, 28);
+		info.avx.avx512dq	= bit(regs.ebx, 17);
+		info.avx.avx512bw	= bit(regs.ebx, 30);
+		info.avx.avx512_ifma	= bit(regs.ebx, 21);
 		info.avx.avx512_vbmi	= regs.ebx >= BIT!(31);
 		// ECX
-		info.avx.avx512vl	= (regs.ecx & BIT!(1)) != 0;
-		info.memory.pku	= (regs.ecx & BIT!(3)) != 0;
-		info.memory.fsrepmov	= (regs.ecx & BIT!(4)) != 0;
-		info.extensions.waitpkg	= (regs.ecx & BIT!(5)) != 0;
-		info.avx.avx512_vbmi2	= (regs.ecx & BIT!(6)) != 0;
-		info.security.cetSs	= (regs.ecx & BIT!(7)) != 0;
-		info.avx.avx512_gfni	= (regs.ecx & BIT!(8)) != 0;
-		info.avx.avx512_vaes	= (regs.ecx & BIT!(9)) != 0;
-		info.avx.avx512_vnni	= (regs.ecx & BIT!(11)) != 0;
-		info.avx.avx512_bitalg	= (regs.ecx & BIT!(12)) != 0;
-		info.avx.avx512_vpopcntdq	= (regs.ecx & BIT!(14)) != 0;
-		info.memory._5pl	= (regs.ecx & BIT!(16)) != 0;
-		info.extras.cldemote	= (regs.ecx & BIT!(25)) != 0;
-		info.extras.movdiri	= (regs.ecx & BIT!(27)) != 0;
-		info.extras.movdir64b	= (regs.ecx & BIT!(28)) != 0;
-		info.extras.enqcmd	= (regs.ecx & BIT!(29)) != 0;
+		info.avx.avx512vl	= bit(regs.ecx, 1);
+		info.memory.pku	= bit(regs.ecx, 3);
+		info.memory.fsrepmov	= bit(regs.ecx, 4);
+		info.extensions.waitpkg	= bit(regs.ecx, 5);
+		info.avx.avx512_vbmi2	= bit(regs.ecx, 6);
+		info.security.cetSs	= bit(regs.ecx, 7);
+		info.avx.avx512_gfni	= bit(regs.ecx, 8);
+		info.avx.avx512_vaes	= bit(regs.ecx, 9);
+		info.avx.avx512_vnni	= bit(regs.ecx, 11);
+		info.avx.avx512_bitalg	= bit(regs.ecx, 12);
+		info.avx.avx512_vpopcntdq	= bit(regs.ecx, 14);
+		info.memory._5pl	= bit(regs.ecx, 16);
+		info.extras.cldemote	= bit(regs.ecx, 25);
+		info.extras.movdiri	= bit(regs.ecx, 27);
+		info.extras.movdir64b	= bit(regs.ecx, 28);
+		info.extras.enqcmd	= bit(regs.ecx, 29);
 		// EDX
-		info.avx.avx512_4vnniw	= (regs.edx & BIT!(2)) != 0;
-		info.avx.avx512_4fmaps	= (regs.edx & BIT!(3)) != 0;
-		info.misc.uintr	= (regs.edx & BIT!(5)) != 0;
-		info.avx.avx512_vp2intersect	= (regs.edx & BIT!(8)) != 0;
-		info.security.md_clear	= (regs.edx & BIT!(10)) != 0;
-		info.extras.serialize	= (regs.edx & BIT!(14)) != 0;
-		info.memory.tsxldtrk	= (regs.edx & BIT!(16)) != 0;
-		info.extras.pconfig	= (regs.edx & BIT!(18)) != 0;
-		info.security.cetIbt	= (regs.edx & BIT!(20)) != 0;
-		info.amx.bf16	= (regs.edx & BIT!(22)) != 0;
-		info.amx.enabled	= (regs.edx & BIT!(24)) != 0;
-		info.amx.int8	= (regs.edx & BIT!(25)) != 0;
-		info.security.ibrs = (regs.edx & BIT!(26)) != 0;
-		info.security.stibp	= (regs.edx & BIT!(27)) != 0;
-		info.security.l1dFlush	= (regs.edx & BIT!(28)) != 0;
-		info.security.ia32_arch_capabilities	= (regs.edx & BIT!(29)) != 0;
+		info.avx.avx512_4vnniw	= bit(regs.edx, 2);
+		info.avx.avx512_4fmaps	= bit(regs.edx, 3);
+		info.misc.uintr	= bit(regs.edx, 5);
+		info.avx.avx512_vp2intersect	= bit(regs.edx, 8);
+		info.security.md_clear	= bit(regs.edx, 10);
+		info.extras.serialize	= bit(regs.edx, 14);
+		info.memory.tsxldtrk	= bit(regs.edx, 16);
+		info.extras.pconfig	= bit(regs.edx, 18);
+		info.security.cetIbt	= bit(regs.edx, 20);
+		info.amx.bf16	= bit(regs.edx, 22);
+		info.amx.enabled	= bit(regs.edx, 24);
+		info.amx.int8	= bit(regs.edx, 25);
+		info.security.ibrs = bit(regs.edx, 26);
+		info.security.stibp	= bit(regs.edx, 27);
+		info.security.l1dFlush	= bit(regs.edx, 28);
+		info.security.ia32_arch_capabilities	= bit(regs.edx, 29);
 		info.security.ssbd	= regs.edx >= BIT!(31);
 		break;
 	default:
 	}
 
 	// ebx
-	info.misc.fsgsbase	= (regs.ebx & BIT!(0)) != 0;
-	info.extensions.bmi1	= (regs.ebx & BIT!(3)) != 0;
-	info.avx.avx2	= (regs.ebx & BIT!(5)) != 0;
-	info.memory.smep	= (regs.ebx & BIT!(7)) != 0;
-	info.extensions.bmi2	= (regs.ebx & BIT!(8)) != 0;
-	info.extras.rdseed	= (regs.ebx & BIT!(18)) != 0;
-	info.extensions.adx	= (regs.ebx & BIT!(19)) != 0;
-	info.cache.clflushopt	= (regs.ebx & BIT!(23)) != 0;
-	info.extensions.sha	= (regs.ebx & BIT!(29)) != 0;
+	info.misc.fsgsbase	= bit(regs.ebx, 0);
+	info.extensions.bmi1	= bit(regs.ebx, 3);
+	info.avx.avx2	= bit(regs.ebx, 5);
+	info.memory.smep	= bit(regs.ebx, 7);
+	info.extensions.bmi2	= bit(regs.ebx, 8);
+	info.extras.rdseed	= bit(regs.ebx, 18);
+	info.extensions.adx	= bit(regs.ebx, 19);
+	info.cache.clflushopt	= bit(regs.ebx, 23);
+	info.extensions.sha	= bit(regs.ebx, 29);
 	// ecx
-	info.extras.rdpid	= (regs.ecx & BIT!(22)) != 0;
-	
-	//
-	// Leaf 7H(ECX=01h)
-	//
-	
-	switch (info.vendorId) {
-	case Vendor.Intel:
-		__cpuid(regs, 7, 1);
+	info.extras.rdpid	= bit(regs.ecx, 22);
+}
+
+pragma(inline, false)
+private
+void leaf7sub1(ref CPUINFO info, ref REGISTERS regs) {
+	switch (info.vendor.id) with (Vendor) {
+	case Intel:
 		// a
-		info.avx.avx512_bf16	= (regs.eax & BIT!(5)) != 0;
-		info.memory.lam	= (regs.eax & BIT!(26)) != 0;
+		info.avx.avx512_bf16	= bit(regs.eax, 5);
+		info.memory.lam	= bit(regs.eax, 26);
 		break;
 	default:
 	}
-	
-	//
-	// Leaf DH
-	//
-	
-	if (info.maxLeaf < 0xd) goto L_VIRT;
-	
-	switch (info.vendorId) {
-	case Vendor.Intel:
-		__cpuid(regs, 0xd);
-		info.amx.xtilecfg	= (regs.eax & BIT!(17)) != 0;
-		info.amx.xtiledata	= (regs.eax & BIT!(18)) != 0;
+}
+
+pragma(inline, false)
+private
+void leafD(ref CPUINFO info, ref REGISTERS regs) {
+	switch (info.vendor.id) with (Vendor) {
+	case Intel:
+		info.amx.xtilecfg	= bit(regs.eax, 17);
+		info.amx.xtiledata	= bit(regs.eax, 18);
 		break;
 	default:
 	}
-	
-	//
-	// Leaf DH(ECX=01h)
-	//
-	
-	switch (info.vendorId) {
-	case Vendor.Intel:
-		__cpuid(regs, 0xd, 1);
-		info.amx.xfd	= (regs.eax & BIT!(18)) != 0;
+}
+
+pragma(inline, false)
+private
+void leafDsub1(ref CPUINFO info, ref REGISTERS regs) {
+	switch (info.vendor.id) with (Vendor) {
+	case Intel:
+		info.amx.xfd	= bit(regs.eax, 18);
 		break;
 	default:
 	}
-	
-	//
-	// Leaf 12H
-	//
-	
-	if (info.maxLeaf < 0x12) goto L_VIRT;
-	
-	switch (info.vendorId) {
-	case Vendor.Intel:
-		__cpuid(regs, 0x12);
-		info.sgx.sgx1 = (regs.al & BIT!(0)) != 0;
-		info.sgx.sgx2 = (regs.al & BIT!(1)) != 0;
+}
+
+pragma(inline, false)
+private
+void leaf12(ref CPUINFO info, ref REGISTERS regs) {
+	switch (info.vendor.id) with (Vendor) {
+	case Intel:
+		info.sgx.sgx1 = bit(regs.al, 0);
+		info.sgx.sgx2 = bit(regs.al, 1);
 		info.sgx.maxSize   = regs.dl;
 		info.sgx.maxSize64 = regs.dh;
 		break;
 	default:
 	}
-	
-	//
-	// Leaf 4000_000H
-	//
-	
-L_VIRT:
-	if (info.maxLeafVirt < 0x4000_0000) goto L_EXTENDED;
-	
-	getVirtVendor(info);
-	
-	//
-	// Leaf 4000_0001H
-	//
+}
 
-	if (info.maxLeafVirt < 0x4000_0001) goto L_EXTENDED;
-	
-	switch (info.virt.vendorId) {
-	case VirtVendor.KVM:
-		__cpuid(regs, 0x4000_0001);
-		info.virt.kvm.feature_clocksource	= (regs.eax & BIT!(0)) != 0;
-		info.virt.kvm.feature_nop_io_delay	= (regs.eax & BIT!(1)) != 0;
-		info.virt.kvm.feature_mmu_op	= (regs.eax & BIT!(2)) != 0;
-		info.virt.kvm.feature_clocksource2	= (regs.eax & BIT!(3)) != 0;
-		info.virt.kvm.feature_async_pf	= (regs.eax & BIT!(4)) != 0;
-		info.virt.kvm.feature_steal_time	= (regs.eax & BIT!(5)) != 0;
-		info.virt.kvm.feature_pv_eoi	= (regs.eax & BIT!(6)) != 0;
-		info.virt.kvm.feature_pv_unhault	= (regs.eax & BIT!(7)) != 0;
-		info.virt.kvm.feature_pv_tlb_flush	= (regs.eax & BIT!(9)) != 0;
-		info.virt.kvm.feature_async_pf_vmexit	= (regs.eax & BIT!(10)) != 0;
-		info.virt.kvm.feature_pv_send_ipi	= (regs.eax & BIT!(11)) != 0;
-		info.virt.kvm.feature_pv_poll_control	= (regs.eax & BIT!(12)) != 0;
-		info.virt.kvm.feature_pv_sched_yield	= (regs.eax & BIT!(13)) != 0;
-		info.virt.kvm.feature_clocsource_stable_bit	= (regs.eax & BIT!(24)) != 0;
-		info.virt.kvm.hint_realtime	= (regs.edx & BIT!(0)) != 0;
-		break;
-	default:
-	}
-	
-	//
-	// Leaf 4000_002H
-	//
+pragma(inline, false)
+private
+void leaf4000_0001(ref CPUINFO info, ref REGISTERS regs) {
+//	switch (info.virt.vendor.id) with (VirtVendor) {
+//	case KVM:
+		info.virt.kvm.feature_clocksource	= bit(regs.eax, 0);
+		info.virt.kvm.feature_nop_io_delay	= bit(regs.eax, 1);
+		info.virt.kvm.feature_mmu_op	= bit(regs.eax, 2);
+		info.virt.kvm.feature_clocksource2	= bit(regs.eax, 3);
+		info.virt.kvm.feature_async_pf	= bit(regs.eax, 4);
+		info.virt.kvm.feature_steal_time	= bit(regs.eax, 5);
+		info.virt.kvm.feature_pv_eoi	= bit(regs.eax, 6);
+		info.virt.kvm.feature_pv_unhault	= bit(regs.eax, 7);
+		info.virt.kvm.feature_pv_tlb_flush	= bit(regs.eax, 9);
+		info.virt.kvm.feature_async_pf_vmexit	= bit(regs.eax, 10);
+		info.virt.kvm.feature_pv_send_ipi	= bit(regs.eax, 11);
+		info.virt.kvm.feature_pv_poll_control	= bit(regs.eax, 12);
+		info.virt.kvm.feature_pv_sched_yield	= bit(regs.eax, 13);
+		info.virt.kvm.feature_clocsource_stable_bit	= bit(regs.eax, 24);
+		info.virt.kvm.hint_realtime	= bit(regs.edx, 0);
+//		break;
+//	default:
+//	}
+}
 
-	if (info.maxLeafVirt < 0x4000_0002) goto L_EXTENDED;
-	
-	switch (info.virt.vendorId) {
-	case VirtVendor.HyperV:
-		__cpuid(regs, 0x4000_0002);
+pragma(inline, false)
+private
+void leaf4000_0002(ref CPUINFO info, ref REGISTERS regs) {
+//	switch (info.virt.vendor.id) with (VirtVendor) {
+//	case HyperV:
 		info.virt.hv.guest_minor	= cast(ubyte)(regs.eax >> 24);
 		info.virt.hv.guest_service	= cast(ubyte)(regs.eax >> 16);
 		info.virt.hv.guest_build	= regs.ax;
@@ -1552,255 +1491,233 @@ L_VIRT:
 		info.virt.hv.guest_vendor_id	= (regs.edx >> 16) & 0xFFF;
 		info.virt.hv.guest_os	= regs.dh;
 		info.virt.hv.guest_major	= regs.dl;
-		break;
-	default:
-	}
-	
-	//
-	// Leaf 4000_0003H
-	//
+//		break;
+//	default:
+//	}
+}
 
-	if (info.maxLeafVirt < 0x4000_0003) goto L_EXTENDED;
-	
-	switch (info.virt.vendorId) {
-	case VirtVendor.HyperV:
-		__cpuid(regs, 0x4000_0003);
-		info.virt.hv.base_feat_vp_runtime_msr	= (regs.eax & BIT!(0)) != 0;
-		info.virt.hv.base_feat_part_time_ref_count_msr	= (regs.eax & BIT!(1)) != 0;
-		info.virt.hv.base_feat_basic_synic_msrs	= (regs.eax & BIT!(2)) != 0;
-		info.virt.hv.base_feat_stimer_msrs	= (regs.eax & BIT!(3)) != 0;
-		info.virt.hv.base_feat_apic_access_msrs	= (regs.eax & BIT!(4)) != 0;
-		info.virt.hv.base_feat_hypercall_msrs	= (regs.eax & BIT!(5)) != 0;
-		info.virt.hv.base_feat_vp_id_msr	= (regs.eax & BIT!(6)) != 0;
-		info.virt.hv.base_feat_virt_sys_reset_msr	= (regs.eax & BIT!(7)) != 0;
-		info.virt.hv.base_feat_stat_pages_msr	= (regs.eax & BIT!(8)) != 0;
-		info.virt.hv.base_feat_part_ref_tsc_msr	= (regs.eax & BIT!(9)) != 0;
-		info.virt.hv.base_feat_guest_idle_state_msr	= (regs.eax & BIT!(10)) != 0;
-		info.virt.hv.base_feat_timer_freq_msrs	= (regs.eax & BIT!(11)) != 0;
-		info.virt.hv.base_feat_debug_msrs	= (regs.eax & BIT!(12)) != 0;
-		info.virt.hv.part_flags_create_part	= (regs.ebx & BIT!(0)) != 0;
-		info.virt.hv.part_flags_access_part_id	= (regs.ebx & BIT!(1)) != 0;
-		info.virt.hv.part_flags_access_memory_pool	= (regs.ebx & BIT!(2)) != 0;
-		info.virt.hv.part_flags_adjust_msg_buffers	= (regs.ebx & BIT!(3)) != 0;
-		info.virt.hv.part_flags_post_msgs	= (regs.ebx & BIT!(4)) != 0;
-		info.virt.hv.part_flags_signal_events	= (regs.ebx & BIT!(5)) != 0;
-		info.virt.hv.part_flags_create_port	= (regs.ebx & BIT!(6)) != 0;
-		info.virt.hv.part_flags_connect_port	= (regs.ebx & BIT!(7)) != 0;
-		info.virt.hv.part_flags_access_stats	= (regs.ebx & BIT!(8)) != 0;
-		info.virt.hv.part_flags_debugging	= (regs.ebx & BIT!(11)) != 0;
-		info.virt.hv.part_flags_cpu_mgmt	= (regs.ebx & BIT!(12)) != 0;
-		info.virt.hv.part_flags_cpu_profiler	= (regs.ebx & BIT!(13)) != 0;
-		info.virt.hv.part_flags_expanded_stack_walk	= (regs.ebx & BIT!(14)) != 0;
-		info.virt.hv.part_flags_access_vsm	= (regs.ebx & BIT!(16)) != 0;
-		info.virt.hv.part_flags_access_vp_regs	= (regs.ebx & BIT!(17)) != 0;
-		info.virt.hv.part_flags_extended_hypercalls	= (regs.ebx & BIT!(20)) != 0;
-		info.virt.hv.part_flags_start_vp	= (regs.ebx & BIT!(21)) != 0;
-		info.virt.hv.pm_max_cpu_power_state_c0	= (regs.ecx & BIT!(0)) != 0;
-		info.virt.hv.pm_max_cpu_power_state_c1	= (regs.ecx & BIT!(1)) != 0;
-		info.virt.hv.pm_max_cpu_power_state_c2	= (regs.ecx & BIT!(2)) != 0;
-		info.virt.hv.pm_max_cpu_power_state_c3	= (regs.ecx & BIT!(3)) != 0;
-		info.virt.hv.pm_hpet_reqd_for_c3	= (regs.ecx & BIT!(4)) != 0;
-		info.virt.hv.misc_feat_mwait	= (regs.eax & BIT!(0)) != 0;
-		info.virt.hv.misc_feat_guest_debugging	= (regs.eax & BIT!(1)) != 0;
-		info.virt.hv.misc_feat_perf_mon	= (regs.eax & BIT!(2)) != 0;
-		info.virt.hv.misc_feat_pcpu_dyn_part_event	= (regs.eax & BIT!(3)) != 0;
-		info.virt.hv.misc_feat_xmm_hypercall_input	= (regs.eax & BIT!(4)) != 0;
-		info.virt.hv.misc_feat_guest_idle_state	= (regs.eax & BIT!(5)) != 0;
-		info.virt.hv.misc_feat_hypervisor_sleep_state	= (regs.eax & BIT!(6)) != 0;
-		info.virt.hv.misc_feat_query_numa_distance	= (regs.eax & BIT!(7)) != 0;
-		info.virt.hv.misc_feat_timer_freq	= (regs.eax & BIT!(8)) != 0;
-		info.virt.hv.misc_feat_inject_synmc_xcpt	= (regs.eax & BIT!(9)) != 0;
-		info.virt.hv.misc_feat_guest_crash_msrs	= (regs.eax & BIT!(10)) != 0;
-		info.virt.hv.misc_feat_debug_msrs	= (regs.eax & BIT!(11)) != 0;
-		info.virt.hv.misc_feat_npiep1	= (regs.eax & BIT!(12)) != 0;
-		info.virt.hv.misc_feat_disable_hypervisor	= (regs.eax & BIT!(13)) != 0;
-		info.virt.hv.misc_feat_ext_gva_range_for_flush_va_list	= (regs.eax & BIT!(14)) != 0;
-		info.virt.hv.misc_feat_hypercall_output_xmm	= (regs.eax & BIT!(15)) != 0;
-		info.virt.hv.misc_feat_sint_polling_mode	= (regs.eax & BIT!(17)) != 0;
-		info.virt.hv.misc_feat_hypercall_msr_lock	= (regs.eax & BIT!(18)) != 0;
-		info.virt.hv.misc_feat_use_direct_synth_msrs	= (regs.eax & BIT!(19)) != 0;
-		break;
-	default:
-	}
-	
-	//
-	// Leaf 4000_0004H
-	//
+pragma(inline, false)
+private
+void leaf4000_0003(ref CPUINFO info, ref REGISTERS regs) {
+//	switch (info.virt.vendor.id) with (VirtVendor) {
+//	case HyperV:
+		info.virt.hv.base_feat_vp_runtime_msr	= bit(regs.eax, 0);
+		info.virt.hv.base_feat_part_time_ref_count_msr	= bit(regs.eax, 1);
+		info.virt.hv.base_feat_basic_synic_msrs	= bit(regs.eax, 2);
+		info.virt.hv.base_feat_stimer_msrs	= bit(regs.eax, 3);
+		info.virt.hv.base_feat_apic_access_msrs	= bit(regs.eax, 4);
+		info.virt.hv.base_feat_hypercall_msrs	= bit(regs.eax, 5);
+		info.virt.hv.base_feat_vp_id_msr	= bit(regs.eax, 6);
+		info.virt.hv.base_feat_virt_sys_reset_msr	= bit(regs.eax, 7);
+		info.virt.hv.base_feat_stat_pages_msr	= bit(regs.eax, 8);
+		info.virt.hv.base_feat_part_ref_tsc_msr	= bit(regs.eax, 9);
+		info.virt.hv.base_feat_guest_idle_state_msr	= bit(regs.eax, 10);
+		info.virt.hv.base_feat_timer_freq_msrs	= bit(regs.eax, 11);
+		info.virt.hv.base_feat_debug_msrs	= bit(regs.eax, 12);
+		info.virt.hv.part_flags_create_part	= bit(regs.ebx, 0);
+		info.virt.hv.part_flags_access_part_id	= bit(regs.ebx, 1);
+		info.virt.hv.part_flags_access_memory_pool	= bit(regs.ebx, 2);
+		info.virt.hv.part_flags_adjust_msg_buffers	= bit(regs.ebx, 3);
+		info.virt.hv.part_flags_post_msgs	= bit(regs.ebx, 4);
+		info.virt.hv.part_flags_signal_events	= bit(regs.ebx, 5);
+		info.virt.hv.part_flags_create_port	= bit(regs.ebx, 6);
+		info.virt.hv.part_flags_connect_port	= bit(regs.ebx, 7);
+		info.virt.hv.part_flags_access_stats	= bit(regs.ebx, 8);
+		info.virt.hv.part_flags_debugging	= bit(regs.ebx, 11);
+		info.virt.hv.part_flags_cpu_mgmt	= bit(regs.ebx, 12);
+		info.virt.hv.part_flags_cpu_profiler	= bit(regs.ebx, 13);
+		info.virt.hv.part_flags_expanded_stack_walk	= bit(regs.ebx, 14);
+		info.virt.hv.part_flags_access_vsm	= bit(regs.ebx, 16);
+		info.virt.hv.part_flags_access_vp_regs	= bit(regs.ebx, 17);
+		info.virt.hv.part_flags_extended_hypercalls	= bit(regs.ebx, 20);
+		info.virt.hv.part_flags_start_vp	= bit(regs.ebx, 21);
+		info.virt.hv.pm_max_cpu_power_state_c0	= bit(regs.ecx, 0);
+		info.virt.hv.pm_max_cpu_power_state_c1	= bit(regs.ecx, 1);
+		info.virt.hv.pm_max_cpu_power_state_c2	= bit(regs.ecx, 2);
+		info.virt.hv.pm_max_cpu_power_state_c3	= bit(regs.ecx, 3);
+		info.virt.hv.pm_hpet_reqd_for_c3	= bit(regs.ecx, 4);
+		info.virt.hv.misc_feat_mwait	= bit(regs.eax, 0);
+		info.virt.hv.misc_feat_guest_debugging	= bit(regs.eax, 1);
+		info.virt.hv.misc_feat_perf_mon	= bit(regs.eax, 2);
+		info.virt.hv.misc_feat_pcpu_dyn_part_event	= bit(regs.eax, 3);
+		info.virt.hv.misc_feat_xmm_hypercall_input	= bit(regs.eax, 4);
+		info.virt.hv.misc_feat_guest_idle_state	= bit(regs.eax, 5);
+		info.virt.hv.misc_feat_hypervisor_sleep_state	= bit(regs.eax, 6);
+		info.virt.hv.misc_feat_query_numa_distance	= bit(regs.eax, 7);
+		info.virt.hv.misc_feat_timer_freq	= bit(regs.eax, 8);
+		info.virt.hv.misc_feat_inject_synmc_xcpt	= bit(regs.eax, 9);
+		info.virt.hv.misc_feat_guest_crash_msrs	= bit(regs.eax, 10);
+		info.virt.hv.misc_feat_debug_msrs	= bit(regs.eax, 11);
+		info.virt.hv.misc_feat_npiep1	= bit(regs.eax, 12);
+		info.virt.hv.misc_feat_disable_hypervisor	= bit(regs.eax, 13);
+		info.virt.hv.misc_feat_ext_gva_range_for_flush_va_list	= bit(regs.eax, 14);
+		info.virt.hv.misc_feat_hypercall_output_xmm	= bit(regs.eax, 15);
+		info.virt.hv.misc_feat_sint_polling_mode	= bit(regs.eax, 17);
+		info.virt.hv.misc_feat_hypercall_msr_lock	= bit(regs.eax, 18);
+		info.virt.hv.misc_feat_use_direct_synth_msrs	= bit(regs.eax, 19);
+//		break;
+//	default:
+//	}
+}
 
-	if (info.maxLeafVirt < 0x4000_0004) goto L_EXTENDED;
-	
-	switch (info.virt.vendorId) {
-	case VirtVendor.HyperV:
-		__cpuid(regs, 0x4000_0004);
-		info.virt.hv.hint_hypercall_for_process_switch	= (regs.eax & BIT!(0)) != 0;
-		info.virt.hv.hint_hypercall_for_tlb_flush	= (regs.eax & BIT!(1)) != 0;
-		info.virt.hv.hint_hypercall_for_tlb_shootdown	= (regs.eax & BIT!(2)) != 0;
-		info.virt.hv.hint_msr_for_apic_access	= (regs.eax & BIT!(3)) != 0;
-		info.virt.hv.hint_msr_for_sys_reset	= (regs.eax & BIT!(4)) != 0;
-		info.virt.hv.hint_relax_time_checks	= (regs.eax & BIT!(5)) != 0;
-		info.virt.hv.hint_dma_remapping	= (regs.eax & BIT!(6)) != 0;
-		info.virt.hv.hint_interrupt_remapping	= (regs.eax & BIT!(7)) != 0;
-		info.virt.hv.hint_x2apic_msrs	= (regs.eax & BIT!(8)) != 0;
-		info.virt.hv.hint_deprecate_auto_eoi	= (regs.eax & BIT!(9)) != 0;
-		info.virt.hv.hint_synth_cluster_ipi_hypercall	= (regs.eax & BIT!(10)) != 0;
-		info.virt.hv.hint_ex_proc_masks_interface	= (regs.eax & BIT!(11)) != 0;
-		info.virt.hv.hint_nested_hyperv	= (regs.eax & BIT!(12)) != 0;
-		info.virt.hv.hint_int_for_mbec_syscalls	= (regs.eax & BIT!(13)) != 0;
-		info.virt.hv.hint_nested_enlightened_vmcs_interface	= (regs.eax & BIT!(14)) != 0;
-		break;
-	default:
-	}
-	
-	//
-	// Leaf 4000_0006H
-	//
+pragma(inline, false)
+private
+void leaf4000_0004(ref CPUINFO info, ref REGISTERS regs) {
+//	switch (info.virt.vendor.id) with (VirtVendor) {
+//	case HyperV:
+		info.virt.hv.hint_hypercall_for_process_switch	= bit(regs.eax, 0);
+		info.virt.hv.hint_hypercall_for_tlb_flush	= bit(regs.eax, 1);
+		info.virt.hv.hint_hypercall_for_tlb_shootdown	= bit(regs.eax, 2);
+		info.virt.hv.hint_msr_for_apic_access	= bit(regs.eax, 3);
+		info.virt.hv.hint_msr_for_sys_reset	= bit(regs.eax, 4);
+		info.virt.hv.hint_relax_time_checks	= bit(regs.eax, 5);
+		info.virt.hv.hint_dma_remapping	= bit(regs.eax, 6);
+		info.virt.hv.hint_interrupt_remapping	= bit(regs.eax, 7);
+		info.virt.hv.hint_x2apic_msrs	= bit(regs.eax, 8);
+		info.virt.hv.hint_deprecate_auto_eoi	= bit(regs.eax, 9);
+		info.virt.hv.hint_synth_cluster_ipi_hypercall	= bit(regs.eax, 10);
+		info.virt.hv.hint_ex_proc_masks_interface	= bit(regs.eax, 11);
+		info.virt.hv.hint_nested_hyperv	= bit(regs.eax, 12);
+		info.virt.hv.hint_int_for_mbec_syscalls	= bit(regs.eax, 13);
+		info.virt.hv.hint_nested_enlightened_vmcs_interface	= bit(regs.eax, 14);
+//		break;
+//	default:
+//	}
+}
 
-	if (info.maxLeafVirt < 0x4000_0006) goto L_EXTENDED;
-	
-	switch (info.virt.vendorId) {
-	case VirtVendor.HyperV:
-		__cpuid(regs, 0x4000_0006);
-		info.virt.hv.host_feat_avic	= (regs.eax & BIT!(0)) != 0;
-		info.virt.hv.host_feat_msr_bitmap	= (regs.eax & BIT!(1)) != 0;
-		info.virt.hv.host_feat_perf_counter	= (regs.eax & BIT!(2)) != 0;
-		info.virt.hv.host_feat_nested_paging	= (regs.eax & BIT!(3)) != 0;
-		info.virt.hv.host_feat_dma_remapping	= (regs.eax & BIT!(4)) != 0;
-		info.virt.hv.host_feat_interrupt_remapping	= (regs.eax & BIT!(5)) != 0;
-		info.virt.hv.host_feat_mem_patrol_scrubber	= (regs.eax & BIT!(6)) != 0;
-		info.virt.hv.host_feat_dma_prot_in_use	= (regs.eax & BIT!(7)) != 0;
-		info.virt.hv.host_feat_hpet_requested	= (regs.eax & BIT!(8)) != 0;
-		info.virt.hv.host_feat_stimer_volatile	= (regs.eax & BIT!(9)) != 0;
-		break;
-	default:
-	}
-	
-	//
-	// Leaf 4000_0010H
-	//
+pragma(inline, false)
+private
+void leaf4000_0006(ref CPUINFO info, ref REGISTERS regs) {
+//	switch (info.virt.vendor.id) with (VirtVendor) {
+//	case HyperV:
+		info.virt.hv.host_feat_avic	= bit(regs.eax, 0);
+		info.virt.hv.host_feat_msr_bitmap	= bit(regs.eax, 1);
+		info.virt.hv.host_feat_perf_counter	= bit(regs.eax, 2);
+		info.virt.hv.host_feat_nested_paging	= bit(regs.eax, 3);
+		info.virt.hv.host_feat_dma_remapping	= bit(regs.eax, 4);
+		info.virt.hv.host_feat_interrupt_remapping	= bit(regs.eax, 5);
+		info.virt.hv.host_feat_mem_patrol_scrubber	= bit(regs.eax, 6);
+		info.virt.hv.host_feat_dma_prot_in_use	= bit(regs.eax, 7);
+		info.virt.hv.host_feat_hpet_requested	= bit(regs.eax, 8);
+		info.virt.hv.host_feat_stimer_volatile	= bit(regs.eax, 9);
+//		break;
+//	default:
+//	}
+}
 
-	if (info.maxLeafVirt < 0x4000_0010) goto L_EXTENDED;
-	
-	switch (info.virt.vendorId) {
-	case VirtVendor.VBoxMin: // VBox Minimal
-		__cpuid(regs, 0x4000_0010);
+pragma(inline, false)
+private
+void leaf4000_0010(ref CPUINFO info, ref REGISTERS regs) {
+//	switch (info.virt.vendor.id) with (VirtVendor) {
+//	case VBoxMin: // VBox Minimal
 		info.virt.vbox.tsc_freq_khz = regs.eax;
 		info.virt.vbox.apic_freq_khz = regs.ebx;
-		break;
-	default:
-	}
+//		break;
+//	default:
+//	}
+}
 
-	//
-	// Leaf 8000_0001H
-	//
-	
-L_EXTENDED:
-	
-	if (info.maxLeafExtended < 0x8000_0000) goto L_CACHE_INFO;
-	
-	__cpuid(regs, 0x8000_0001);
-	
-	switch (info.vendorId) {
-	case Vendor.AMD:
+pragma(inline, false)
+private
+void leaf8000_0001(ref CPUINFO info, ref REGISTERS regs) {
+	switch (info.vendor.id) with (Vendor) {
+	case AMD:
 		// ecx
-		info.virt.available	= (regs.ecx & BIT!(2)) != 0;
-		info.sys.x2apic	= (regs.ecx & BIT!(3)) != 0;
-		info.sse.sse4a	= (regs.ecx & BIT!(6)) != 0;
-		info.extensions.xop	= (regs.ecx & BIT!(11)) != 0;
-		info.extras.skinit	= (regs.ecx & BIT!(12)) != 0;
-		info.extensions.fma4	= (regs.ecx & BIT!(16)) != 0;
-		info.extensions.tbm	= (regs.ecx & BIT!(21)) != 0;
+		info.virt.available	= bit(regs.ecx, 2);
+		info.sys.x2apic	= bit(regs.ecx, 3);
+		info.sse.sse4a	= bit(regs.ecx, 6);
+		info.extensions.xop	= bit(regs.ecx, 11);
+		info.extras.skinit	= bit(regs.ecx, 12);
+		info.extensions.fma4	= bit(regs.ecx, 16);
+		info.extensions.tbm	= bit(regs.ecx, 21);
 		// edx
-		info.extensions.mmxExtended	= (regs.edx & BIT!(22)) != 0;
-		info.extensions._3DNowExtended	= (regs.edx & BIT!(30)) != 0;
+		info.extensions.mmxExtended	= bit(regs.edx, 22);
+		info.extensions._3DNowExtended	= bit(regs.edx, 30);
 		info.extensions._3DNow	= regs.edx >= BIT!(31);
 		break;
 	default:
 	}
 	
 	// ecx
-	info.extensions.lahf64	= (regs.ecx & BIT!(0)) != 0;
-	info.extras.lzcnt	= (regs.ecx & BIT!(5)) != 0;
-	info.cache.prefetchw	= (regs.ecx & BIT!(8)) != 0;
-	info.extras.monitorx	= (regs.ecx & BIT!(29)) != 0;
+	info.extensions.lahf64	= bit(regs.ecx, 0);
+	info.extras.lzcnt	= bit(regs.ecx, 5);
+	info.cache.prefetchw	= bit(regs.ecx, 8);
+	info.extras.monitorx	= bit(regs.ecx, 29);
 	// edx
-	info.extras.syscall	= (regs.edx & BIT!(11)) != 0;
-	info.memory.nx	= (regs.edx & BIT!(20)) != 0;
-	info.memory.page1gb	= (regs.edx & BIT!(26)) != 0;
-	info.extras.rdtscp	= (regs.edx & BIT!(27)) != 0;
-	info.extensions.x86_64	= (regs.edx & BIT!(29)) != 0;
-	
-	//
-	// Leaf 8000_0007H
-	//
-	
-	if (info.maxLeafExtended < 0x8000_0007) goto L_CACHE_INFO;
-	
-	__cpuid(regs, 0x8000_0007);
-	
-	switch (info.vendorId) {
-	case Vendor.Intel:
-		info.extras.rdseed	= (regs.ebx & BIT!(28)) != 0;
+	info.extras.syscall	= bit(regs.edx, 11);
+	info.memory.nx	= bit(regs.edx, 20);
+	info.memory.page1gb	= bit(regs.edx, 26);
+	info.extras.rdtscp	= bit(regs.edx, 27);
+	info.extensions.x86_64	= bit(regs.edx, 29);
+}
+
+pragma(inline, false)
+private
+void leaf8000_0007(ref CPUINFO info, ref REGISTERS regs) {
+	switch (info.vendor.id) with (Vendor) {
+	case Intel:
+		info.extras.rdseed	= bit(regs.ebx, 28);
 		break;
-	case Vendor.AMD:
-		info.sys.tm	= (regs.edx & BIT!(4)) != 0;
-		info.tech.turboboost	= (regs.edx & BIT!(9)) != 0;
+	case AMD:
+		info.sys.tm	= bit(regs.edx, 4);
+		info.tech.turboboost	= bit(regs.edx, 9);
 		break;
 	default:
 	}
 	
-	info.extras.rdtscInvariant	= (regs.edx & BIT!(8)) != 0;
-	
-	//
-	// Leaf 8000_0008H
-	//
-	
-	if (info.maxLeafExtended < 0x8000_0008) goto L_CACHE_INFO;
-	
-	__cpuid(regs, 0x8000_0008);
-	
-	switch (info.vendorId) {
-	case Vendor.Intel:
-		info.cache.wbnoinvd	= (regs.ebx & BIT!(9)) != 0;
+	info.extras.rdtscInvariant	= bit(regs.edx, 8);
+}
+
+pragma(inline, false)
+private
+void leaf8000_0008(ref CPUINFO info, ref REGISTERS regs) {
+	switch (info.vendor.id) with (Vendor) {
+	case Intel:
+		info.cache.wbnoinvd	= bit(regs.ebx, 9);
 		break;
-	case Vendor.AMD:
-		info.security.ibpb	= (regs.ebx & BIT!(12)) != 0;
-		info.security.ibrs	= (regs.ebx & BIT!(14)) != 0;
-		info.security.stibp	= (regs.ebx & BIT!(15)) != 0;
-		info.security.ibrsAlwaysOn	= (regs.ebx & BIT!(16)) != 0;
-		info.security.stibpAlwaysOn	= (regs.ebx & BIT!(17)) != 0;
-		info.security.ibrsPreferred	= (regs.ebx & BIT!(18)) != 0;
-		info.security.ssbd	= (regs.ebx & BIT!(24)) != 0;
+	case AMD:
+		info.security.ibpb	= bit(regs.ebx, 12);
+		info.security.ibrs	= bit(regs.ebx, 14);
+		info.security.stibp	= bit(regs.ebx, 15);
+		info.security.ibrsAlwaysOn	= bit(regs.ebx, 16);
+		info.security.stibpAlwaysOn	= bit(regs.ebx, 17);
+		info.security.ibrsPreferred	= bit(regs.ebx, 18);
+		info.security.ssbd	= bit(regs.ebx, 24);
 		break;
 	default:
 	}
+	
+	info.memory.physBits = regs.al;
+	info.memory.lineBits = regs.ah;
+}
 
-	info.memory.b_8000_0008_ax = regs.ax; // info.addr_phys_bits, info.addr_line_bits
-	
-	//
-	// Leaf 8000_000AH
-	//
-
-	if (info.maxLeafExtended < 0x8000_000A) goto L_CACHE_INFO;
-	
-	__cpuid(regs, 0x8000_000A);
-	
-	switch (info.vendorId) {
+pragma(inline, false)
+private
+void leaf8000_000A(ref CPUINFO info, ref REGISTERS regs) {
+	switch (info.vendor.id) {
 	case Vendor.AMD:
 		info.virt.version_	= regs.al; // EAX[7:0]
-		info.virt.apicv	= (regs.edx & BIT!(13)) != 0;
+		info.virt.apicv	= bit(regs.edx, 13);
 		break;
 	default:
 	}
+}
 
-	//if (info.maxLeafExtended < ...) goto L_CACHE_INFO;
+pragma(inline, false)
+private
+void topology(ref CPUINFO info) {
+	ushort sc = void;	/// raw cores shared across cache level
+	ushort crshrd = void;	/// actual count of shared cores
+	ubyte type = void;	/// cache type
+	ubyte mids = void;	/// maximum IDs to this cache
+	REGISTERS regs = void;	/// registers
 	
-L_CACHE_INFO:
 	info.cache.levels = 0;
 	CACHEINFO *ca = cast(CACHEINFO*)info.cache.level;
 	
 	//TODO: Make 1FH/BH/4H/etc. functions.
-	switch (info.vendorId) {
-	case Vendor.Intel:
+	switch (info.vendor.id) with (Vendor) {
+	case Intel:
 		if (info.maxLeaf >= 0x1f) goto L_CACHE_INTEL_1FH;
 		if (info.maxLeaf >= 0xb)  goto L_CACHE_INTEL_BH;
 		if (info.maxLeaf >= 4)    goto L_CACHE_INTEL_4H;
@@ -1860,7 +1777,7 @@ L_CACHE_INTEL_4H:
 		
 		++info.cache.levels; ++ca;
 		goto L_CACHE_INTEL_4H;
-	case Vendor.AMD:
+	case AMD:
 		if (info.maxLeafExtended >= 0x8000_001D) goto L_CACHE_AMD_EXT_1DH;
 		if (info.maxLeafExtended >= 0x8000_0005) goto L_CACHE_AMD_EXT_5H;
 		break;
@@ -1993,4 +1910,94 @@ L_CACHE_AMD_EXT_5H:
 	}
 	
 	with (info) cores.physical = cores.logical = 1;
+}
+
+private struct LeafInfo {
+	uint leaf;
+	uint sub;
+	void function(ref CPUINFO, ref REGISTERS) func;
+}
+private struct LeafExtInfo {
+	uint leaf;
+	void function(ref CPUINFO, ref REGISTERS) func;
+}
+
+/// Fetch CPU information.
+/// Params: info = CPUINFO structure
+//TODO: rename as cpuinfo
+pragma(inline, false)
+void getInfo(ref CPUINFO info) {
+	static immutable LeafInfo[] regulars = [
+//		{ 0x1,	0,	&leaf1 },
+		{ 0x5,	0,	&leaf5 },
+		{ 0x6,	0,	&leaf6 },
+		{ 0x7,	0,	&leaf7 },
+		{ 0x7,	1,	&leaf7sub1 },
+		{ 0xd,	0,	&leafD },
+		{ 0xd,	1,	&leafDsub1 },
+		{ 0x12,	0,	&leaf12 },
+	];
+	static immutable LeafExtInfo[] extended = [
+		{ 0x8000_0001,	&leaf8000_0001 },
+		{ 0x8000_0007,	&leaf8000_0007 },
+		{ 0x8000_0008,	&leaf8000_0008 },
+		{ 0x8000_000A,	&leaf8000_000A },
+	];
+	REGISTERS regs = void;	/// registers
+	
+	vendor(info.vendor.string_);
+	info.vendor.id = vendorId(info.vendor);
+	
+	// Regular leaves
+	__cpuid(regs, 1);
+	leaf1(info, regs);
+	setModelName(info, regs.bl);
+	
+	foreach (ref immutable(LeafInfo) l; regulars) {
+		if (l.leaf >= info.maxLeaf) break;
+		
+		__cpuid(regs, l.leaf, l.sub);
+		l.func(info, regs);
+	}
+	
+	// Paravirtualization leaves
+	if (info.maxLeafVirt >= 0x4000_0000) {
+		virtualVendor(info.virt.vendor.string_);
+		info.virt.vendor.id = virtualVendorId(info.virt.vendor);
+		
+		switch (info.virt.vendor.id) with (VirtVendor) {
+		case KVM:
+			__cpuid(regs, 0x4000_0001);
+			leaf4000_0001(info, regs);
+			break;
+		case HyperV:
+			__cpuid(regs, 0x4000_0002);
+			leaf4000_0002(info, regs);
+			__cpuid(regs, 0x4000_0003);
+			leaf4000_0003(info, regs);
+			__cpuid(regs, 0x4000_0004);
+			leaf4000_0004(info, regs);
+			__cpuid(regs, 0x4000_0006);
+			leaf4000_0006(info, regs);
+			break;
+		case VBoxMin:
+			__cpuid(regs, 0x4000_0010);
+			leaf4000_0010(info, regs);
+			break;
+		default:
+		}
+	}
+	
+	// Extended leaves
+	if (info.maxLeafExtended >= 0x8000_0000) {
+		foreach (ref immutable(LeafExtInfo) l; extended) {
+			if (l.leaf >= info.maxLeafExtended) break;
+			
+			__cpuid(regs, l.leaf);
+			l.func(info, regs);
+		}
+	}
+	
+	// topology
+	topology(info);
 }

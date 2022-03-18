@@ -243,8 +243,8 @@ void printLegacy(ref CPUINFO info) {
 	}
 }
 void printTechs(ref CPUINFO info) {
-	switch (info.vendorId) {
-	case Vendor.Intel:
+	switch (info.vendor.id) with (Vendor) {
+	case Intel:
 		if (info.tech.eist) printf(" EIST");
 		if (info.tech.turboboost) {
 			printf(" TurboBoost");
@@ -276,7 +276,7 @@ void printTechs(ref CPUINFO info) {
 			}
 		}
 		break;
-	case Vendor.AMD:
+	case AMD:
 		if (info.tech.turboboost) printf(" Core-Performance-Boost");
 		break;
 	default:
@@ -359,27 +359,15 @@ void printCacheFeats(ushort feats) {
 	if (feats & BIT!(4)) printf(" CCI"); // Complex Cache Indexing
 }
 
+//TODO: --no-header for -c/--cpuid
 version (unittest) {} else
 int main(int argc, const(char) **argv) {
 	options_t options;	/// Command-line options
 	
 	const(char) *arg = void;
-//	int e = void;
 	for (int argi = 1; argi < argc; ++argi) {
 		if (argv[argi][1] == '-') { // Long arguments
 			arg = argv[argi] + 2;
-/*			if (strcmp(arg, "dump") == 0) {
-				if (++argi >= argc) {
-					puts("Missing argument: path");
-					return 1;
-				}
-				e = dumpOpen(&options.file, argv[argi]);
-				if (e) {
-					printf("Couldn't open file: %s\n", strerror(e));
-					return 2;
-				}
-				continue;
-			}*/
 			if (strcmp(arg, "table") == 0) {
 				options.table = true;
 				continue;
@@ -420,17 +408,6 @@ int main(int argc, const(char) **argv) {
 				case 'l': options.getLevel = true; continue;
 				case 'o': options.override_ = true; continue;
 				case 'r': options.table = true; continue;
-/*				case 'D':
-					if (++argi >= argc) {
-						puts("Missing parameter: file");
-						return 1;
-					}
-					e = dumpOpen(&options.file, argv[argi]);
-					if (e) {
-						printf("Couldn't open file: %s\n", strerror(e));
-						return 2;
-					}
-					continue;*/
 				case 'S':
 					if (++argi >= argc) {
 						puts("Missing parameter: leaf");
@@ -472,41 +449,35 @@ int main(int argc, const(char) **argv) {
 		info.maxLeafExtended = MAX_ELEAF;
 	}
 	
-	if (options.table/* || options.file*/) { // -r|-D
+	if (options.table) {
 		uint l = void, s = void;
-		//TODO: outcpuid should just accept ref options_t and s
-
-//		if (options.file) {
-//			__gshared const(char) *HEADER = "ddcu\x01\x00\x00\x00";
-//			dumpWrite(options.file, HEADER, 8);
-//		} else {
-			puts(
-			"| Leaf     | Sub-leaf | EAX      | EBX      | ECX      | EDX      |\n"~
-			"|----------|----------|----------|----------|----------|----------|"
-			);
-//		}
-
+		
+		puts(
+		"| Leaf     | Sub-leaf | EAX      | EBX      | ECX      | EDX      |\n"~
+		"|----------|----------|----------|----------|----------|----------|"
+		);
+		
 		if (options.hasLevel) {
 			for (s = 0; s <= options.maxSub; ++s)
-				outcpuid(options.maxLevel, s/*, options.file*/);
+				outcpuid(options.maxLevel, s);
 			return 0;
 		}
 		
 		// Normal
 		for (l = 0; l <= info.maxLeaf; ++l)
 			for (s = 0; s <= options.maxSub; ++s)
-				outcpuid(l, s/*, options.file*/);
+				outcpuid(l, s);
 		
 		// Paravirtualization
 		if (info.maxLeafVirt > 0x4000_0000)
 		for (l = 0x4000_0000; l <= info.maxLeafVirt; ++l)
 			for (s = 0; s <= options.maxSub; ++s)
-				outcpuid(l, s/*, options.file*/);
+				outcpuid(l, s);
 		
 		// Extended
 		for (l = 0x8000_0000; l <= info.maxLeafExtended; ++l)
 			for (s = 0; s <= options.maxSub; ++s)
-				outcpuid(l, s/*, options.file*/);
+				outcpuid(l, s);
 		return 0;
 	}
 	
@@ -519,12 +490,12 @@ int main(int argc, const(char) **argv) {
 	
 	// NOTE: .ptr crash with GDC -O3
 	//       glibc!__strlen_sse2 (in printf)
-	char *vendor = cast(char*)info.vendorString;
-	char *brand  = cast(char*)info.brandString;
+	char *vendorstr = cast(char*)info.vendor.string_;
+	char *brandstr  = cast(char*)info.brandString;
 	
 	// Brand string left space trimming
 	// Extremely common in Intel but let's also do it for others
-	while (*brand == ' ') ++brand;
+	while (*brandstr == ' ') ++brandstr;
 	
 	CACHEINFO *cache = void;	/// Current cache level
 	
@@ -537,7 +508,7 @@ int main(int argc, const(char) **argv) {
 		"Name:        %.12s %.48s\n"~
 		"Identifier:  Family 0x%x Model 0x%x Stepping 0x%x\n"~
 		"Cores:       %u cores %u threads\n",
-		vendor, brand,
+		vendorstr, brandstr,
 		family, model, stepping,
 		cores.physical, cores.logical,
 		);
@@ -589,9 +560,10 @@ int main(int argc, const(char) **argv) {
 		printSecurity(info);
 		putchar('\n');
 		
-		if (info.virt.vendorId) {
+		// NOTE: id=0 would be vboxmin, so using this is more reliable
+		if (info.maxLeafVirt) {
 			const(char) *virtVendor = void;
-			switch (info.virt.vendorId) with (VirtVendor) {
+			switch (info.virt.vendor.id) with (VirtVendor) {
 			case KVM:        virtVendor = "KVM"; break;
 			case HyperV:     virtVendor = "Hyper-V"; break;
 			case VBoxHyperV: virtVendor = "VirtualBox Hyper-V"; break;
@@ -635,7 +607,7 @@ int main(int argc, const(char) **argv) {
 	"Cores       : %u\n"~
 	"Threads     : %u\n"~
 	"Extensions  :",
-	vendor, brand,
+	vendorstr, brandstr,
 	identifier,
 	family, familyBase, familyExtended,
 	model, modelBase, modelExtended,
@@ -643,26 +615,29 @@ int main(int argc, const(char) **argv) {
 	cores.physical, cores.logical
 	);
 	
+	const(char) *tstr = void;
+	
 	printLegacy(info);
 	if (info.sse.sse) printSSE(info);
 	if (info.extensions.x86_64) {
-		switch (info.vendorId) {
-		case Vendor.Intel: printf(" Intel64/x86-64"); break;
-		case Vendor.AMD: printf(" AMD64/x86-64"); break;
-		default: printf(" x86-64");
+		switch (info.vendor.id) with (Vendor) {
+		case Intel:	tstr = " Intel64/x86-64"; break;
+		case AMD:	tstr = " AMD64/x86-64"; break;
+		default:	tstr = " x86-64";
 		}
+		printf(tstr);
 		if (info.extensions.lahf64)
 			printf(" +LAHF64");
 	}
 	if (info.virt.available)
-		switch (info.vendorId) {
-		case Vendor.Intel: printf(" VT-x/VMX"); break;
-		case Vendor.AMD: // SVM
+		switch (info.vendor.id) with (Vendor) {
+		case Intel: printf(" VT-x/VMX"); break;
+		case AMD: // SVM
 			printf(" AMD-V/VMX");
 			if (info.virt.version_)
 				printf(":v%u", info.virt.version_);
 			break;
-		case Vendor.VIA: printf(" VIA-VT/VMX"); break;
+		case VIA: printf(" VIA-VT/VMX"); break;
 		default: printf(" VMX");
 		}
 	if (info.avx.avx) printAVX(info);
@@ -762,19 +737,19 @@ int main(int argc, const(char) **argv) {
 	if (info.virt.apicv) printf(" APICv");
 	
 	// Paravirtualization
-	if (info.virt.vendorId) {
+	if (info.virt.vendor.id) {
 		// See vendor string case
-		char *virtvendor = cast(char*)info.virt.vendorString;
+		char *virtvendor = cast(char*)info.virt.vendor.string_;
 		printf(" HOST=%.12s", virtvendor);
 	}
-	switch (info.virt.vendorId) {
-	case VirtVendor.VBoxMin:
+	switch (info.virt.vendor.id) with (VirtVendor) {
+	case VBoxMin:
 		if (info.virt.vbox.tsc_freq_khz)
 			printf(" TSC_FREQ_KHZ=%u", info.virt.vbox.tsc_freq_khz);
 		if (info.virt.vbox.apic_freq_khz)
 			printf(" APIC_FREQ_KHZ=%u", info.virt.vbox.apic_freq_khz);
 		break;
-	case VirtVendor.HyperV:
+	case HyperV:
 		printf(" OPENSOURCE=%d VENDOR_ID=%d OS=%d MAJOR=%d MINOR=%d SERVICE=%d BUILD=%d",
 			info.virt.hv.guest_opensource,
 			info.virt.hv.guest_vendor_id,
@@ -889,12 +864,14 @@ int main(int argc, const(char) **argv) {
 	if (info.memory.pse) printf(" PSE");
 	if (info.memory.pse36) printf(" PSE-36");
 	if (info.memory.page1gb) printf(" Page1GB");
-	if (info.memory.nx)
-		switch (info.vendorId) {
-		case Vendor.Intel: printf(" Intel-XD/NX"); break;
-		case Vendor.AMD: printf(" AMD-EVP/NX"); break;
-		default: printf(" NX");
+	if (info.memory.nx) {
+		switch (info.vendor.id) with (Vendor) {
+		case Intel:	tstr = " Intel-XD/NX"; break;
+		case AMD:	tstr = " AMD-EVP/NX"; break;
+		default:	tstr = " NX";
 		}
+		printf(tstr);
+	}
 	if (info.memory.dca) printf(" DCA");
 	if (info.memory.pat) printf(" PAT");
 	if (info.memory.mtrr) printf(" MTRR");

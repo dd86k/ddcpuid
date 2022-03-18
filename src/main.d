@@ -93,20 +93,19 @@ void clih() {
 	"\n"~
 	"OPTIONS\n"~
 	" -a, --all        Show all processor information\n"~
+	" -b, --baseline   Print the processor's feature level\n"~
 	" -d, --details    (Deprecated) Alias of --all\n"~
-	"     --table      (Deprecated) Alias of --raw\n"~
+	" -l, --level      (Deprecated) Alias of --baseline\n"~
+	" -o               Override maximum leaves to 0x20, 0x4000_0020, and 0x8000_0020\n"~
+	" -r, --raw        Display raw CPUID values. Takes optional leaf,subleaf values.\n"~
 	" -S               (Deprecated) Alias of --raw eax, requires --table\n"~
 	" -s               (Deprecated) Alias of --raw eax,ecx, requires --table\n"~
-//	" -D, --dump       Dump CPUID data into binary\n"~
-	" -r, --raw        Display raw CPUID values. Takes optional leaf,subleaf values.\n"~
-	" -o               Override maximum leaves to 0x20, 0x4000_0020, and 0x8000_0020\n"~
-	" -l, --level      (Deprecated) Alias of --baseline\n"~
-	" -b, --baseline   Print the processor's feature level\n"~
+	"     --table      (Deprecated) Alias of --raw\n"~
 	"\n"~
 	"PAGES\n"~
 	" -h, --help   Print this help screen and quit\n"~
 	" --version    Print version screen and quit\n"~
-	" --ver        Print version and quit\n"
+	" --ver        Print only version string and quit\n"
 	);
 }
 

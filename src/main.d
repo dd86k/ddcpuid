@@ -422,15 +422,16 @@ int optionRaw(ref options_t options, const(char) *arg) {
 //TODO: --no-header for -c/--cpuid
 version (unittest) {} else
 int main(int argc, const(char) **argv) {
-	options_t options;	/// Command-line options
+	options_t options; /// Command-line options
 	int error = void;
 	
-	const(char) *arg = void;
+	const(char) *arg = void; /// Temp argument holder
 	for (int argi = 1; argi < argc; ++argi) {
 		if (argv[argi][1] == '-') { // Long arguments
 			arg = argv[argi] + 2;
 			if (strcmp(arg, "raw") == 0) {
 				arg = argi + 1 >= argc ? null : argv[argi + 1];
+				if (arg && arg[0] == '-') arg = null;
 				error = optionRaw(options, arg);
 				if (error) return error;
 				continue;
@@ -474,7 +475,12 @@ int main(int argc, const(char) **argv) {
 				case 'a', 'd': options.all = true; continue;
 				case 'b', 'l': options.baseline = true; continue;
 				case 'o': options.override_ = true; continue;
-				case 'r': options.table = true; continue;
+				case 'r':
+					arg = argi + 1 >= argc ? null : argv[argi + 1];
+					if (arg && arg[0] == '-') arg = null;
+					error = optionRaw(options, arg);
+					if (error) return error;
+					continue;
 				case 'S':
 					if (++argi >= argc) {
 						puts("Missing parameter: leaf");

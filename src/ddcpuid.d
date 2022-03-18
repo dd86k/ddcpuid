@@ -38,7 +38,7 @@ extern (C):
 //TODO: Consider ddcpuid_* function prefix since we extern to C
 
 version (X86)
-	enum DDCPUID_PLATFORM = "x86"; /// Target platform
+	enum DDCPUID_PLATFORM = "i686"; /// Target platform
 else version (X86_64)
 	enum DDCPUID_PLATFORM = "amd64"; /// Target platform
 else static assert(0, "Unsupported platform");

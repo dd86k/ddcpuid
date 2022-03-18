@@ -44,11 +44,12 @@ else version (X86_64)
 else static assert(0, "Unsupported platform");
 
 version (DigitalMars) {
-	version = DMD;
+	version = DMD;	// DMD compiler
+	version = DMDLDC;	// DMD or LDC compilers
 } else version (GNU) {
-	version = GDC;
+	version = GDC;	// GDC compiler
 } else version (LDC) {
-	
+	version = DMDLDC;	// DMD or LDC compilers
 } else static assert(0, "Unsupported compiler");
 
 enum DDCPUID_VERSION   = "0.20.0";	/// Library version
@@ -97,7 +98,7 @@ enum VirtVendor {
 	VBoxMin    = 0,	/// Unset: VirtualBox minimal interface
 }
 
-/// Registers structure used with the __cpuid function.
+/// Registers structure used with the ddcpuid function.
 struct REGISTERS {
 	union {
 		uint eax;
@@ -128,13 +129,6 @@ struct REGISTERS {
 	assert(regs.ax  == 0xccdd);
 	assert(regs.al  == 0xdd);
 	assert(regs.ah  == 0xcc);
-}
-
-/// 
-struct Maximum { align(1):
-	uint leaf;	/// Maximum leaf.
-	uint virtLeaf;	/// Maximum virtualization leaf.
-	uint extLeaf;	/// Maximum extended leaf.
 }
 
 /// CPU cache entry
@@ -204,13 +198,12 @@ struct CPUINFO { align(1):
 	// Vendor/brand strings
 	
 	VendorString vendor;
-	VirtVendorString virtVendor;
 	
 	union {
 		private uint[12] brand32;	// For init only
 		char[48] brandString;	/// Processor Brand String
 	}
-	ubyte brandIndex;	/// Brand string index (not used)
+	ubyte brandIndex;	/// Brand string index
 	
 	// Core
 	
@@ -617,6 +610,7 @@ version (Trace) {
 /// 	val = 32-bit content.
 /// 	pos = Bit position 
 /// Returns: True if bit set.
+pragma(inline, true)
 private bool bit(uint val, int pos) pure @safe {
 	return (val & (1 << pos)) != 0;
 }
@@ -631,7 +625,7 @@ private bool bit(uint val, int pos) pure @safe {
 ///   level = Leaf (EAX)
 ///   sublevel = Sub-leaf (ECX)
 pragma(inline, false)
-void __cpuid(ref REGISTERS regs, uint level, uint sublevel = 0) {
+void ddcpuid_id(ref REGISTERS regs, uint level, uint sublevel = 0) {
 	version (DMD) {
 		version (X86) asm {
 			mov EDI, regs;
@@ -686,14 +680,14 @@ void __cpuid(ref REGISTERS regs, uint level, uint sublevel = 0) {
 /// Typically these tests are done on Pentium 4 and later processors
 @system unittest {
 	REGISTERS regs;
-	__cpuid(regs, 0);
+	ddcpuid_id(regs, 0);
 	assert(regs.eax > 0 && regs.eax < 0x4000_0000);
-	__cpuid(regs, 0x8000_0000);
+	ddcpuid_id(regs, 0x8000_0000);
 	assert(regs.eax > 0x8000_0000);
 }
 
-private uint maximumLeaf() {
-	version (DMD) {
+private uint ddcpuid_max_leaf() {
+	version (DMDLDC) {
 		asm {
 			xor EAX,EAX;
 			cpuid;
@@ -703,15 +697,10 @@ private uint maximumLeaf() {
 			"xor %eax,%eax\t\n"~
 			"cpuid";
 		}
-	} else version (LDC) {
-		asm {
-			xor EAX,EAX;
-			cpuid;
-		}
 	}
 }
 
-private uint maximumVirtLeaf() {
+private uint ddcpuid_max_leaf_virt() {
 	version (DMD) {
 		asm {
 			mov EAX,0x4000_0000;
@@ -730,7 +719,7 @@ private uint maximumVirtLeaf() {
 	}
 }
 
-private uint maximumExtendedLeaf() {
+private uint ddcpuid_max_leaf_ext() {
 	version (DMD) {
 		asm {
 			mov EAX,0x8000_0000;
@@ -752,15 +741,15 @@ private uint maximumExtendedLeaf() {
 /// Get CPU leaf levels.
 /// Params: info = CPUINFO structure
 pragma(inline, false)
-void getLeaves(ref CPUINFO info) {
-	info.maxLeaf = maximumLeaf;
-	info.maxLeafVirt = maximumVirtLeaf;
-	info.maxLeafExtended = maximumExtendedLeaf;
+void ddcpuid_leaves(ref CPUINFO info) {
+	info.maxLeaf = ddcpuid_max_leaf;
+	info.maxLeafVirt = ddcpuid_max_leaf_virt;
+	info.maxLeafExtended = ddcpuid_max_leaf_ext;
 }
 
 pragma(inline, false)
 private
-void vendor(ref char[12] string_) {
+void ddcpuid_vendor(ref char[12] string_) {
 	version (DMD) {
 		version (X86) asm {
 			mov EDI, string_;
@@ -819,7 +808,7 @@ void vendor(ref char[12] string_) {
 }
 
 private
-Vendor vendorId(ref VendorString vendor) {
+Vendor ddcpuid_vendor_id(ref VendorString vendor) {
 	// Vendor string verification
 	// If the rest of the string doesn't correspond, the id is unset
 	switch (vendor.ebx) with (Vendor) {
@@ -842,7 +831,7 @@ Vendor vendorId(ref VendorString vendor) {
 
 pragma(inline, false)
 private
-void extendedBrand(ref char[48] string_) {
+void ddcpuid_extended_brand(ref char[48] string_) {
 	version (DMD) {
 		version (X86) asm {
 			mov EDI, string_;
@@ -979,16 +968,20 @@ void extendedBrand(ref char[48] string_) {
 }
 
 // Avoids depending on C runtime for library.
-/// Copy string, this exists solely for getBrandIndex
+/// Copy brand string
+/// Params:
+/// 	dst = Destination buffer
+/// 	src = Source constant string
 pragma(inline, false)
 private
-void strcpy48(ref char[48] dst, const(char) *src) {
+void ddcpuid_strcpy48(ref char[48] dst, const(char) *src) {
 	for (size_t i; i < 48; ++i) {
 		char c = src[i];
 		dst[i] = c;
 		if (c == 0) break;
 	}
 }
+private alias strcpy48 = ddcpuid_strcpy48;
 
 @system unittest {
 	char[48] buffer = void;
@@ -1006,7 +999,7 @@ void strcpy48(ref char[48] dst, const(char) *src) {
 /// 	index = CPUID.01h.BL value.
 pragma(inline, false)
 private
-void getBrandIndex(ref CPUINFO info, ubyte index) {
+void ddcpuid_intel_brand_index(ref CPUINFO info, ubyte index) {
 	switch (index) {
 	case 1, 0xA, 0xF, 0x14:
 		strcpy48(info.brandString, "Intel(R) Celeron(R)");
@@ -1050,7 +1043,7 @@ void getBrandIndex(ref CPUINFO info, ubyte index) {
 
 pragma(inline, false)
 private
-void getBrandIdentifierIntel(ref CPUINFO info) {
+void ddcpuid_intel_brand_family(ref CPUINFO info) {
 	// This function exist for processors that does not support the
 	// brand name table.
 	// At least do from Pentium to late Pentium II processors.
@@ -1077,7 +1070,7 @@ void getBrandIdentifierIntel(ref CPUINFO info) {
 
 pragma(inline, false)
 private
-void getBrandIdentifierAmd(ref CPUINFO info) {
+void ddcpuid_amd_brand_family(ref CPUINFO info) {
 	// This function exist for processors that does not support the
 	// extended brand string which is the Am5x86 and AMD K-5 model 0.
 	// K-5 model 1 has extended brand string so case 5 is only model 0.
@@ -1091,7 +1084,7 @@ void getBrandIdentifierAmd(ref CPUINFO info) {
 
 pragma(inline, false)
 private
-void virtualVendor(ref char[12] string_) {
+void ddcpuid_virt_vendor(ref char[12] string_) {
 	version (DMD) {
 		version (X86) asm {
 			mov EDI, string_;
@@ -1151,7 +1144,7 @@ void virtualVendor(ref char[12] string_) {
 
 pragma(inline, false)
 private
-VirtVendor virtualVendorId(ref VirtVendorString vendor) {
+VirtVendor ddcpuid_virt_vendor_id(ref VirtVendorString vendor) {
 	// Paravirtual vendor string verification
 	// If the rest of the string doesn't correspond, the id is unset
 	switch (vendor.ebx) {
@@ -1174,16 +1167,16 @@ VirtVendor virtualVendorId(ref VirtVendorString vendor) {
 
 pragma(inline, false)
 private
-void setModelName(ref CPUINFO info, ubyte bl) {
+void ddcpuid_model_string(ref CPUINFO info) {
 	switch (info.vendor.id) with (Vendor) {
 	case Intel:
 		// Brand string
 		if (info.maxLeafExtended >= 0x8000_0004)
-			extendedBrand(info.brandString);
-		else if (bl)
-			getBrandIndex(info, bl);
+			ddcpuid_extended_brand(info.brandString);
+		else if (info.brandIndex)
+			ddcpuid_intel_brand_index(info, info.brandIndex);
 		else
-			getBrandIdentifierIntel(info);
+			ddcpuid_intel_brand_family(info);
 		return;
 	case AMD, VIA:
 		// Brand string
@@ -1192,9 +1185,9 @@ void setModelName(ref CPUINFO info, ubyte bl) {
 		//       The K5 model 0 does not support the extended brand string.
 		//       The K5 model 1, 2, and 3 support the extended brand string.
 		if (info.maxLeafExtended >= 0x8000_0004)
-			extendedBrand(info.brandString);
+			ddcpuid_extended_brand(info.brandString);
 		else
-			getBrandIdentifierAmd(info);
+			ddcpuid_amd_brand_family(info);
 		return;
 	default:
 		strcpy48(info.brandString, "Unknown");
@@ -1204,7 +1197,7 @@ void setModelName(ref CPUINFO info, ubyte bl) {
 
 pragma(inline, false)
 private
-void leaf1(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf1(ref CPUINFO info, ref REGISTERS regs) {
 	// EAX
 	info.identifier = regs.eax;
 	info.stepping   = regs.eax & 15;       // EAX[3:0]
@@ -1313,14 +1306,14 @@ void leaf1(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leaf5(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf5(ref CPUINFO info, ref REGISTERS regs) {
 	info.extras.mwaitMin = regs.ax;
 	info.extras.mwaitMax = regs.bx;
 }
 
 pragma(inline, false)
 private
-void leaf6(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf6(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
 	case Intel:
 		info.tech.turboboost	= bit(regs.eax, 1);
@@ -1334,7 +1327,7 @@ void leaf6(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leaf7(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf7(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
 	case Intel:
 		// EBX
@@ -1406,7 +1399,7 @@ void leaf7(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leaf7sub1(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf7sub1(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
 	case Intel:
 		// a
@@ -1419,7 +1412,7 @@ void leaf7sub1(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leafD(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leafD(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
 	case Intel:
 		info.amx.xtilecfg	= bit(regs.eax, 17);
@@ -1431,7 +1424,7 @@ void leafD(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leafDsub1(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leafDsub1(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
 	case Intel:
 		info.amx.xfd	= bit(regs.eax, 18);
@@ -1442,7 +1435,7 @@ void leafDsub1(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leaf12(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf12(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
 	case Intel:
 		info.sgx.sgx1 = bit(regs.al, 0);
@@ -1456,7 +1449,7 @@ void leaf12(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leaf4000_0001(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf4000_0001(ref CPUINFO info, ref REGISTERS regs) {
 //	switch (info.virt.vendor.id) with (VirtVendor) {
 //	case KVM:
 		info.virt.kvm.feature_clocksource	= bit(regs.eax, 0);
@@ -1481,7 +1474,7 @@ void leaf4000_0001(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leaf4000_0002(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf4000_0002(ref CPUINFO info, ref REGISTERS regs) {
 //	switch (info.virt.vendor.id) with (VirtVendor) {
 //	case HyperV:
 		info.virt.hv.guest_minor	= cast(ubyte)(regs.eax >> 24);
@@ -1498,7 +1491,7 @@ void leaf4000_0002(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leaf4000_0003(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf4000_0003(ref CPUINFO info, ref REGISTERS regs) {
 //	switch (info.virt.vendor.id) with (VirtVendor) {
 //	case HyperV:
 		info.virt.hv.base_feat_vp_runtime_msr	= bit(regs.eax, 0);
@@ -1562,7 +1555,7 @@ void leaf4000_0003(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leaf4000_0004(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf4000_0004(ref CPUINFO info, ref REGISTERS regs) {
 //	switch (info.virt.vendor.id) with (VirtVendor) {
 //	case HyperV:
 		info.virt.hv.hint_hypercall_for_process_switch	= bit(regs.eax, 0);
@@ -1587,7 +1580,7 @@ void leaf4000_0004(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leaf4000_0006(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf4000_0006(ref CPUINFO info, ref REGISTERS regs) {
 //	switch (info.virt.vendor.id) with (VirtVendor) {
 //	case HyperV:
 		info.virt.hv.host_feat_avic	= bit(regs.eax, 0);
@@ -1607,7 +1600,7 @@ void leaf4000_0006(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leaf4000_0010(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf4000_0010(ref CPUINFO info, ref REGISTERS regs) {
 //	switch (info.virt.vendor.id) with (VirtVendor) {
 //	case VBoxMin: // VBox Minimal
 		info.virt.vbox.tsc_freq_khz = regs.eax;
@@ -1619,7 +1612,7 @@ void leaf4000_0010(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leaf8000_0001(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf8000_0001(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
 	case AMD:
 		// ecx
@@ -1653,7 +1646,7 @@ void leaf8000_0001(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leaf8000_0007(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf8000_0007(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
 	case Intel:
 		info.extras.rdseed	= bit(regs.ebx, 28);
@@ -1670,7 +1663,7 @@ void leaf8000_0007(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leaf8000_0008(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf8000_0008(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
 	case Intel:
 		info.cache.wbnoinvd	= bit(regs.ebx, 9);
@@ -1693,7 +1686,7 @@ void leaf8000_0008(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void leaf8000_000A(ref CPUINFO info, ref REGISTERS regs) {
+void ddcpuid_leaf8000_000A(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) {
 	case Vendor.AMD:
 		info.virt.version_	= regs.al; // EAX[7:0]
@@ -1705,7 +1698,7 @@ void leaf8000_000A(ref CPUINFO info, ref REGISTERS regs) {
 
 pragma(inline, false)
 private
-void topology(ref CPUINFO info) {
+void ddcpuid_topology(ref CPUINFO info) {
 	ushort sc = void;	/// raw cores shared across cache level
 	ushort crshrd = void;	/// actual count of shared cores
 	ubyte type = void;	/// cache type
@@ -1728,23 +1721,23 @@ void topology(ref CPUINFO info) {
 L_CACHE_INTEL_1FH:
 		//TODO: Support levels 3,4,5 in CPUID.1FH
 		//      (Module, Tile, and Die)
-		__cpuid(regs, 0x1f, 1); // Cores (logical)
+		ddcpuid_id(regs, 0x1f, 1); // Cores (logical)
 		info.cores.logical = regs.bx;
 		
-		__cpuid(regs, 0x1f, 0); // SMT (architectural states per core)
+		ddcpuid_id(regs, 0x1f, 0); // SMT (architectural states per core)
 		info.cores.physical = cast(ushort)(info.cores.logical / regs.bx);
 		
 		goto L_CACHE_INTEL_4H;
 		
 L_CACHE_INTEL_BH:
-		__cpuid(regs, 0xb, 1); // Cores (logical)
+		ddcpuid_id(regs, 0xb, 1); // Cores (logical)
 		info.cores.logical = regs.bx;
 		
-		__cpuid(regs, 0xb, 0); // SMT (architectural states per core)
+		ddcpuid_id(regs, 0xb, 0); // SMT (architectural states per core)
 		info.cores.physical = cast(ushort)(info.cores.logical / regs.bx);
 		
 L_CACHE_INTEL_4H:
-		__cpuid(regs, 4, info.cache.levels);
+		ddcpuid_id(regs, 4, info.cache.levels);
 		
 		type = regs.eax & CACHE_MASK; // EAX[4:0]
 		if (type == 0 || info.cache.levels >= CACHE_MAX_LEVEL) return;
@@ -1784,10 +1777,10 @@ L_CACHE_INTEL_4H:
 		
 		/*if (info.maxLeafExtended < 0x8000_001e) goto L_AMD_TOPOLOGY_EXT_8H;
 		
-		__cpuid(regs, 0x8000_0001);
+		ddcpuid_id(regs, 0x8000_0001);
 		
 		if (regs.ecx & BIT!(22)) { // Topology extensions support
-			__cpuid(regs, 0x8000_001e);
+			ddcpuid_id(regs, 0x8000_001e);
 			
 			info.cores.logical = regs.ch + 1;
 			info.cores.physical = regs.dh & 7;
@@ -1797,7 +1790,7 @@ L_CACHE_INTEL_4H:
 /*L_AMD_TOPOLOGY_EXT_8H:
 		// See APM Volume 3 Appendix E.5
 		// For some reason, CPUID Fn8000_001E_EBX is not mentioned there
-		__cpuid(regs, 0x8000_0008);
+		ddcpuid_id(regs, 0x8000_0008);
 		
 		type = regs.cx >> 12; // ApicIdSize
 		
@@ -1813,7 +1806,7 @@ L_CACHE_INTEL_4H:
 		//
 		
 L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
-		__cpuid(regs, 0x8000_001d, info.cache.levels);
+		ddcpuid_id(regs, 0x8000_001d, info.cache.levels);
 		
 		type = regs.eax & CACHE_MASK; // EAX[4:0]
 		if (type == 0 || info.cache.levels >= CACHE_MAX_LEVEL) return;
@@ -1850,7 +1843,7 @@ L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 		//
 		
 L_CACHE_AMD_EXT_5H:
-		__cpuid(regs, 0x8000_0005);
+		ddcpuid_id(regs, 0x8000_0005);
 		
 		info.cache.level[0].level = 1; // L1-D
 		info.cache.level[0].type = 'D'; // data
@@ -1880,7 +1873,7 @@ L_CACHE_AMD_EXT_5H:
 			0, 1, 2, 3, 4, 6, 8, 0, 16, 0, 32, 48, 64, 96, 128, 255
 		];
 		
-		__cpuid(regs, 0x8000_0006);
+		ddcpuid_id(regs, 0x8000_0006);
 		
 		type = regs.cx >> 12; // amd_ways_l2
 		if (type) {
@@ -1924,65 +1917,59 @@ private struct LeafExtInfo {
 
 /// Fetch CPU information.
 /// Params: info = CPUINFO structure
-//TODO: rename as ddcpuid_cpuinfo
 pragma(inline, false)
-void getInfo(ref CPUINFO info) {
+void ddcpuid_cpuinfo(ref CPUINFO info) {
 	static immutable LeafInfo[] regulars = [
-//		{ 0x1,	0,	&leaf1 },
-		{ 0x5,	0,	&leaf5 },
-		{ 0x6,	0,	&leaf6 },
-		{ 0x7,	0,	&leaf7 },
-		{ 0x7,	1,	&leaf7sub1 },
-		{ 0xd,	0,	&leafD },
-		{ 0xd,	1,	&leafDsub1 },
-		{ 0x12,	0,	&leaf12 },
+		{ 0x1,	0,	&ddcpuid_leaf1 },	// Sets brand index
+		{ 0x5,	0,	&ddcpuid_leaf5 },
+		{ 0x6,	0,	&ddcpuid_leaf6 },
+		{ 0x7,	0,	&ddcpuid_leaf7 },
+		{ 0x7,	1,	&ddcpuid_leaf7sub1 },
+		{ 0xd,	0,	&ddcpuid_leafD },
+		{ 0xd,	1,	&ddcpuid_leafDsub1 },
+		{ 0x12,	0,	&ddcpuid_leaf12 },
 	];
 	static immutable LeafExtInfo[] extended = [
-		{ 0x8000_0001,	&leaf8000_0001 },
-		{ 0x8000_0007,	&leaf8000_0007 },
-		{ 0x8000_0008,	&leaf8000_0008 },
-		{ 0x8000_000a,	&leaf8000_000A },
+		{ 0x8000_0001,	&ddcpuid_leaf8000_0001 },
+		{ 0x8000_0007,	&ddcpuid_leaf8000_0007 },
+		{ 0x8000_0008,	&ddcpuid_leaf8000_0008 },
+		{ 0x8000_000a,	&ddcpuid_leaf8000_000A },
 	];
 	REGISTERS regs = void;	/// registers
 	
-	vendor(info.vendor.string_);
-	info.vendor.id = vendorId(info.vendor);
-	
-	// Regular leaves
-	__cpuid(regs, 1);
-	leaf1(info, regs);
-	setModelName(info, regs.bl);
+	ddcpuid_vendor(info.vendor.string_);
+	info.vendor.id = ddcpuid_vendor_id(info.vendor);
 	
 	foreach (ref immutable(LeafInfo) l; regulars) {
 		if (l.leaf > info.maxLeaf) break;
 		
-		__cpuid(regs, l.leaf, l.sub);
+		ddcpuid_id(regs, l.leaf, l.sub);
 		l.func(info, regs);
 	}
 	
 	// Paravirtualization leaves
 	if (info.maxLeafVirt >= 0x4000_0000) {
-		virtualVendor(info.virt.vendor.string_);
-		info.virt.vendor.id = virtualVendorId(info.virt.vendor);
+		ddcpuid_virt_vendor(info.virt.vendor.string_);
+		info.virt.vendor.id = ddcpuid_virt_vendor_id(info.virt.vendor);
 		
 		switch (info.virt.vendor.id) with (VirtVendor) {
 		case KVM:
-			__cpuid(regs, 0x4000_0001);
-			leaf4000_0001(info, regs);
+			ddcpuid_id(regs, 0x4000_0001);
+			ddcpuid_leaf4000_0001(info, regs);
 			break;
 		case HyperV:
-			__cpuid(regs, 0x4000_0002);
-			leaf4000_0002(info, regs);
-			__cpuid(regs, 0x4000_0003);
-			leaf4000_0003(info, regs);
-			__cpuid(regs, 0x4000_0004);
-			leaf4000_0004(info, regs);
-			__cpuid(regs, 0x4000_0006);
-			leaf4000_0006(info, regs);
+			ddcpuid_id(regs, 0x4000_0002);
+			ddcpuid_leaf4000_0002(info, regs);
+			ddcpuid_id(regs, 0x4000_0003);
+			ddcpuid_leaf4000_0003(info, regs);
+			ddcpuid_id(regs, 0x4000_0004);
+			ddcpuid_leaf4000_0004(info, regs);
+			ddcpuid_id(regs, 0x4000_0006);
+			ddcpuid_leaf4000_0006(info, regs);
 			break;
 		case VBoxMin:
-			__cpuid(regs, 0x4000_0010);
-			leaf4000_0010(info, regs);
+			ddcpuid_id(regs, 0x4000_0010);
+			ddcpuid_leaf4000_0010(info, regs);
 			break;
 		default:
 		}
@@ -1993,11 +1980,54 @@ void getInfo(ref CPUINFO info) {
 		foreach (ref immutable(LeafExtInfo) l; extended) {
 			if (l.leaf > info.maxLeafExtended) break;
 			
-			__cpuid(regs, l.leaf);
+			ddcpuid_id(regs, l.leaf);
 			l.func(info, regs);
 		}
 	}
 	
-	// topology
-	topology(info);
+	ddcpuid_model_string(info); // Sets brand string
+	ddcpuid_topology(info);	 // Sets core/thread/cache topology
+}
+
+const(char) *ddcpuid_baseline(ref CPUINFO info) {
+	if (info.extensions.x86_64 == false) {
+		if (info.family >= 6) // Pentium Pro / II
+			return "i686";
+		// NOTE: K7 is still family 5 and didn't have SSE2.
+		return info.family == 5 ? "i586" : "i486"; // Pentium / MMX
+	}
+	
+	// v4
+	if (info.avx.avx512f && info.avx.avx512bw &&
+		info.avx.avx512cd && info.avx.avx512dq &&
+		info.avx.avx512vl) {
+		return "x86-64-v4";
+	}
+	
+	// v3
+	if (info.avx.avx2 && info.avx.avx &&
+		info.extensions.bmi2 && info.extensions.bmi1 &&
+		info.extensions.f16c && info.extensions.fma3 &&
+		info.extras.lzcnt && info.extras.movbe &&
+		info.extras.osxsave) {
+		return "x86-64-v3";
+	}
+	
+	// v2
+	if (info.sse.sse42 && info.sse.sse41 &&
+		info.sse.ssse3 && info.sse.sse3 &&
+		info.extensions.lahf64 && info.extras.popcnt &&
+		info.extras.cmpxchg16b) {
+		return "x86-64-v2";
+	}
+	
+	// baseline (v1)
+	/*if (info.sse.sse2 && info.sse.sse &&
+		info.extensions.mmx && info.extras.fxsr &&
+		info.extras.cmpxchg8b && info.extras.cmov &&
+		info.extensions.fpu && info.extras.syscall) {
+		return "x86-64";
+	}*/
+	
+	return "x86-64"; // v1 anyway
 }

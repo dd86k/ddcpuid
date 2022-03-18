@@ -122,7 +122,7 @@ void cliv() {
 
 void outcpuid(uint leaf, uint sub) {
 	REGISTERS regs = void;
-	__cpuid(regs, leaf, sub);
+	ddcpuid_id(regs, leaf, sub);
 	printcpuid(regs, leaf, sub);
 }
 
@@ -135,49 +135,6 @@ void printcpuid(ref REGISTERS regs, uint leaf, uint sub) {
 	with (regs)
 	printf("| %8x | %8x | %8x | %8x | %8x | %8x |\n",
 		leaf, sub, eax, ebx, ecx, edx);
-}
-
-const(char) *baseline(ref CPUINFO info) {
-	if (info.extensions.x86_64 == false) {
-		if (info.family >= 6) // Pentium Pro / II
-			return "i686";
-		// NOTE: K7 is still family 5 and didn't have SSE2.
-		return info.family == 5 ? "i586" : "i486"; // Pentium / MMX
-	}
-	
-	// v4
-	if (info.avx.avx512f && info.avx.avx512bw &&
-		info.avx.avx512cd && info.avx.avx512dq &&
-		info.avx.avx512vl) {
-		return "x86-64-v4";
-	}
-	
-	// v3
-	if (info.avx.avx2 && info.avx.avx &&
-		info.extensions.bmi2 && info.extensions.bmi1 &&
-		info.extensions.f16c && info.extensions.fma3 &&
-		info.extras.lzcnt && info.extras.movbe &&
-		info.extras.osxsave) {
-		return "x86-64-v3";
-	}
-	
-	// v2
-	if (info.sse.sse42 && info.sse.sse41 &&
-		info.sse.ssse3 && info.sse.sse3 &&
-		info.extensions.lahf64 && info.extras.popcnt &&
-		info.extras.cmpxchg16b) {
-		return "x86-64-v2";
-	}
-	
-	// baseline (v1)
-	/*if (info.sse.sse2 && info.sse.sse &&
-		info.extensions.mmx && info.extras.fxsr &&
-		info.extras.cmpxchg8b && info.extras.cmov &&
-		info.extensions.fpu && info.extras.syscall) {
-		return "x86-64";
-	}*/
-	
-	return "x86-64"; // v1 anyway
 }
 
 char adjust(ref float size) {
@@ -519,7 +476,7 @@ int main(int argc, const(char) **argv) {
 		info.maxLeafVirt = MAX_VLEAF;
 		info.maxLeafExtended = MAX_ELEAF;
 	} else if (options.rawUser == false) {
-		getLeaves(info);
+		ddcpuid_leaves(info);
 	}
 	
 	if (options.table) {
@@ -579,10 +536,10 @@ int main(int argc, const(char) **argv) {
 		return 0;
 	}
 	
-	getInfo(info);
+	ddcpuid_cpuinfo(info);
 	
 	if (options.baseline) {
-		puts(baseline(info));
+		puts(ddcpuid_baseline(info));
 		return 0;
 	}
 	
@@ -624,7 +581,7 @@ int main(int argc, const(char) **argv) {
 		with (info) printf(
 		"Baseline:    %s\n"~
 		"Techs:      ",
-		baseline(info)
+		ddcpuid_baseline(info)
 		);
 		
 		printTechs(info);

@@ -580,9 +580,12 @@ int main(int argc, const(char) **argv) {
 			char cc = adjust(csize);
 			char ct = adjust(tsize);
 			with (cache)
-			printf("Cache L%u-%c:  %3ux %4g %ciB (%4g %ciB)",
+			printf("Cache L%u-%c:  %3ux %4g %ciB, %4g %ciB total",
 				level, type, sharedCores, csize, cc, tsize, ct);
-			printCacheFeats(cache.features);
+			if (cache.features) {
+				putchar(',');
+				printCacheFeats(cache.features);
+			}
 			putchar('\n');
 		}
 		

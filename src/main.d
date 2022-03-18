@@ -11,7 +11,9 @@
 module main;
 
 import core.stdc.stdio : printf, sscanf;
-import core.stdc.string : strcmp, strtok;
+import core.stdc.errno : errno;
+import core.stdc.stdlib : malloc, free;
+import core.stdc.string : strcmp, strtok, strncpy, strerror;
 import ddcpuid;
 
 private:
@@ -43,13 +45,15 @@ enum : uint {
 /// Command-line options
 struct options_t { align(1):
 	int maxLevel;	/// Maximum leaf for -r (-S)
-	int maxSub;	/// Maximum subleaf for -r (-s)
+	int maxSubLevel;	/// Maximum subleaf for -r (-s)
 	bool hasLevel;	/// If -S has been used
-	bool table;	/// Raw table (-r)
+	bool table;	/// To be deprecated
 	bool override_;	/// Override leaves (-o)
 	bool baseline;	/// Get x86-64 optimization feature level or baseline
 	bool all;	/// Get all processor details
-	bool[3] reserved;	/// 
+	bool raw;	/// Raw CPUID value table (-r/--raw)
+	bool rawUser;	/// Raw values were supplied, avoid fetching
+	bool[1] reserved;	/// 
 }
 
 // One day I'll make this italics.
@@ -88,12 +92,13 @@ void clih() {
 	" ddcpuid [OPTIONS...]\n"~
 	"\n"~
 	"OPTIONS\n"~
-	" -d, --details    (Deprecated) Alias of --all\n"~
 	" -a, --all        Show all processor information\n"~
-	" -r, --table      Show raw CPUID data in a table\n"~
-	" -S               Table: Set leaf (EAX) input value\n"~
-	" -s               Table: Set subleaf (ECX) input value\n"~
+	" -d, --details    (Deprecated) Alias of --all\n"~
+	"     --table      (Deprecated) Alias of --raw\n"~
+	" -S               (Deprecated) Alias of --raw eax, requires --table\n"~
+	" -s               (Deprecated) Alias of --raw eax,ecx, requires --table\n"~
 //	" -D, --dump       Dump CPUID data into binary\n"~
+	" -r, --raw        Display raw CPUID values. Takes optional leaf,subleaf values.\n"~
 	" -o               Override maximum leaves to 0x20, 0x4000_0020, and 0x8000_0020\n"~
 	" -l, --level      (Deprecated) Alias of --baseline\n"~
 	" -b, --baseline   Print the processor's feature level\n"~
@@ -384,17 +389,53 @@ void printCacheFeats(ushort feats) {
 	if (feats & BIT!(4)) printf(" cci"); // Complex Cache Indexing
 }
 
-
+int optionRaw(ref options_t options, const(char) *arg) {
+	enum MAX = 512;
+	
+	version (Trace) trace("arg=%s", arg);
+	
+	options.raw = true;
+	if (arg == null) return 0;
+	
+	char *s = cast(char*)malloc(MAX);
+	if (s == null) {
+		puts(strerror(errno));
+		return 1;
+	}
+	
+	options.rawUser = true;
+	strncpy(s, arg, MAX);
+	arg = strtok(s, ",");
+	version (Trace) trace("token=%s", arg);
+	if (arg == null) {
+		puts("Empty value for leaf");
+		return 1;
+	}
+	sscanf(arg, "%i", &options.maxLevel);
+	arg = strtok(null, ",");
+	version (Trace) trace("token=%s", arg);
+	if (arg)
+		sscanf(arg, "%i", &options.maxSubLevel);
+	free(s);
+	return 0;
+}
 
 //TODO: --no-header for -c/--cpuid
 version (unittest) {} else
 int main(int argc, const(char) **argv) {
 	options_t options;	/// Command-line options
+	int error = void;
 	
 	const(char) *arg = void;
 	for (int argi = 1; argi < argc; ++argi) {
 		if (argv[argi][1] == '-') { // Long arguments
 			arg = argv[argi] + 2;
+			if (strcmp(arg, "raw") == 0) {
+				arg = argi + 1 >= argc ? null : argv[argi + 1];
+				error = optionRaw(options, arg);
+				if (error) return error;
+				continue;
+			}
 			if (strcmp(arg, "table") == 0) {
 				options.table = true;
 				continue;
@@ -451,7 +492,7 @@ int main(int argc, const(char) **argv) {
 						puts("Missing parameter: sub-leaf (-s)");
 						return 1;
 					}
-					if (sscanf(argv[argi], "%i", &options.maxSub) != 1) {
+					if (sscanf(argv[argi], "%i", &options.maxSubLevel) != 1) {
 						puts("Could not parse sub-level (-s)");
 						return 2;
 					}
@@ -468,12 +509,12 @@ int main(int argc, const(char) **argv) {
 	
 	CPUINFO info;
 	
-	if (options.override_ == false) {
-		getLeaves(info);
-	} else {
+	if (options.override_) {
 		info.maxLeaf = MAX_LEAF;
 		info.maxLeafVirt = MAX_VLEAF;
 		info.maxLeafExtended = MAX_ELEAF;
+	} else if (options.rawUser == false) {
+		getLeaves(info);
 	}
 	
 	if (options.table) {
@@ -484,26 +525,51 @@ int main(int argc, const(char) **argv) {
 		"|----------|----------|----------|----------|----------|----------|"
 		);
 		
-		if (options.hasLevel) {
-			for (s = 0; s <= options.maxSub; ++s)
-				outcpuid(options.maxLevel, s);
-			return 0;
-		}
-		
 		// Normal
 		for (l = 0; l <= info.maxLeaf; ++l)
-			for (s = 0; s <= options.maxSub; ++s)
+			for (s = 0; s <= options.maxSubLevel; ++s)
 				outcpuid(l, s);
 		
 		// Paravirtualization
 		if (info.maxLeafVirt > 0x4000_0000)
 		for (l = 0x4000_0000; l <= info.maxLeafVirt; ++l)
-			for (s = 0; s <= options.maxSub; ++s)
+			for (s = 0; s <= options.maxSubLevel; ++s)
 				outcpuid(l, s);
 		
 		// Extended
 		for (l = 0x8000_0000; l <= info.maxLeafExtended; ++l)
-			for (s = 0; s <= options.maxSub; ++s)
+			for (s = 0; s <= options.maxSubLevel; ++s)
+				outcpuid(l, s);
+		return 0;
+	}
+	
+	if (options.raw) {
+		uint l = void, s = void;
+		
+		puts(
+		"| Leaf     | Sub-leaf | EAX      | EBX      | ECX      | EDX      |\n"~
+		"|----------|----------|----------|----------|----------|----------|"
+		);
+		
+		if (options.rawUser) {
+			outcpuid(options.maxLevel, options.maxSubLevel);
+			return 0;
+		}
+		
+		// Normal
+		for (l = 0; l <= info.maxLeaf; ++l)
+			for (s = 0; s <= options.maxSubLevel; ++s)
+				outcpuid(l, s);
+		
+		// Paravirtualization
+		if (info.maxLeafVirt > 0x4000_0000)
+		for (l = 0x4000_0000; l <= info.maxLeafVirt; ++l)
+			for (s = 0; s <= options.maxSubLevel; ++s)
+				outcpuid(l, s);
+		
+		// Extended
+		for (l = 0x8000_0000; l <= info.maxLeafExtended; ++l)
+			for (s = 0; s <= options.maxSubLevel; ++s)
 				outcpuid(l, s);
 		return 0;
 	}

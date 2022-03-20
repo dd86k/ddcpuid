@@ -56,7 +56,7 @@ struct options_t { align(1):
 	bool baseline;	/// Get x86-64 optimization feature level or baseline
 	bool all;	/// Get all processor details
 	bool raw;	/// Raw CPUID value table (-r/--raw)
-	bool rawUser;	/// Raw values were supplied, avoid fetching
+	bool rawInput;	/// Raw values were supplied, avoid fetching
 	bool[1] reserved;	/// 
 }
 
@@ -363,7 +363,7 @@ int optionRaw(ref options_t options, const(char) *arg) {
 		return 1;
 	}
 	
-	options.rawUser = true;
+	options.rawInput = true;
 	strncpy(s, arg, MAX);
 	arg = strtok(s, ",");
 	version (Trace) trace("token=%s", arg);
@@ -448,6 +448,7 @@ int main(int argc, const(char) **argv) {
 						return 1;
 					}
 					options.hasLevel = sscanf(argv[argi], "%i", &options.maxLevel) == 1;
+					options.rawInput = true;
 					if (options.hasLevel == false) {
 						puts("Could not parse level (-S)");
 						return 2;
@@ -462,6 +463,7 @@ int main(int argc, const(char) **argv) {
 						puts("Could not parse sub-level (-s)");
 						return 2;
 					}
+					options.rawInput = true;
 					continue;
 				case 'h': clih; return 0;
 				case 'V': cliv; return 0;
@@ -479,11 +481,11 @@ int main(int argc, const(char) **argv) {
 		info.maxLeaf = MAX_LEAF;
 		info.maxLeafVirt = MAX_VLEAF;
 		info.maxLeafExtended = MAX_ELEAF;
-	} else if (options.rawUser == false) {
+	} else if (options.rawInput == false) {
 		ddcpuid_leaves(info);
 	}
 	
-	if (options.table) {
+	if (options.raw || options.table) {
 		uint l = void, s = void;
 		
 		puts(
@@ -491,33 +493,7 @@ int main(int argc, const(char) **argv) {
 		"|----------|----------|----------|----------|----------|----------|"
 		);
 		
-		// Normal
-		for (l = 0; l <= info.maxLeaf; ++l)
-			for (s = 0; s <= options.maxSubLevel; ++s)
-				outcpuid(l, s);
-		
-		// Paravirtualization
-		if (info.maxLeafVirt > 0x4000_0000)
-		for (l = 0x4000_0000; l <= info.maxLeafVirt; ++l)
-			for (s = 0; s <= options.maxSubLevel; ++s)
-				outcpuid(l, s);
-		
-		// Extended
-		for (l = 0x8000_0000; l <= info.maxLeafExtended; ++l)
-			for (s = 0; s <= options.maxSubLevel; ++s)
-				outcpuid(l, s);
-		return 0;
-	}
-	
-	if (options.raw) {
-		uint l = void, s = void;
-		
-		puts(
-		"| Leaf     | Sub-leaf | EAX      | EBX      | ECX      | EDX      |\n"~
-		"|----------|----------|----------|----------|----------|----------|"
-		);
-		
-		if (options.rawUser) {
+		if (options.rawInput) {
 			outcpuid(options.maxLevel, options.maxSubLevel);
 			return 0;
 		}
@@ -553,7 +529,7 @@ int main(int argc, const(char) **argv) {
 	char *brandstr  = cast(char*)info.brandString;
 	
 	// Brand string left space trimming
-	// Extremely common in Intel but let's also do it for others
+	// While very common in Intel, let's also do it for others (in case of)
 	while (*brandstr == ' ') ++brandstr;
 	
 	CACHEINFO *cache = void;	/// Current cache level

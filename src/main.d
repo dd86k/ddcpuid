@@ -1,8 +1,6 @@
 /**
  * Program entry point.
  *
- * NOTE: printf is mainly used for two reasons.  First, fputs with stdout
- *       crashes on Windows. Secondly, line buffering is used by default.
  *
  * Authors: dd86k (dd@dax.moe)
  * Copyright: © 2016-2022 dd86k
@@ -15,6 +13,12 @@ import core.stdc.errno : errno;
 import core.stdc.stdlib : malloc, free;
 import core.stdc.string : strcmp, strtok, strncpy, strerror;
 import ddcpuid;
+
+// NOTE: printf is used for a few reasons:
+//       - fputs with stdout crashes on Windows due to improper externs.
+//       - line buffering is used by default, which can be an advantage.
+//TODO: Consider using WriteFile+STD_OUTPUT_HANDLE and write(2)+STDOUT_FILENO?
+//      No real benefit than maybe save some instructions
 
 private:
 @system:

@@ -133,13 +133,26 @@ struct REGISTERS {
 
 /// CPU cache entry
 struct CACHEINFO { align(1):
+	this(ubyte level_, char type_, uint kbsize_, ushort shared_,
+		ushort ways_, ushort parts_, ushort lineSize_, uint sets_) {
+		level = level_;
+		type = type_;
+		size = kbsize_;
+		sharedCores = shared_;
+		ways = ways_;
+		partitions = parts_;
+		lineSize = lineSize_;
+		sets = sets_;
+		features = 0;
+	}
+	//TODO: Sort fields (totalSize, coresShared, ways, partitions, lineSize, sets)
 	ushort lineSize;	/// Size of the line in bytes.
 	union {
 		ushort partitions;	/// Number of partitions.
-		ushort lines;	/// AMD legacy way of saying sets.
+		ushort lines;	/// Legacy name of partitions.
 	}
 	ushort ways;	/// Number of ways per line.
-	uint sets; /// Number of cache sets.
+	uint sets; /// Number of cache sets. (Entries)
 	/// Cache size in kilobytes.
 	// (Ways + 1) * (Partitions + 1) * (LineSize + 1) * (Sets + 1)
 	// (EBX[31:22] + 1) * (EBX[21:12] + 1) * (EBX[11:0] + 1) * (ECX + 1)
@@ -701,7 +714,7 @@ private uint ddcpuid_max_leaf() {
 }
 
 private uint ddcpuid_max_leaf_virt() {
-	version (DMD) {
+	version (DMDLDC) {
 		asm {
 			mov EAX,0x4000_0000;
 			cpuid;
@@ -711,16 +724,11 @@ private uint ddcpuid_max_leaf_virt() {
 			"mov 0x40000000,%eax\t\n"~
 			"cpuid";
 		}
-	} else version (LDC) {
-		asm {
-			mov EAX,0x4000_0000;
-			cpuid;
-		}
 	}
 }
 
 private uint ddcpuid_max_leaf_ext() {
-	version (DMD) {
+	version (DMDLDC) {
 		asm {
 			mov EAX,0x8000_0000;
 			cpuid;
@@ -729,11 +737,6 @@ private uint ddcpuid_max_leaf_ext() {
 		asm {
 			"mov 0x80000000,%eax\t\n"~
 			"cpuid";
-		}
-	} else version (LDC) {
-		asm {
-			mov EAX,0x8000_0000;
-			cpuid;
 		}
 	}
 }
@@ -1304,6 +1307,276 @@ void ddcpuid_leaf1(ref CPUINFO info, ref REGISTERS regs) {
 	info.tech.htt	= bit(regs.edx, 28);
 }
 
+//NOTE: Only Intel officially supports CPUID.02h
+//      No dedicated functions to a cache descriptor to avoid a definition.
+pragma(inline, false)
+private
+void ddcpuid_leaf2(ref CPUINFO info, ref REGISTERS regs) {
+	struct leaf2_t {
+		union {
+			REGISTERS registers;
+			ubyte[16] values;
+		}
+	}
+	leaf2_t data = void;
+	
+	if (regs.eax < 0x8000_0000) { // valid bit, adjust byte positions
+		data.values[3] = data.values[2];
+		data.values[2] = data.values[1];
+		data.values[1] = data.values[0];
+	}
+	
+	// Simulate CPUID.04h
+	enum L1I = 0;
+	enum L1D = 1;
+	enum L2 = 2;
+	enum L3 = 3;
+	for (size_t index = 1; index < 16; ++index) {
+		ubyte value = data.values[index];
+		
+		// Cache entries only, the rest is "don't care".
+		// Unless if one day I support looking up TLB data, but AMD does not support this.
+		// continue: Explicitly skip cache, this includes 0x00 (null), 0x40 (no L2 or L3).
+		// break: Valid cache descriptor, increment cache level.
+		//TODO: table + foreach loop
+		with (info.cache) switch (value) {
+		case 0x06: // 1st-level instruction cache: 8 KBytes, 4-way set associative, 32 byte line size
+			level[L1I] = CACHEINFO(1, 'I', 8, 1, 4, 1, 32, 64);
+			break;
+		case 0x08: // 1st-level instruction cache: 16 KBytes, 4-way set associative, 32 byte line size
+			level[L1I] = CACHEINFO(1, 'I', 16, 1, 4, 1, 32, 128);
+			break;
+		case 0x09: // 1st-level instruction cache: 32 KBytes, 4-way set associative, 64 byte line size
+			level[L1I] = CACHEINFO(1, 'I', 32, 1, 4, 1, 64, 128);
+			break;
+		case 0x0A: // 1st-level data cache: 8 KBytes, 2-way set associative, 32 byte line size
+			level[L1D] = CACHEINFO(1, 'D', 8, 1, 2, 1, 32, 128);
+			break;
+		case 0x0C: // 1st-level data cache: 16 KBytes, 4-way set associative, 32 byte line size
+			level[L1D] = CACHEINFO(1, 'D', 16, 1, 4, 1, 32, 128);
+			break;
+		case 0x0D: // 1st-level data cache: 16 KBytes, 4-way set associative, 64 byte line size (ECC?)
+			level[L1D] = CACHEINFO(1, 'D', 16, 1, 4, 1, 64, 64);
+			break;
+		case 0x0E: // 1st-level data cache: 24 KBytes, 6-way set associative, 64 byte line size
+			level[L1D] = CACHEINFO(1, 'D', 24, 1, 6, 1, 64, 64);
+			break;
+		case 0x10: // (sandpile) data L1 cache, 16 KB, 4 ways, 32 byte lines (IA-64)
+			level[L1D] = CACHEINFO(1, 'D', 16, 1, 4, 1, 32, 64);
+			break;
+		case 0x15: // (sandpile) code L1 cache, 16 KB, 4 ways, 32 byte lines (IA-64)
+			level[L1I] = CACHEINFO(1, 'I', 16, 1, 4, 1, 32, 64);
+			break;
+		case 0x1a: // (sandpile) code and data L2 cache, 96 KB, 6 ways, 64 byte lines (IA-64)
+			level[L2] = CACHEINFO(2, 'I', 96, 1, 6, 1, 64, 256);
+			break;
+		case 0x1D: // 2nd-level cache: 128 KBytes, 2-way set associative, 64 byte line size
+			level[L2] = CACHEINFO(2, 'U', 128, 1, 2, 1, 64, 1024);
+			break;
+		case 0x21: // 2nd-level cache: 256 KBytes, 8-way set associative, 64 byte line size
+			level[L2] = CACHEINFO(2, 'U', 256, 1, 8, 1, 64, 512);
+			break;
+		case 0x22: // 3rd-level cache: 512 KBytes, 4-way set associative, 64 byte line size, 2 lines per sector
+			level[L3] = CACHEINFO(3, 'U', 512, 1, 4, 2, 64, 1024);
+			break;
+		case 0x23: // 3rd-level cache: 1 MBytes, 8-way set associative, 64 byte line size, 2 lines per sector
+			level[L3] = CACHEINFO(3, 'U', 1024, 1, 8, 2, 64, 1024);
+			break;
+		case 0x24: // 2nd-level cache: 1 MBytes, 16-way set associative, 64 byte line size
+			level[L2] = CACHEINFO(2, 'U', 1024, 1, 16, 1, 64, 1024);
+			break;
+		case 0x25: // 3rd-level cache: 2 MBytes, 8-way set associative, 64 byte line size, 2 lines per sector
+			level[L3] = CACHEINFO(3, 'U', 2048, 1, 8, 2, 64, 2048);
+			break;
+		case 0x29: // 3rd-level cache: 4 MBytes, 8-way set associative, 64 byte line size, 2 lines per sector
+			level[L3] = CACHEINFO(3, 'U', 4096, 1, 8, 2, 64, 4096);
+			break;
+		case 0x2C: // 1st-level data cache: 32 KBytes, 8-way set associative, 64 byte line size
+			level[L1D] = CACHEINFO(1, 'D', 32, 1, 8, 1, 64, 64);
+			break;
+		case 0x30: // 1st-level instruction cache: 32 KBytes, 8-way set associative, 64 byte line size
+			level[L1I] = CACHEINFO(1, 'I', 32, 1, 8, 1, 64, 64);
+			break;
+		case 0x39: // (sandpile) code and data L2 cache, 128 KB, 4 ways, 64 byte lines, sectored (htt?)
+			level[L2] = CACHEINFO(2, 'U', 128, 1, 4, 1, 64, 512);
+			break;
+		case 0x3A: // (sandpile) code and data L2 cache, 192 KB, 6 ways, 64 byte lines, sectored (htt?)
+			level[L2] = CACHEINFO(2, 'U', 192, 1, 6, 1, 64, 512);
+			break;
+		case 0x3B: // (sandpile) code and data L2 cache, 128 KB, 2 ways, 64 byte lines, sectored (htt?)
+			level[L2] = CACHEINFO(2, 'U', 128, 1, 2, 1, 64, 1024);
+			break;
+		case 0x3C: // (sandpile) code and data L2 cache, 256 KB, 4 ways, 64 byte lines, sectored
+			level[L2] = CACHEINFO(2, 'U', 256, 1, 4, 1, 64, 1024);
+			break;
+		case 0x3D: // (sandpile) code and data L2 cache, 384 KB, 6 ways, 64 byte lines, sectored (htt?)
+			level[L2] = CACHEINFO(2, 'U', 384, 1, 6, 1, 64, 1024);
+			break;
+		case 0x3E: // (sandpile) code and data L2 cache, 512 KB, 4 ways, 64 byte lines, sectored (htt?)
+			level[L2] = CACHEINFO(2, 'U', 512, 1, 4, 1, 64, 2048);
+			break;
+		case 0x41: // 2nd-level cache: 128 KBytes, 4-way set associative, 32 byte line size
+			level[L2] = CACHEINFO(2, 'U', 128, 1, 4, 1, 32, 1024);
+			break;
+		case 0x42: // 2nd-level cache: 256 KBytes, 4-way set associative, 32 byte line size
+			level[L2] = CACHEINFO(2, 'U', 256, 1, 4, 1, 32, 2048);
+			break;
+		case 0x43: // 2nd-level cache: 512 KBytes, 4-way set associative, 32 byte line size
+			level[L2] = CACHEINFO(2, 'U', 512, 1, 4, 1, 32, 4096);
+			break;
+		case 0x44: // 2nd-level cache: 1 MByte, 4-way set associative, 32 byte line size
+			level[L2] = CACHEINFO(2, 'U', 1024, 1, 4, 1, 32, 8192);
+			break;
+		case 0x45: // 2nd-level cache: 2 MByte, 4-way set associative, 32 byte line size
+			level[L2] = CACHEINFO(2, 'U', 2048, 1, 4, 1, 32, 16384);
+			break;
+		case 0x46: // 3rd-level cache: 4 MByte, 4-way set associative, 64 byte line size
+			level[L2] = CACHEINFO(2, 'U', 4096, 1, 4, 1, 64, 16384);
+			break;
+		case 0x47: // 3rd-level cache: 8 MByte, 8-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 8192, 1, 8, 1, 64, 16384);
+			break;
+		case 0x48: // 2nd-level cache: 3 MByte, 12-way set associative, 64 byte line size
+			level[L2] = CACHEINFO(2, 'U', 3072, 1, 12, 1, 64, 4096);
+			break;
+		// 3rd-level cache: 4 MByte, 16-way set associative, 64-byte line size (Intel Xeon processor MP, Family 0FH, Model 06H);			
+		// 2nd-level cache: 4 MByte, 16-way set associative, 64 byte line size
+		case 0x49:
+			if (info.family == 0xf && info.family == 6)
+				level[L3] = CACHEINFO(3, 'U', 4096, 1, 16, 1, 64, 4096);
+			else
+				level[L2] = CACHEINFO(2, 'U', 4096, 1, 16, 1, 64, 4096);
+			break;
+		case 0x4A: // 3rd-level cache: 6 MByte, 12-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 6144, 1, 12, 1, 64, 6144);
+			break;
+		case 0x4B: // 3rd-level cache: 8 MByte, 16-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 8192, 1, 16, 1, 64, 8192);
+			break;
+		case 0x4C: // 3rd-level cache: 12 MByte, 12-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 8192, 1, 12, 1, 64, 16384);
+			break;
+		case 0x4D: // 3rd-level cache: 16 MByte, 16-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 16384, 1, 16, 1, 64, 16384);
+			break;
+		case 0x4E: // 2nd-level cache: 6MByte, 24-way set associative, 64 byte line size
+			level[L2] = CACHEINFO(2, 'U', 6144, 1, 24, 1, 64, 4096);
+			break;
+		case 0x60: // 1st-level data cache: 16 KByte, 8-way set associative, 64 byte line size
+			level[L1D] = CACHEINFO(1, 'D', 16, 1, 8, 1, 64, 32);
+			break;
+		case 0x66: // 1st-level data cache: 8 KByte, 4-way set associative, 64 byte line size
+			level[L1D] = CACHEINFO(1, 'D', 8, 1, 4, 1, 64, 32);
+			break;
+		case 0x67: // 1st-level data cache: 16 KByte, 4-way set associative, 64 byte line size
+			level[L1D] = CACHEINFO(1, 'D', 16, 1, 4, 1, 64, 64);
+			break;
+		case 0x68: // 1st-level data cache: 32 KByte, 4-way set associative, 64 byte line size
+			level[L1D] = CACHEINFO(1, 'D', 32, 1, 4, 1, 64, 128);
+			break;
+		case 0x77: // (sandpile) code L1 cache, 16 KB, 4 ways, 64 byte lines, sectored (IA-64)
+			level[L1I] = CACHEINFO(1, 'I', 16, 1, 4, 1, 64, 64);
+			break;
+		case 0x78: // 2nd-level cache: 1 MByte, 4-way set associative, 64byte line size
+			level[L2] = CACHEINFO(2, 'U', 1024, 1, 4, 1, 64, 4096);
+			break;
+		case 0x79: // 2nd-level cache: 128 KByte, 8-way set associative, 64 byte line size, 2 lines per sector
+			level[L2] = CACHEINFO(2, 'U', 128, 1, 8, 2, 64, 128);
+			break;
+		case 0x7A: // 2nd-level cache: 256 KByte, 8-way set associative, 64 byte line size, 2 lines per sector
+			level[L2] = CACHEINFO(2, 'U', 256, 1, 8, 2, 64, 256);
+			break;
+		case 0x7B: // 2nd-level cache: 512 KByte, 8-way set associative, 64 byte line size, 2 lines per sector
+			level[L2] = CACHEINFO(2, 'U', 512, 1, 8, 2, 64, 512);
+			break;
+		case 0x7C: // 2nd-level cache: 1 MByte, 8-way set associative, 64 byte line size, 2 lines per sector
+			level[L2] = CACHEINFO(2, 'U', 1024, 1, 8, 2, 64, 1024);
+			break;
+		case 0x7D: // 2nd-level cache: 2 MByte, 8-way set associative, 64 byte line size
+			level[L2] = CACHEINFO(2, 'U', 2048, 1, 8, 1, 64, 4096);
+			break;
+		case 0x7E: // (sandpile) code and data L2 cache, 256 KB, 8 ways, 128 byte lines, sect. (IA-64)
+			level[L2] = CACHEINFO(2, 'U', 256, 1, 8, 1, 128, 256);
+			break;
+		case 0x7F: // 2nd-level cache: 512 KByte, 2-way set associative, 64-byte line size
+			level[L2] = CACHEINFO(2, 'U', 512, 1, 2, 1, 64, 4096);
+			break;
+		case 0x80: // 2nd-level cache: 512 KByte, 8-way set associative, 64-byte line size
+			level[L2] = CACHEINFO(2, 'U', 512, 1, 8, 1, 64, 1024);
+			break;
+		case 0x81: // (sandpile) code and data L2 cache, 128 KB, 8 ways, 32 byte lines
+			level[L2] = CACHEINFO(2, 'U', 128, 1, 8, 1, 32, 512);
+			break;
+		case 0x82: // 2nd-level cache: 256 KByte, 8-way set associative, 32 byte line size
+			level[L2] = CACHEINFO(2, 'U', 256, 1, 8, 1, 32, 1024);
+			break;
+		case 0x83: // 2nd-level cache: 512 KByte, 8-way set associative, 32 byte line size
+			level[L2] = CACHEINFO(2, 'U', 512, 1, 8, 1, 32, 2048);
+			break;
+		case 0x84: // 2nd-level cache: 1 MByte, 8-way set associative, 32 byte line size
+			level[L2] = CACHEINFO(2, 'U', 1024, 1, 8, 1, 32, 4096);
+			break;
+		case 0x85: // 2nd-level cache: 2 MByte, 8-way set associative, 32 byte line size
+			level[L2] = CACHEINFO(2, 'U', 2048, 1, 8, 1, 32, 8192);
+			break;
+		case 0x86: // 2nd-level cache: 512 KByte, 4-way set associative, 64 byte line size
+			level[L2] = CACHEINFO(2, 'U', 512, 1, 4, 1, 64, 2048);
+			break;
+		case 0x87: // 2nd-level cache: 1 MByte, 8-way set associative, 64 byte line size
+			level[L2] = CACHEINFO(2, 'U', 1024, 1, 8, 1, 64, 2048);
+			break;
+		case 0xD0: // 3rd-level cache: 512 KByte, 4-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 512, 1, 4, 1, 64, 2048);
+			break;
+		case 0xD1: // 3rd-level cache: 1 MByte, 4-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 1024, 1, 4, 1, 64, 4096);
+			break;
+		case 0xD2: // 3rd-level cache: 2 MByte, 4-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 2048, 1, 4, 1, 64, 8192);
+			break;
+		case 0xD6: // 3rd-level cache: 1 MByte, 8-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 1024, 1, 8, 1, 64, 2048);
+			break;
+		case 0xD7: // 3rd-level cache: 2 MByte, 8-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 2048, 1, 8, 1, 64, 4096);
+			break;
+		case 0xD8: // 3rd-level cache: 4 MByte, 8-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 4096, 1, 8, 1, 64, 8192);
+			break;
+		case 0xDC: // 3rd-level cache: 1.5 MByte, 12-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 1536, 1, 12, 1, 64, 2048);
+			break;
+		case 0xDD: // 3rd-level cache: 3 MByte, 12-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 3072, 1, 12, 1, 64, 4096);
+			break;
+		case 0xDE: // 3rd-level cache: 6 MByte, 12-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 6144, 1, 12, 1, 64, 8192);
+			break;
+		case 0xE2: // 3rd-level cache: 2 MByte, 16-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 2048, 1, 16, 1, 64, 2048);
+			break;
+		case 0xE3: // 3rd-level cache: 4 MByte, 16-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 4096, 1, 16, 1, 64, 4096);
+			break;
+		case 0xE4: // 3rd-level cache: 8 MByte, 16-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 8192, 1, 16, 1, 64, 8192);
+			break;
+		case 0xEA: // 3rd-level cache: 12MByte, 24-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 12288, 1, 24, 1, 64, 8192);
+			break;
+		case 0xEB: // 3rd-level cache: 18MByte, 24-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 18432, 1, 24, 1, 64, 12288);
+			break;
+		case 0xEC: // 3rd-level cache: 24MByte, 24-way set associative, 64 byte line size
+			level[L3] = CACHEINFO(3, 'U', 24576, 1, 24, 1, 64, 16384);
+			break;
+		default: continue;
+		}
+		
+		++info.cache.levels;
+	}
+}
+
 pragma(inline, false)
 private
 void ddcpuid_leaf5(ref CPUINFO info, ref REGISTERS regs) {
@@ -1715,6 +1988,7 @@ void ddcpuid_topology(ref CPUINFO info) {
 		if (info.maxLeaf >= 0xb)  goto L_CACHE_INTEL_BH;
 		if (info.maxLeaf >= 4)    goto L_CACHE_INTEL_4H;
 		// Celeron 0xf34 has maxLeaf=03h and ext=8000_0008h
+		if (info.maxLeaf >= 2)    goto L_CACHE_INTEL_2H;
 		if (info.maxLeafExtended >= 0x8000_0005) goto L_CACHE_AMD_EXT_5H;
 		break;
 		
@@ -1770,6 +2044,11 @@ L_CACHE_INTEL_4H:
 		
 		++info.cache.levels; ++ca;
 		goto L_CACHE_INTEL_4H;
+
+L_CACHE_INTEL_2H:
+		ddcpuid_id(regs, 2);
+		ddcpuid_leaf2(info, regs);
+		break;
 	case AMD:
 		if (info.maxLeafExtended >= 0x8000_001D) goto L_CACHE_AMD_EXT_1DH;
 		if (info.maxLeafExtended >= 0x8000_0005) goto L_CACHE_AMD_EXT_5H;

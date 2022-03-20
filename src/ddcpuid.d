@@ -1577,7 +1577,6 @@ void ddcpuid_leaf2(ref CPUINFO info, ref REGISTERS regs) {
 				level[i] = level[i+1];
 			}
 			level[levels] = CACHEINFO.init;
-			--levels;
 		}
 	}
 }

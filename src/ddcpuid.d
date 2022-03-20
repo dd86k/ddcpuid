@@ -52,7 +52,7 @@ version (DigitalMars) {
 	version = DMDLDC;	// DMD or LDC compilers
 } else static assert(0, "Unsupported compiler");
 
-enum DDCPUID_VERSION   = "0.20.0-rc";	/// Library version
+enum DDCPUID_VERSION   = "0.20.0-rc.3";	/// Library version
 private enum CACHE_LEVELS = 6;	/// For buffer
 private enum CACHE_MAX_LEVEL = CACHE_LEVELS - 1;
 
@@ -1322,18 +1322,12 @@ void ddcpuid_leaf2(ref CPUINFO info, ref REGISTERS regs) {
 	
 	data.registers = regs;
 	
-	if (regs.eax < 0x8000_0000) { // valid bit, adjust byte positions
-		data.values[3] = data.values[2];
-		data.values[2] = data.values[1];
-		data.values[1] = data.values[0];
-	}
-	
-	// Simulate CPUID.04h
 	enum L1I = 0;
 	enum L1D = 1;
 	enum L2 = 2;
 	enum L3 = 3;
-	for (size_t index = 1; index < 16; ++index) {
+	// Skips value in AL
+	with (info.cache) for (size_t index = 1; index < 16; ++index) {
 		ubyte value = data.values[index];
 		
 		// Cache entries only, the rest is "don't care".
@@ -1341,7 +1335,7 @@ void ddcpuid_leaf2(ref CPUINFO info, ref REGISTERS regs) {
 		// continue: Explicitly skip cache, this includes 0x00 (null), 0x40 (no L2 or L3).
 		// break: Valid cache descriptor, increment cache level.
 		//TODO: table + foreach loop
-		with (info.cache) switch (value) {
+		switch (value) {
 		case 0x06: // 1st-level instruction cache: 8 KBytes, 4-way set associative, 32 byte line size
 			level[L1I] = CACHEINFO(1, 'I', 8, 1, 4, 1, 32, 64);
 			break;
@@ -1575,7 +1569,47 @@ void ddcpuid_leaf2(ref CPUINFO info, ref REGISTERS regs) {
 		default: continue;
 		}
 		
-		++info.cache.levels;
+		++levels;
+	}
+	with (info.cache) { // Some do not have L1I
+		if (level[0].level == 0) {
+			for (size_t i; i < levels; ++i) {
+				level[i] = level[i+1];
+			}
+			level[levels] = CACHEINFO.init;
+			--levels;
+		}
+	}
+}
+
+version (TestCPUID02h) @system unittest {
+	import std.stdio : write, writeln, writef;
+	REGISTERS regs; // Celeron 0xf34
+	regs.eax = 0x605b5101;
+	regs.ebx = 0;
+	regs.ecx = 0;
+	regs.edx = 0x3c7040;
+	
+	CPUINFO info;
+	ddcpuid_leaf2(info, regs);
+	
+	writeln("TEST: CPUID.02h");
+	CACHEINFO *cache = void;
+	for (uint i; i < CACHE_MAX_LEVEL; ++i) {
+		cache = &info.cache.level[i];
+		writef("Level %u-%c   : %2ux %6u KiB, %u ways, %u parts, %u B, %u sets",
+			cache.level, cache.type, cache.sharedCores, cache.size,
+			cache.ways, cache.partitions, cache.lineSize, cache.sets
+		);
+		if (cache.features) {
+			write(',');
+			if (cache.features & BIT!(0)) write(" si"); // Self Initiative
+			if (cache.features & BIT!(1)) write(" fa"); // Fully Associative
+			if (cache.features & BIT!(2)) write(" nwbv"); // No Write-Back Validation
+			if (cache.features & BIT!(3)) write(" ci"); // Cache Inclusive
+			if (cache.features & BIT!(4)) write(" cci"); // Complex Cache Indexing
+		}
+		writeln;
 	}
 }
 

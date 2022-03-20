@@ -539,13 +539,15 @@ int main(int argc, const(char) **argv) {
 	//
 	
 	if (options.all == false) {
+		const(char) *s_cores = info.cores.physical == 1 ? "core" : "cores";
+		const(char) *s_threads = info.cores.logical == 1 ? "thread" : "threads";
 		with (info) printf(
 		"Name:        %.12s %.48s\n"~
 		"Identifier:  Family 0x%x Model 0x%x Stepping 0x%x\n"~
-		"Cores:       %u cores, %u threads\n",
+		"Cores:       %u %s, %u %s\n",
 		vendorstr, brandstr,
 		family, model, stepping,
-		cores.physical, cores.logical,
+		cores.physical, s_cores, cores.logical, s_threads
 		);
 		
 		if (info.memory.physBits || info.memory.lineBits) {

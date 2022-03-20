@@ -1320,6 +1320,8 @@ void ddcpuid_leaf2(ref CPUINFO info, ref REGISTERS regs) {
 	}
 	leaf2_t data = void;
 	
+	data.registers = regs;
+	
 	if (regs.eax < 0x8000_0000) { // valid bit, adjust byte positions
 		data.values[3] = data.values[2];
 		data.values[2] = data.values[1];

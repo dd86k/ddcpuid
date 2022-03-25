@@ -4,20 +4,21 @@ ddcpuid is a x86 processor information tool.
 
 ```shell
 $ ddcpuid # Summary is the default mode
-Name:        GenuineIntel Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
-Identifier:  Family 0x6 Model 0x3a Stepping 0x9
-Cores:       4 cores 8 threads
-Max. Memory: 64GB physical 256TB virtual
-Techs:       x86-64-v2 EIST TurboBoost Intel-TXT/SMX HTT
-SSE:         SSE SSE2 SSE3 SSSE3 SSE4.1 SSE4.2
-AVX:         AVX
+Name:        AuthenticAMD AMD Ryzen 9 5950X 16-Core Processor            
+Identifier:  Family 0x19 Model 0x21 Stepping 0x0
+Cores:       16 cores, 32 threads
+Max. Memory: 256 TiB physical, 256 TiB virtual
+Baseline:    x86-64-v3
+Techs:       core-performance-boost htt
+Extensions:  x87/fpu +f16c mmx extmmx amd64/x86-64 +lahf64 amd-v/vmx +svm=v1 aes-ni adx sha bmi1 bmi2
+SSE:         sse sse2 sse3 ssse3 sse4.2 sse4a
+AVX:         avx avx2
 AMX:         None
-Others:      x87/FPU +F16C MMX AES-NI
-Mitigations: IBRS STIBP SSBD L1D_FLUSH MD_CLEAR
-Cache L1-D:  4x 32KB    (128KB)  SI
-Cache L1-I:  4x 32KB    (128KB)  SI
-Cache L2-U:  4x 256KB   (1MB)    SI
-Cache L3-U:  1x 8MB     (8MB)    SI CI CCI
+Mitigations: ibpb ibrs ibrs_pref stibp stibp_on ssbd
+Cache L1-D:   16x   32 KiB,  512 KiB total, si
+Cache L1-I:   16x   32 KiB,  512 KiB total, si
+Cache L2-U:   16x  512 KiB,    8 MiB total, si ci
+Cache L3-U:    2x   32 MiB,   64 MiB total, si nwbv
 ```
 
 - Can be used as a stand-alone tool or as a library. DUB compatible.
@@ -38,72 +39,115 @@ Officially supports these vendors:
 - `"VBoxVBoxVBox"` - VirtualBox Hyper-V interface
 - `"\0\0\0\0\0\0\0\0\0\0\0\0"` - VirtualBox minimal interface
 
-# 1. Output Examples
+NOTE: Features may be influenced by the virtual environment.
+
+# 1. Usage Examples
 
 ## 1.1. In a Virtual Guest with 2 Cores Allocated
 
 ```shell
 $ ddcpuid
-Name:        GenuineIntel Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
-Identifier:  Family 0x6 Model 0x3a Stepping 0x9
-Cores:       2 cores 2 threads
-Max. Memory: 64GB physical 256TB virtual
-Techs:       x86-64 HTT
-SSE:         SSE SSE2 SSE3 SSSE3 SSE4.2
-AVX:         AVX
+Name:        AuthenticAMD AMD Ryzen 9 5950X 16-Core Processor            
+Identifier:  Family 0x19 Model 0x21 Stepping 0x0
+Cores:       1 core, 2 threads
+Max. Memory: 256 TiB physical, 256 TiB virtual
+Baseline:    x86-64
+Techs:       htt
+Extensions:  x87/fpu mmx extmmx amd64/x86-64 +lahf64 amd-v/vmx +svm=v1 aes-ni
+SSE:         sse sse2 sse3 ssse3 sse4.2 sse4a
+AVX:         avx avx2
 AMX:         None
-Others:      x87/FPU MMX AES-NI
-Mitigations: L1D_FLUSH MD_CLEAR
-ParaVirt.:   Hyper-V
-Cache L1-D:  2x 32KB    (64KB)   SI
-Cache L1-I:  2x 32KB    (64KB)   SI
-Cache L2-U:  2x 256KB   (512KB)  SI
-Cache L3-U:  2x 8MB     (16MB)   SI CI CCI
+Mitigations:
+ParaVirt.:   KVM
+Cache L1-D:    1x   32 KiB,   32 KiB total, si
+Cache L1-I:    1x   32 KiB,   32 KiB total, si
+Cache L2-U:    1x  512 KiB,  512 KiB total, si ci
+Cache L3-U:    1x   32 MiB,   32 MiB total, si nwbv
 ```
 
-NOTE: Features may be influenced by the virtual environment.
+## 1.2. Baseline
 
-## 1.3. Feature Level
+Under 32-bit hosts, this mode outputs one of the following values:
+`i486`, `i586`, or `i686`.
+
+Under 64-bit hosts, this mode outputs one of the following values:
+`x86-64`, `x86-64-v2`, `x86-64-v3`, or `x86-64-v4`.
+
+Example:
+```
+$ ddcpuid --baseline
+x86-64-v3
+```
+
+## 1.3. Raw CPUID Table on Host Computer
 
 ```
-$ ddcpuid --level
-x86-64-v2
-```
-
-## 1.4. Default CPUID Table on Host Computer
-
-```
-$ ddcpuid --table
+$ ddcpuid --raw
 | Leaf     | Sub-leaf | EAX      | EBX      | ECX      | EDX      |
 |----------|----------|----------|----------|----------|----------|
-|        0 |        0 |        d | 756e6547 | 6c65746e | 49656e69 |
-|        1 |        0 |    306a9 |  5100800 | 7fbae3ff | bfebfbff |
-|        2 |        0 | 76035a01 |   f0b2ff |        0 |   ca0000 |
+|        0 |        0 |       10 | 68747541 | 444d4163 | 69746e65 |
+|        1 |        0 |   a20f10 | 1d200800 | 7ed8320b | 178bfbff |
+|        2 |        0 |        0 |        0 |        0 |        0 |
 |        3 |        0 |        0 |        0 |        0 |        0 |
-|        4 |        0 | 1c004121 |  1c0003f |       3f |        0 |
-|        5 |        0 |       40 |       40 |        3 |     1120 |
-|        6 |        0 |       77 |        2 |        9 |        0 |
-|        7 |        0 |        0 |      281 |        0 | 9c000400 |
+|        4 |        0 |        0 |        0 |        0 |        0 |
+|        5 |        0 |       40 |       40 |        3 |       11 |
+|        6 |        0 |        4 |        0 |        1 |        0 |
+|        7 |        0 |        0 | 219c97a9 |   40069c |       10 |
 |        8 |        0 |        0 |        0 |        0 |        0 |
 |        9 |        0 |        0 |        0 |        0 |        0 |
-|        a |        0 |  7300403 |        0 |        0 |      603 |
-|        b |        0 |        1 |        2 |      100 |        4 |
+|        a |        0 |        0 |        0 |        0 |        0 |
+|        b |        0 |        1 |        2 |      100 |       1d |
 |        c |        0 |        0 |        0 |        0 |        0 |
-|        d |        0 |        7 |      340 |      340 |        0 |
-| 80000000 |        0 | 80000008 |        0 |        0 |        0 |
-| 80000001 |        0 |        0 |        0 |        1 | 28100800 |
-| 80000002 |        0 | 20202020 | 20202020 | 65746e49 | 2952286c |
-| 80000003 |        0 | 726f4320 | 4d542865 | 37692029 | 3737332d |
-| 80000004 |        0 | 50432030 | 20402055 | 30342e33 |   7a4847 |
-| 80000005 |        0 |        0 |        0 |        0 |        0 |
-| 80000006 |        0 |        0 |        0 |  1006040 |        0 |
-| 80000007 |        0 |        0 |        0 |        0 |      100 |
-| 80000008 |        0 |     3024 |        0 |        0 |        0 |
+|        d |        0 |      207 |      988 |      988 |        0 |
+|        e |        0 |        0 |        0 |        0 |        0 |
+|        f |        0 |        0 |       ff |        0 |        2 |
+|       10 |        0 |        0 |        2 |        0 |        0 |
+| 80000000 |        0 | 80000023 | 68747541 | 444d4163 | 69746e65 |
+| 80000001 |        0 |   a20f10 | 20000000 | 75c237ff | 2fd3fbff |
+| 80000002 |        0 | 20444d41 | 657a7952 | 2039206e | 30353935 |
+| 80000003 |        0 | 36312058 | 726f432d | 72502065 | 7365636f |
+| 80000004 |        0 | 20726f73 | 20202020 | 20202020 |   202020 |
+| 80000005 |        0 | ff40ff40 | ff40ff40 | 20080140 | 20080140 |
+| 80000006 |        0 | 48002200 | 68004200 |  2006140 |  2009140 |
+| 80000007 |        0 |        0 |       3b |        0 |     6799 |
+| 80000008 |        0 |     3030 | 111ef657 |     501f |    10000 |
+| 80000009 |        0 |        0 |        0 |        0 |        0 |
+| 8000000a |        0 |        1 |     8000 |        0 | 101bbcff |
+| 8000000b |        0 |        0 |        0 |        0 |        0 |
+| 8000000c |        0 |        0 |        0 |        0 |        0 |
+| 8000000d |        0 |        0 |        0 |        0 |        0 |
+| 8000000e |        0 |        0 |        0 |        0 |        0 |
+| 8000000f |        0 |        0 |        0 |        0 |        0 |
+| 80000010 |        0 |        0 |        0 |        0 |        0 |
+| 80000011 |        0 |        0 |        0 |        0 |        0 |
+| 80000012 |        0 |        0 |        0 |        0 |        0 |
+| 80000013 |        0 |        0 |        0 |        0 |        0 |
+| 80000014 |        0 |        0 |        0 |        0 |        0 |
+| 80000015 |        0 |        0 |        0 |        0 |        0 |
+| 80000016 |        0 |        0 |        0 |        0 |        0 |
+| 80000017 |        0 |        0 |        0 |        0 |        0 |
+| 80000018 |        0 |        0 |        0 |        0 |        0 |
+| 80000019 |        0 | f040f040 | f0400000 |        0 |        0 |
+| 8000001a |        0 |        6 |        0 |        0 |        0 |
+| 8000001b |        0 |      3ff |        0 |        0 |        0 |
+| 8000001c |        0 |        0 |        0 |        0 |        0 |
+| 8000001d |        0 |     4121 |  1c0003f |       3f |        0 |
+| 8000001e |        0 |       1d |      10e |        0 |        0 |
+| 8000001f |        0 |    1780f |      173 |      1fd |        1 |
+| 80000020 |        0 |        0 |        2 |        0 |        0 |
+| 80000021 |        0 |       4d |        0 |        0 |        0 |
+| 80000022 |        0 |        0 |        0 |        0 |        0 |
+| 80000023 |        0 |        0 |        0 |        0 |        0 |
 ```
 
-## 1.5. Detailed information output
+## 1.4. All Information Output
 
-For more information in the fashion of cpuid(1), use the `-d` or `--details` switches.
+For more information in the fashion of Linux's `/proc/cpuinfo`,
+use the `-a` or `--all` switches. Warning, this really outputs a lot of
+information!
+
+This mode really includes all processor information, including paravirtualization
+features and Hyper-V's extremely long list of feature bits, if detected.
 
 # 2. Compiling
 

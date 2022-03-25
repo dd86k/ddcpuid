@@ -1168,6 +1168,12 @@ VirtVendor ddcpuid_virt_vendor_id(ref VirtVendorString vendor) {
 	}
 }
 
+@system unittest {
+	VirtVendorString vendor;
+	vendor.string_ = "KVMKVMKVM\0\0\0";
+	assert(ddcpuid_virt_vendor_id(vendor) == VirtVendor.KVM);
+}
+
 pragma(inline, false)
 private
 void ddcpuid_model_string(ref CPUINFO info) {

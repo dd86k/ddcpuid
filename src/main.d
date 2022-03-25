@@ -1,7 +1,6 @@
 /**
  * Program entry point.
  *
- *
  * Authors: dd86k (dd@dax.moe)
  * Copyright: © 2016-2022 dd86k
  * License: MIT
@@ -383,14 +382,15 @@ int main(int argc, const(char) **argv) {
 	options_t options; /// Command-line options
 	int error = void;
 	
-	const(char) *arg = void; /// Temp argument holder
+	const(char) *arg = void;	/// Temp argument holder
+	const(char) *val = void;	/// Temp value holder
 	for (int argi = 1; argi < argc; ++argi) {
 		if (argv[argi][1] == '-') { // Long arguments
 			arg = argv[argi] + 2;
 			if (strcmp(arg, "raw") == 0) {
-				arg = argi + 1 >= argc ? null : argv[argi + 1];
-				if (arg && arg[0] == '-') arg = null;
-				error = optionRaw(options, arg);
+				val = argi + 1 >= argc ? null : argv[argi + 1];
+				if (val && val[0] == '-') val = null;
+				error = optionRaw(options, val);
 				if (error) return error;
 				continue;
 			}
@@ -434,9 +434,9 @@ int main(int argc, const(char) **argv) {
 				case 'b', 'l': options.baseline = true; continue;
 				case 'o': options.override_ = true; continue;
 				case 'r':
-					arg = argi + 1 >= argc ? null : argv[argi + 1];
-					if (arg && arg[0] == '-') arg = null;
-					error = optionRaw(options, arg);
+					val = argi + 1 >= argc ? null : argv[argi + 1];
+					if (val && val[0] == '-') val = null;
+					error = optionRaw(options, val);
 					if (error) return error;
 					continue;
 				case 'S':

@@ -230,7 +230,7 @@ void printTechs(ref CPUINFO info) {
 			// NOTE: SGX system configuration
 			//       "enabled" in BIOS: only CPUID.7h.EBX[2]
 			//       "user controlled" in BIOS: SGX1/SGX2/size bits
-			if (info.sgx.sgx1 && info.sgx.sgx2) {
+			if (info.sgx.sgx1 || info.sgx.sgx2) {
 				if (info.sgx.sgx1) printf(" sgx1");
 				if (info.sgx.sgx2) printf(" sgx2");
 			} else printf(" sgx"); // Fallback per-say

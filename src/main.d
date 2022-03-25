@@ -205,9 +205,6 @@ void printLegacy(ref CPUINFO info) {
 		if (info.extensions._3DNowExtended) printf(" ext3dnow!");
 	}
 }
-void printExtensions(ref CPUINFO info) {
-	
-}
 void printTechs(ref CPUINFO info) {
 	switch (info.vendor.id) with (Vendor) {
 	case Intel:

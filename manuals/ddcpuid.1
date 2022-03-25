@@ -2,20 +2,19 @@
 ." Please read man-pages(7) and groff_man(7) about the manual page format.
 ." Don't forget to respect the format of this document!
 ."
-.TH ddcpuid 1 "November 2021" dd86k "User manual"
+.TH ddcpuid 1 "March 2022" dd86k "User manual"
 .SH NAME
 ddcpuid - x86/AMD64 CPUID information tool
 
 .SH SYNOPSIS
 .SY ddcpuid
-.OP \-d
-.OP \-r
+.OP \-a
+.OP \-r [LEVEL[,SUBLEVEL]]
 .OP \-o
-.OP \-s SUBLEAF
-.OP \-l
-.OP \--details
-.OP \--level
-.OP \--table
+.OP \-b
+.OP \--all
+.OP \--baseline
+.OP \--raw [LEVEL[,SUBLEVEL]]
 .OP \--version
 .OP \--ver
 .OP \--help
@@ -30,31 +29,22 @@ available in documentation. Only Intel and AMD processors are supported.
 Some paravirtualization interfaces are supported (notably Hyper-V, KVM,
 and the VBox Minimal interfaces).
 
-The following is reported:
+By default, the following is reported:
 
 .EX
 - Vendor and Brand strings
 - Identification numbers
-- Core information
-- x86 extensions (e.g. MMX, AVX, etc.)
-- Stand-alone instructions (e.g. RDRAND)
-- Cache information
-  - Cache level information
-- ACPI features
-- Virtualization features
-  - Paravirtualization interface features
-- Memory features
-- Debugging features
-- Security features
-- Miscellaneous details
-  - CPUID Leaves
-  - Type
-  - Index
-  - xTPR
-  - PBE
-  - LAHF64+SAHF64
-  - FSGSBASE
-  - And more!
+- Core/thread information
+- Maximum amount of memory supported
+- Baseline
+- Technologies
+- Legacy and generic extensions
+- SSE extensions
+- AVX extensions
+- AMX extensions
+- Security mitigations
+- Paravirtualization interface, if detected
+- Cache topology
 .EE
 
 ." TODO: Sort options alphabetically
@@ -69,33 +59,30 @@ Show version screen and exit.
 .IP --ver
 Show version only and exit.
 
-.IP -d, --details
-Print much more information in details.
+.IP -a,--all
+Print all available processor information.
 
-This is meant for technical users.
+This is best suited for software developers.
 
 .IP -o
-Overrides leaves to 20h, 4000_0020h, and 8000_0020h. Affects feature
-scanning and -r.
+Overrides leaves to 0x40h, 0x4000_0040, and 0x8000_0040. Affects feature
+scanning and -r/--raw.
 
-.IP -r, --table
+.IP -r,--raw
 Print a raw table of CPUID data. The table is Markdown-compatible.
+
+Also accepts optional leaf/subleaf inputs.
 
 Note: Default, the sub-leaf input (ECX) is cleared.
 
-.IP -s
-Provide how many sub-leaves (ECX) to travel. Applies for -r.
+.IP -b,--baseline
 
-.IP -l, --level
-
-Show which x86-64 feature level the processor fits in.
-
-When no levels are available, "none" is printed.
+Show which baseline the processor fits in.
 
 No error codes are set.
 
 .SH NOTES
-This man-page was written for ddcpuid 0.19. The full technical manual contains
+This man-page was written for ddcpuid 0.20. The full technical manual contains
 more details, such as explanations to intel and amd technologies, as well as
 various extensions in detail.
 

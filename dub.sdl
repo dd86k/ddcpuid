@@ -51,6 +51,12 @@ buildType "release-nobounds" {
 	dflags "-betterC" platform="ldc"
 }
 
+buildType "release-static" {
+	toolchainRequirements ldc=">=1.0.0"
+	buildOptions "releaseMode" "optimize" "inline" "noBoundsCheck"
+	dflags "-betterC" "--static" platform="ldc"
+}
+
 # Temp
 buildType "preview-int-promote" {
 	buildOptions "unittests" "debugMode" "debugInfo"

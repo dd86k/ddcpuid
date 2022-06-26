@@ -1,6 +1,6 @@
 # ddcpuid, CPUID tool
 
-ddcpuid is a x86 processor information tool.
+ddcpuid is a x86 processor information tool and library.
 
 ```shell
 $ ddcpuid # Summary is the default mode
@@ -67,17 +67,28 @@ Cache L3-U:    1x   32 MiB,   32 MiB total, si nwbv
 
 ## 1.2. Baseline
 
-Under 32-bit hosts, this mode outputs one of the following values:
-`i486`, `i586`, or `i686`.
+While displayed in the default operating mode, the `--baseline` option
+can be useful in compiltation scripts.
 
-Under 64-bit hosts, this mode outputs one of the following values:
-`x86-64`, `x86-64-v2`, `x86-64-v3`, or `x86-64-v4`.
+WARNING: This depends on the capabilities of the processor regardless
+of the operating system. Results may vary.
 
-Example:
+WARNING: The compilation baseline for DMD and LDC is the Pentium Pro (i686).
+No guaranties are given for detecting i486 and i586 family processors.
+
+### Example
+
 ```
 $ ddcpuid --baseline
 x86-64-v3
 ```
+
+### Values
+
+| Machine | Values |
+|---|---|
+| 32-bit | `i486`, `i586`, or `i686` |
+| 64-bit | `x86-64`, `x86-64-v2`, `x86-64-v3`, or `x86-64-v4` |
 
 ## 1.3. Raw CPUID Table on Host Computer
 
@@ -164,14 +175,13 @@ Compilers supported:
 
 Using dub(1) is rather straightforward.
 
-Once installed, navigate to the root directory of the project and to perform a
-debug build, simply do: `dub build`
+Recommended builds for releases:
+- DMD: `dub build -b release-nobounds --compiler=dmd`
+- GDC: `dub build -b release-nobounds-gdc --compiler=gdc`
+  - For GDC <=10: `dub build -b release-nobounds --compiler=gdc`
+- LDC: `dub build -b release-nobounds --compiler=ldc2`
 
-For a release build: `dub build -b release-nobounds`
-
-To select a different compiler: `dub build --compiler=ldc2`
-
-For more information, visit [this page](https://dub.pm/commandline.html).
+For more information how to use DUB, visit [this page](https://dub.pm/commandline.html).
 
 ## 2.2. Makefile
 

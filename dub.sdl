@@ -1,24 +1,27 @@
 name "ddcpuid"
 description "x86 processor information library and application"
 authors "dd86k <dd@dax.moe>"
-copyright "Copyright © 2016-2021, dd86k"
+copyright "Copyright © 2016-2022, dd86k"
 license "MIT"
+
+#
+# Debug builds
+#
 
 # Trace build
 buildType "trace" {
 	versions "Trace"
 	buildOptions "debugMode" "debugInfo"
-	dflags "-betterC" platform="dmd"
-	dflags "-betterC" platform="ldc"
+	dflags "-betterC" "-v" platform="dmd"
+	dflags "-betterC" "-v" platform="ldc"
+	dflags "-v" platform="gdc"
 }
-
 # Debug build
 buildType "debug" {
 	buildOptions "debugMode" "debugInfo"
 	dflags "-betterC" platform="dmd"
 	dflags "-betterC" platform="ldc"
 }
-
 # Debug build with verbose output
 buildType "debugv" {
 	versions "PrintInfo" "Trace"
@@ -27,7 +30,6 @@ buildType "debugv" {
 	dflags "-betterC" "--vgc" platform="ldc"
 	dflags "-ftransition=nogc" "-ftransition=tls" platform="gdc"
 }
-
 # For much older compiler versions
 buildType "debugv0" {
 	versions "PrintInfo" "Trace"
@@ -37,29 +39,45 @@ buildType "debugv0" {
 	dflags "-ftransition=nogc" "-ftransition=tls" "-fno-exceptions" "-fno-bounds-check" "-fno-assert" "-fno-builtin" platform="gdc"
 }
 
-# Release build, optimized
+#
+# Release builds
+#
+
+# Release build
 buildType "release" {
 	buildOptions "releaseMode" "optimize" "inline"
 	dflags "-betterC" platform="dmd"
 	dflags "-betterC" platform="ldc"
 }
-
-# Release build, optimized with no bound checking
+# Release build specific to GDC for version 11 and above
+buildType "release-gdc" {
+	toolchainRequirements gdc=">=11.0.0"
+	buildOptions "releaseMode" "optimize" "inline"
+	dflags "-fno-druntime" platform="gdc"
+}
+# Release build, without bound checking
+# GDC <=10 's -fno-druntime can't compile, linker issues
 buildType "release-nobounds" {
 	buildOptions "releaseMode" "optimize" "inline" "noBoundsCheck"
 	dflags "-betterC" platform="dmd"
 	dflags "-betterC" platform="ldc"
 }
+# Release build, without bound checking, for GDC >=11.0.0
+buildType "release-nobounds-gdc" {
+	toolchainRequirements gdc=">=11.0.0"
+	buildOptions "releaseMode" "optimize" "inline" "noBoundsCheck"
+	dflags "-fno-druntime" platform="gdc"
+}
 
-buildType "release-static" {
+# Release build, static executable, for LDC
+buildType "release-nobounds-static-ldc" {
 	toolchainRequirements ldc=">=1.0.0"
 	buildOptions "releaseMode" "optimize" "inline" "noBoundsCheck"
 	dflags "-betterC" "--static" platform="ldc"
 }
-
-# Temp
-buildType "preview-int-promote" {
-	buildOptions "unittests" "debugMode" "debugInfo"
-	dflags "-betterC" "-preview=intpromote" platform="dmd"
-	dflags "-betterC" "-preview=intpromote" platform="ldc"
+# Release build, static executable, for GDC
+buildType "release-nobounds-static-gdc" {
+	toolchainRequirements gdc=">=11.0.0"
+	buildOptions "releaseMode" "optimize" "inline" "noBoundsCheck"
+	dflags "-fno-druntime" "-static" platform="gdc"
 }

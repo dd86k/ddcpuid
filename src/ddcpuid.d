@@ -29,8 +29,23 @@
  */
 module ddcpuid;
 
-// NOTE: GAS syntax reminder
-//       asm { "asm;\n\t" : "constraint" output : "constraint" input : clobbers }
+// NOTE: GAS syntax crash course
+//       While ';' and '\n\t' are accepted, GNU typically recommends the
+//       latter for readability in output. (Don't know if this affects binaries)
+//       syntax:
+//       asm { "statement\n\t"
+//             : "constraint" (output), ...
+//             : "constraint" (input), ...
+//             : "clobbers", ... }
+//       constraints:
+//       - "r": register
+//       - "a","b","c","d": AX, BX, CX, or DX respectively
+//       - "m": memory
+//       - "i": immediate (known at compile-time)
+//       - "0",...: Use same constraint as operand n
+//       constraint modifiers (for output):
+//       - "=": Write-only
+//       - "+": Read-write
 
 @system:
 extern (C):
@@ -629,15 +644,18 @@ private bool bit(uint val, int pos) pure @safe {
 }
 
 @safe unittest {
-	assert(bit(2, 1)); // bit 1 of 2 is set (2[1], so 0b11[1])
+	assert( bit(0b10, 1));
+	assert(!bit(   0, 1));
 }
+
+// Both LDC and GDC are affected by inlining way too much
+pragma(inline, false):
 
 /// Query processor with CPUID.
 /// Params:
 ///   regs = REGISTERS structure
 ///   level = Leaf (EAX)
 ///   sublevel = Sub-leaf (ECX)
-pragma(inline, false)
 void ddcpuid_id(ref REGISTERS regs, uint level, uint sublevel = 0) {
 	version (DMD) {
 		version (X86) asm {
@@ -721,7 +739,7 @@ private uint ddcpuid_max_leaf_virt() {
 		}
 	} else version (GDC) {
 		asm {
-			"mov 0x40000000,%eax\t\n"~
+			"mov $0x40000000,%eax\t\n"~
 			"cpuid";
 		}
 	}
@@ -735,7 +753,7 @@ private uint ddcpuid_max_leaf_ext() {
 		}
 	} else version (GDC) {
 		asm {
-			"mov 0x80000000,%eax\t\n"~
+			"mov $0x80000000,%eax\t\n"~
 			"cpuid";
 		}
 	}
@@ -743,27 +761,25 @@ private uint ddcpuid_max_leaf_ext() {
 
 /// Get CPU leaf levels.
 /// Params: info = CPUINFO structure
-pragma(inline, false)
 void ddcpuid_leaves(ref CPUINFO info) {
 	info.maxLeaf = ddcpuid_max_leaf;
 	info.maxLeafVirt = ddcpuid_max_leaf_virt;
 	info.maxLeafExtended = ddcpuid_max_leaf_ext;
 }
 
-pragma(inline, false)
 private
 void ddcpuid_vendor(ref char[12] string_) {
 	version (DMD) {
 		version (X86) asm {
 			mov EDI, string_;
-			mov EAX, 0;
+			xor EAX, EAX;
 			cpuid;
 			mov [EDI], EBX;
 			mov [EDI + 4], EDX;
 			mov [EDI + 8], ECX;
 		} else asm { // x86-64
 			mov RDI, string_;
-			mov EAX, 0;
+			xor EAX,EAX;
 			cpuid;
 			mov [RDI], EBX;
 			mov [RDI + 4], EDX;
@@ -772,7 +788,7 @@ void ddcpuid_vendor(ref char[12] string_) {
 	} else version (GDC) {
 		version (X86) asm {
 			"lea %0, %%edi\n\t"~
-			"mov $0, %%eax\n\t"~
+			"xor %%eax, %%eax\n\t"~
 			"cpuid\n"~
 			"mov %%ebx, (%%edi)\n\t"~
 			"mov %%edx, 4(%%edi)\n\t"~
@@ -782,7 +798,7 @@ void ddcpuid_vendor(ref char[12] string_) {
 			: "edi", "eax", "ebx", "ecx", "edx";
 		} else asm { // x86-64
 			"lea %0, %%rdi\n\t"~
-			"mov $0, %%eax\n\t"~
+			"xor %%eax, %%eax\n\t"~
 			"cpuid\n"~
 			"mov %%ebx, (%%rdi)\n\t"~
 			"mov %%edx, 4(%%rdi)\n\t"~
@@ -794,14 +810,14 @@ void ddcpuid_vendor(ref char[12] string_) {
 	} else version (LDC) {
 		version (X86) asm {
 			lea EDI, string_;
-			mov EAX, 0;
+			xor EAX, EAX;
 			cpuid;
 			mov [EDI], EBX;
 			mov [EDI + 4], EDX;
 			mov [EDI + 8], ECX;
 		} else asm { // x86-64
 			lea RDI, string_;
-			mov EAX, 0;
+			xor EAX, EAX;
 			cpuid;
 			mov [RDI], EBX;
 			mov [RDI + 4], EDX;
@@ -832,7 +848,6 @@ Vendor ddcpuid_vendor_id(ref VendorString vendor) {
 	return Vendor.Other;
 }
 
-pragma(inline, false)
 private
 void ddcpuid_extended_brand(ref char[48] string_) {
 	version (DMD) {
@@ -975,7 +990,6 @@ void ddcpuid_extended_brand(ref char[48] string_) {
 /// Params:
 /// 	dst = Destination buffer
 /// 	src = Source constant string
-pragma(inline, false)
 private
 void ddcpuid_strcpy48(ref char[48] dst, const(char) *src) {
 	for (size_t i; i < 48; ++i) {
@@ -1000,7 +1014,6 @@ private alias strcpy48 = ddcpuid_strcpy48;
 /// Params:
 /// 	info = CPUINFO structure.
 /// 	index = CPUID.01h.BL value.
-pragma(inline, false)
 private
 void ddcpuid_intel_brand_index(ref CPUINFO info, ubyte index) {
 	switch (index) {
@@ -1044,7 +1057,6 @@ void ddcpuid_intel_brand_index(ref CPUINFO info, ubyte index) {
 	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_intel_brand_family(ref CPUINFO info) {
 	// This function exist for processors that does not support the
@@ -1071,7 +1083,6 @@ void ddcpuid_intel_brand_family(ref CPUINFO info) {
 	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_amd_brand_family(ref CPUINFO info) {
 	// This function exist for processors that does not support the
@@ -1085,7 +1096,6 @@ void ddcpuid_amd_brand_family(ref CPUINFO info) {
 	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_virt_vendor(ref char[12] string_) {
 	version (DMD) {
@@ -1145,7 +1155,6 @@ void ddcpuid_virt_vendor(ref char[12] string_) {
 	}
 }
 
-pragma(inline, false)
 private
 VirtVendor ddcpuid_virt_vendor_id(ref VirtVendorString vendor) {
 	// Paravirtual vendor string verification
@@ -1174,7 +1183,6 @@ VirtVendor ddcpuid_virt_vendor_id(ref VirtVendorString vendor) {
 	assert(ddcpuid_virt_vendor_id(vendor) == VirtVendor.KVM);
 }
 
-pragma(inline, false)
 private
 void ddcpuid_model_string(ref CPUINFO info) {
 	switch (info.vendor.id) with (Vendor) {
@@ -1204,7 +1212,6 @@ void ddcpuid_model_string(ref CPUINFO info) {
 	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf1(ref CPUINFO info, ref REGISTERS regs) {
 	// EAX
@@ -1315,7 +1322,6 @@ void ddcpuid_leaf1(ref CPUINFO info, ref REGISTERS regs) {
 
 //NOTE: Only Intel officially supports CPUID.02h
 //      No dedicated functions to a cache descriptor to avoid a definition.
-pragma(inline, false)
 private
 void ddcpuid_leaf2(ref CPUINFO info, ref REGISTERS regs) {
 	struct leaf2_t {
@@ -1618,14 +1624,12 @@ version (TestCPUID02h) @system unittest {
 	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf5(ref CPUINFO info, ref REGISTERS regs) {
 	info.extras.mwaitMin = regs.ax;
 	info.extras.mwaitMax = regs.bx;
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf6(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
@@ -1639,7 +1643,6 @@ void ddcpuid_leaf6(ref CPUINFO info, ref REGISTERS regs) {
 	info.sys.arat = bit(regs.eax, 2);
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf7(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
@@ -1711,7 +1714,6 @@ void ddcpuid_leaf7(ref CPUINFO info, ref REGISTERS regs) {
 	info.extras.rdpid	= bit(regs.ecx, 22);
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf7sub1(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
@@ -1724,7 +1726,6 @@ void ddcpuid_leaf7sub1(ref CPUINFO info, ref REGISTERS regs) {
 	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leafD(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
@@ -1736,7 +1737,6 @@ void ddcpuid_leafD(ref CPUINFO info, ref REGISTERS regs) {
 	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leafDsub1(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
@@ -1747,7 +1747,6 @@ void ddcpuid_leafDsub1(ref CPUINFO info, ref REGISTERS regs) {
 	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf12(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
@@ -1761,7 +1760,6 @@ void ddcpuid_leaf12(ref CPUINFO info, ref REGISTERS regs) {
 	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf4000_0001(ref CPUINFO info, ref REGISTERS regs) {
 //	switch (info.virt.vendor.id) with (VirtVendor) {
@@ -1786,7 +1784,6 @@ void ddcpuid_leaf4000_0001(ref CPUINFO info, ref REGISTERS regs) {
 //	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf4000_0002(ref CPUINFO info, ref REGISTERS regs) {
 //	switch (info.virt.vendor.id) with (VirtVendor) {
@@ -1803,7 +1800,6 @@ void ddcpuid_leaf4000_0002(ref CPUINFO info, ref REGISTERS regs) {
 //	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf4000_0003(ref CPUINFO info, ref REGISTERS regs) {
 //	switch (info.virt.vendor.id) with (VirtVendor) {
@@ -1867,7 +1863,6 @@ void ddcpuid_leaf4000_0003(ref CPUINFO info, ref REGISTERS regs) {
 //	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf4000_0004(ref CPUINFO info, ref REGISTERS regs) {
 //	switch (info.virt.vendor.id) with (VirtVendor) {
@@ -1892,7 +1887,6 @@ void ddcpuid_leaf4000_0004(ref CPUINFO info, ref REGISTERS regs) {
 //	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf4000_0006(ref CPUINFO info, ref REGISTERS regs) {
 //	switch (info.virt.vendor.id) with (VirtVendor) {
@@ -1912,7 +1906,6 @@ void ddcpuid_leaf4000_0006(ref CPUINFO info, ref REGISTERS regs) {
 //	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf4000_0010(ref CPUINFO info, ref REGISTERS regs) {
 //	switch (info.virt.vendor.id) with (VirtVendor) {
@@ -1924,7 +1917,6 @@ void ddcpuid_leaf4000_0010(ref CPUINFO info, ref REGISTERS regs) {
 //	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf8000_0001(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
@@ -1958,7 +1950,6 @@ void ddcpuid_leaf8000_0001(ref CPUINFO info, ref REGISTERS regs) {
 	info.extensions.x86_64	= bit(regs.edx, 29);
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf8000_0007(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
@@ -1975,7 +1966,6 @@ void ddcpuid_leaf8000_0007(ref CPUINFO info, ref REGISTERS regs) {
 	info.extras.rdtscInvariant	= bit(regs.edx, 8);
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf8000_0008(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) with (Vendor) {
@@ -1998,7 +1988,6 @@ void ddcpuid_leaf8000_0008(ref CPUINFO info, ref REGISTERS regs) {
 	info.memory.lineBits = regs.ah;
 }
 
-pragma(inline, false)
 private
 void ddcpuid_leaf8000_000A(ref CPUINFO info, ref REGISTERS regs) {
 	switch (info.vendor.id) {
@@ -2010,7 +1999,6 @@ void ddcpuid_leaf8000_000A(ref CPUINFO info, ref REGISTERS regs) {
 	}
 }
 
-pragma(inline, false)
 private
 void ddcpuid_topology(ref CPUINFO info) {
 	ushort sc = void;	/// raw cores shared across cache level
@@ -2237,7 +2225,6 @@ private struct LeafExtInfo {
 
 /// Fetch CPU information.
 /// Params: info = CPUINFO structure
-pragma(inline, false)
 void ddcpuid_cpuinfo(ref CPUINFO info) {
 	static immutable LeafInfo[] regulars = [
 		{ 0x1,	0,	&ddcpuid_leaf1 },	// Sets brand index

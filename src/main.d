@@ -7,7 +7,7 @@
  */
 module main;
 
-import core.stdc.stdio : printf, sscanf;
+import core.stdc.stdio : printf; // sscanf
 import core.stdc.errno : errno;
 import core.stdc.stdlib : malloc, free;
 import core.stdc.string : strcmp, strtok, strncpy, strerror;
@@ -23,8 +23,12 @@ private:
 @system:
 extern (C):
 
-int putchar(int);	// because wrong extern
-int puts(scope const char* s);	// because wrong extern
+// because wrong extern
+int putchar(int);
+// because wrong extern
+int puts(scope const char* s);
+// because GDC's pragma(scanf) whinning about %i and int*
+int sscanf(scope const char* s, scope const char* format, scope ...);
 
 /// Compiler version template for betterC usage
 template CVER(int v) {

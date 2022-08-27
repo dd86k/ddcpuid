@@ -580,6 +580,7 @@ int main(int argc, const(char) **argv) {
 			printSSE(info);
 			putchar('\n');
 		} else puts(none);
+		printFMA(info);
 		
 		printf("AVX:        ");
 		if (info.avx.avx) {

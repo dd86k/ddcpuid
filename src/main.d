@@ -569,30 +569,25 @@ int main(int argc, const(char) **argv) {
 		
 		printTechs(info);
 		
-		immutable const(char) *none = " None";
-		
 		printf("\nExtensions: ");
 		printLegacy(info);
 		printOthers(info);
 		
 		printf("\nSSE:        ");
-		if (info.sse.sse) {
+		if (info.sse.sse)
 			printSSE(info);
-			putchar('\n');
-		} else puts(none);
 		printFMA(info);
+		putchar('\n');
 		
 		printf("AVX:        ");
-		if (info.avx.avx) {
+		if (info.avx.avx)
 			printAVX(info);
-			putchar('\n');
-		} else puts(none);
+		putchar('\n');
 		
 		printf("AMX:        ");
-		if (info.amx.enabled) {
+		if (info.amx.enabled)
 			printAMX(info);
-			putchar('\n');
-		} else puts(none);
+		putchar('\n');
 		
 		printf("Mitigations:");
 		printSecurity(info);

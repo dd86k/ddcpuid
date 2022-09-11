@@ -5,6 +5,7 @@
 *.lib
 *.o
 *.di
+*.pdb
 .vscode
 .dub
 dub.selections.json

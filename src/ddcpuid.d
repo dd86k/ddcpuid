@@ -2005,6 +2005,7 @@ void ddcpuid_topology(ref CPUINFO info) {
 	ushort crshrd = void;	/// actual count of shared cores
 	ubyte type = void;	/// cache type
 	ubyte mids = void;	/// maximum IDs to this cache
+	int shared_ = 1;    /// (Total logical) Shared threads per core
 	REGISTERS regs = void;	/// registers
 	
 	info.cache.levels = 0;
@@ -2018,7 +2019,8 @@ void ddcpuid_topology(ref CPUINFO info) {
 		if (info.maxLeaf >= 4)    goto L_CACHE_INTEL_4H;
 		// Celeron 0xf34 has maxLeaf=03h and ext=8000_0008h
 		if (info.maxLeaf >= 2)    goto L_CACHE_INTEL_2H;
-		if (info.maxLeafExtended >= 0x8000_0005) goto L_CACHE_AMD_EXT_5H;
+		// huh?
+		if (info.maxLeafExtended >= 0x8000_0005) goto L_AMD_TOPOLOGY_EXT_5H;
 		break;
 		
 L_CACHE_INTEL_1FH:
@@ -2079,11 +2081,15 @@ L_CACHE_INTEL_2H:
 		ddcpuid_leaf2(info, regs);
 		break;
 	case AMD:
-		if (info.maxLeafExtended >= 0x8000_001D) goto L_CACHE_AMD_EXT_1DH;
-		if (info.maxLeafExtended >= 0x8000_0005) goto L_CACHE_AMD_EXT_5H;
-		break;
+		if (info.maxLeafExtended >= 0x8000_001E) goto L_AMD_TOPOLOGY_EXT_1EH;
+		if (info.maxLeafExtended >= 0x8000_0008) goto L_AMD_TOPOLOGY_EXT_8H;
+		if (info.maxLeafExtended >= 0x8000_0005) goto L_AMD_TOPOLOGY_EXT_5H;
 		
-		/*if (info.maxLeafExtended < 0x8000_001e) goto L_AMD_TOPOLOGY_EXT_8H;
+		/+if (info.maxLeafExtended >= 0x8000_001D) goto L_CACHE_AMD_EXT_1DH;
+		if (info.maxLeafExtended >= 0x8000_0005) goto L_CACHE_AMD_EXT_5H;
+		//break;
+		
+		if (info.maxLeafExtended < 0x8000_001e) goto L_AMD_TOPOLOGY_EXT_8H;
 		
 		ddcpuid_id(regs, 0x8000_0001);
 		
@@ -2092,10 +2098,25 @@ L_CACHE_INTEL_2H:
 			
 			info.cores.logical = regs.ch + 1;
 			info.cores.physical = regs.dh & 7;
-			goto L_AMD_CACHE;
-		}*/
+			return;
+		}+/
 		
-/*L_AMD_TOPOLOGY_EXT_8H:
+		break;
+
+L_AMD_TOPOLOGY_EXT_1EH:
+		
+		ddcpuid_id(regs, 0x8000_0001);
+		
+		if ((regs.ecx & BIT!22) == 0) goto L_AMD_TOPOLOGY_EXT_8H;
+		
+		ddcpuid_id(regs, 0x8000_001E);
+		
+		shared_ = regs.bh + 1; // ThreadsPerComputeUnit
+		version (Trace) trace("amd.0x8000_001E shared_=%u", shared_);
+		
+		goto L_AMD_TOPOLOGY_EXT_1DH;
+		
+L_AMD_TOPOLOGY_EXT_8H:
 		// See APM Volume 3 Appendix E.5
 		// For some reason, CPUID Fn8000_001E_EBX is not mentioned there
 		ddcpuid_id(regs, 0x8000_0008);
@@ -2107,13 +2128,13 @@ L_CACHE_INTEL_2H:
 			info.cores.logical = cast(ushort)(1 << type);
 		} else { // Legacy
 			info.cores.logical = info.cores.physical = regs.cl + 1;
-		}*/
+		}
 		
 		//
 		// AMD newer cache method
 		//
 		
-L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
+L_AMD_TOPOLOGY_EXT_1DH: // Almost the same as Intel's
 		ddcpuid_id(regs, 0x8000_001d, info.cache.levels);
 		
 		type = regs.eax & CACHE_MASK; // EAX[4:0]
@@ -2137,20 +2158,20 @@ L_CACHE_AMD_EXT_1DH: // Almost the same as Intel's
 		
 		if (info.cores.logical == 0) with (info.cores) { // skip if already populated
 			logical = info.sys.maxApicId;
-			physical = info.tech.htt ? logical >> 1 : info.sys.maxApicId;
+			physical = info.sys.maxApicId / shared_;
 		}
 		
 		version (Trace) trace("amd.8000_001Dh mids=%u shared=%u crshrd=%u sc=%u",
 			mids, ca.sharedCores, crshrd, sc);
 		
 		++info.cache.levels; ++ca;
-		goto L_CACHE_AMD_EXT_1DH;
+		goto L_AMD_TOPOLOGY_EXT_1DH;
 		
 		//
 		// AMD legacy cache
 		//
 		
-L_CACHE_AMD_EXT_5H:
+L_AMD_TOPOLOGY_EXT_5H:
 		ddcpuid_id(regs, 0x8000_0005);
 		
 		info.cache.level[0].level = 1; // L1-D
@@ -2184,29 +2205,29 @@ L_CACHE_AMD_EXT_5H:
 		ddcpuid_id(regs, 0x8000_0006);
 		
 		type = regs.cx >> 12; // amd_ways_l2
-		if (type) {
-			info.cache.level[2].level = 2;  // L2
-			info.cache.level[2].type = 'U'; // unified
-			info.cache.level[2].size = regs.ecx >> 16;
-			info.cache.level[2].ways = _amd_cache_ways[type];
-			info.cache.level[2].lines = regs.ch & 0xf;
-			info.cache.level[2].lineSize = regs.cl;
-			info.cache.level[2].sets = 1;
-			info.cache.levels = 3;
-			
-			type = regs.dx >> 12; // amd_ways_l3
-			if (type) {
-				info.cache.level[3].level = 3;  // L3
-				info.cache.level[3].type = 'U'; // unified
-				info.cache.level[3].size = ((regs.edx >> 18) + 1) << 9;
-				info.cache.level[3].ways = _amd_cache_ways[type];
-				info.cache.level[3].lines = regs.dh & 0xf;
-				info.cache.level[3].lineSize = regs.dl & 0x7F;
-				info.cache.level[3].sets = 1;
-				info.cache.levels = 4;
-			}
-		}
-		return;
+		if (type == 0) break;
+		
+		info.cache.level[2].level = 2;  // L2
+		info.cache.level[2].type = 'U'; // unified
+		info.cache.level[2].size = regs.ecx >> 16;
+		info.cache.level[2].ways = _amd_cache_ways[type];
+		info.cache.level[2].lines = regs.ch & 0xf;
+		info.cache.level[2].lineSize = regs.cl;
+		info.cache.level[2].sets = 1;
+		info.cache.levels = 3;
+		
+		type = regs.dx >> 12; // amd_ways_l3
+		if (type == 0) break;
+		
+		info.cache.level[3].level = 3;  // L3
+		info.cache.level[3].type = 'U'; // unified
+		info.cache.level[3].size = ((regs.edx >> 18) + 1) << 9;
+		info.cache.level[3].ways = _amd_cache_ways[type];
+		info.cache.level[3].lines = regs.dh & 0xf;
+		info.cache.level[3].lineSize = regs.dl & 0x7F;
+		info.cache.level[3].sets = 1;
+		info.cache.levels = 4;
+		break;
 	default:
 	}
 	

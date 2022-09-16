@@ -2318,21 +2318,12 @@ void ddcpuid_cpuinfo(ref CPUINFO info) {
 }
 
 const(char) *ddcpuid_baseline(ref CPUINFO info) {
-	if (info.extensions.x86_64 == false) {
-		if (info.family >= 6) // Pentium Pro / II
-			return "i686";
-		// NOTE: K7 is still family 5 and didn't have SSE2.
-		return info.family == 5 ? "i586" : "i486"; // Pentium / MMX
-	}
-	
-	// v4
 	if (info.avx.avx512f && info.avx.avx512bw &&
 		info.avx.avx512cd && info.avx.avx512dq &&
 		info.avx.avx512vl) {
 		return "x86-64-v4";
 	}
 	
-	// v3
 	if (info.avx.avx2 && info.avx.avx &&
 		info.extensions.bmi2 && info.extensions.bmi1 &&
 		info.extensions.f16c && info.extensions.fma3 &&
@@ -2341,7 +2332,6 @@ const(char) *ddcpuid_baseline(ref CPUINFO info) {
 		return "x86-64-v3";
 	}
 	
-	// v2
 	if (info.sse.sse42 && info.sse.sse41 &&
 		info.sse.ssse3 && info.sse.sse3 &&
 		info.extensions.lahf64 && info.extras.popcnt &&
@@ -2349,13 +2339,19 @@ const(char) *ddcpuid_baseline(ref CPUINFO info) {
 		return "x86-64-v2";
 	}
 	
-	// baseline (v1)
-	/*if (info.sse.sse2 && info.sse.sse &&
+	if (info.sse.sse && info.sse.sse2 &&
 		info.extensions.mmx && info.extras.fxsr &&
 		info.extras.cmpxchg8b && info.extras.cmov &&
 		info.extensions.fpu && info.extras.syscall) {
-		return "x86-64";
-	}*/
+		return "x86-64"; // baseline, v1
+	}
 	
-	return "x86-64"; // v1 anyway
+	// NOTE: K7 is still family 5 and didn't have SSE2.
+	// NOTE: Whoever manages to run this on an i486 has my respect.
+	switch (info.family) {
+	case 6:  return "i686"; // Pentium Pro / II
+	case 5:  return "i586"; // Pentium / MMX
+	case 4:  return "i486"; // 80486
+	default: return "i386"; // 80386
+	}
 }

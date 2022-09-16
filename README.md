@@ -9,11 +9,11 @@ Identifier:  Family 0x19 Model 0x21 Stepping 0x0
 Cores:       16 cores, 32 threads
 Max. Memory: 256 TiB physical, 256 TiB virtual
 Baseline:    x86-64-v3
-Techs:       core-performance-boost htt
+Techs:       htt
 Extensions:  x87/fpu +f16c mmx extmmx amd64/x86-64 +lahf64 amd-v/vmx +svm=v1 aes-ni adx sha bmi1 bmi2
-SSE:         sse sse2 sse3 ssse3 sse4.2 sse4a
+SSE:         sse sse2 sse3 ssse3 sse4.2 sse4a fma3
 AVX:         avx avx2
-AMX:         None
+AMX:        
 Mitigations: ibpb ibrs ibrs_pref stibp stibp_on ssbd
 Cache L1-D:   16x   32 KiB,  512 KiB total, si
 Cache L1-I:   16x   32 KiB,  512 KiB total, si

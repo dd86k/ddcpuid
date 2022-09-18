@@ -623,7 +623,7 @@ version (Trace) {
 /// Test if a bit is set.
 /// Params:
 /// 	val = 32-bit content.
-/// 	pos = Bit position 
+/// 	pos = Bit position.
 /// Returns: True if bit set.
 pragma(inline, true)
 private bool bit(uint val, int pos) pure @safe {

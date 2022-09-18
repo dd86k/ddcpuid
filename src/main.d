@@ -500,21 +500,19 @@ int main(int argc, const(char) **argv) {
 			return 0;
 		}
 		
-		// Normal
-		for (l = 0; l <= cpu.maxLeaf; ++l)
-			for (s = 0; s <= options.maxSubLevel; ++s)
-				outcpuid(l, s);
+		for (uint leaf; leaf != 0xf000_0000; leaf += 0x1000_0000) {
+			REGISTERS regs = void;
+			ddcpuid_id(regs, leaf, 0);
+			
+			if (regs.eax < leaf) continue;
+			
+			uint maxleaf = options.override_ ? leaf + MAX_LEAF : regs.eax;
+			
+			for (l = leaf; l <= maxleaf; ++l)
+				for (s = 0; s <= options.maxSubLevel; ++s)
+					outcpuid(l, s);
+		}
 		
-		// Paravirtualization
-		if (cpu.maxLeafVirt > 0x4000_0000)
-		for (l = 0x4000_0000; l <= cpu.maxLeafVirt; ++l)
-			for (s = 0; s <= options.maxSubLevel; ++s)
-				outcpuid(l, s);
-		
-		// Extended
-		for (l = 0x8000_0000; l <= cpu.maxLeafExtended; ++l)
-			for (s = 0; s <= options.maxSubLevel; ++s)
-				outcpuid(l, s);
 		return 0;
 	}
 	

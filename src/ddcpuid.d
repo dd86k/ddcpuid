@@ -372,7 +372,7 @@ struct CPUINFO { align(1):
 	bool skinit;	/// SKINIT instruction
 	bool serialize;	/// SERIALIZE instruction
 	
-	// Technologies.
+	// Features.
 	
 	bool eist;	/// Intel SpeedStep/AMD PowerNow/AMD Cool'n'Quiet
 	bool turboboost;	/// Intel TurboBoost/AMD CorePerformanceBoost

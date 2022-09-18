@@ -209,7 +209,7 @@ void printLegacy(ref CPUINFO cpu) {
 		if (cpu._3DNowExtended) printf(" ext3dnow!");
 	}
 }
-void printTechs(ref CPUINFO cpu) {
+void printFeatures(ref CPUINFO cpu) {
 	switch (cpu.vendor.id) with (Vendor) {
 	case Intel:
 		if (cpu.eist) printf(" eist");
@@ -564,11 +564,11 @@ int main(int argc, const(char) **argv) {
 		
 		with (cpu) printf(
 		"Baseline:    %s\n"~
-		"Techs:      ",
+		"Features:   ",
 			ddcpuid_baseline(cpu)
 		);
 		
-		printTechs(cpu);
+		printFeatures(cpu);
 		
 		printf("\nExtensions: ");
 		printLegacy(cpu);
@@ -710,8 +710,8 @@ int main(int argc, const(char) **argv) {
 	// ANCHOR Vendor specific technologies
 	//
 	
-	printf("\nTechnologies:");
-	printTechs(cpu);
+	printf("\nFeatures    :");
+	printFeatures(cpu);
 	
 	//
 	// ANCHOR Cache information

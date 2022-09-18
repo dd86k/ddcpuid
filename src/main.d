@@ -164,6 +164,7 @@ char adjust(ref float size) {
 	assert(adjust(size) == 'M');
 	assert(size == 4);
 }
+// Adjust binary size (IEC)
 const(char)* adjustBits(ref uint size, int bitpos) {
 	version (Trace) trace("size=%u bit=%d", size, bitpos);
 	static immutable const(char)*[8] SIZES = [
@@ -194,159 +195,159 @@ const(char)* adjustBits(ref uint size, int bitpos) {
 	assert(size == 256);
 }
 
-void printLegacy(ref CPUINFO info) {
-	if (info.extensions.fpu) {
+void printLegacy(ref CPUINFO cpu) {
+	if (cpu.fpu) {
 		printf(" x87/fpu");
-		if (info.extensions.f16c) printf(" +f16c");
+		if (cpu.f16c) printf(" +f16c");
 	}
-	if (info.extensions.mmx) {
+	if (cpu.mmx) {
 		printf(" mmx");
-		if (info.extensions.mmxExtended) printf(" extmmx");
+		if (cpu.mmxExtended) printf(" extmmx");
 	}
-	if (info.extensions._3DNow) {
+	if (cpu._3DNow) {
 		printf(" 3dnow!");
-		if (info.extensions._3DNowExtended) printf(" ext3dnow!");
+		if (cpu._3DNowExtended) printf(" ext3dnow!");
 	}
 }
-void printTechs(ref CPUINFO info) {
-	switch (info.vendor.id) with (Vendor) {
+void printTechs(ref CPUINFO cpu) {
+	switch (cpu.vendor.id) with (Vendor) {
 	case Intel:
-		if (info.tech.eist) printf(" eist");
-		if (info.tech.turboboost) {
+		if (cpu.eist) printf(" eist");
+		if (cpu.turboboost) {
 			printf(" turboboost");
-			if (info.tech.turboboost30) printf("-3.0");
+			if (cpu.turboboost30) printf("-3.0");
 		}
-		if (info.memory.tsx) {
+		if (cpu.tsx) {
 			printf(" tsx");
-			if (info.memory.hle)
+			if (cpu.hle)
 				printf(" +hle");
-			if (info.memory.rtm)
+			if (cpu.rtm)
 				printf(" +rtm");
-			if (info.memory.tsxldtrk)
+			if (cpu.tsxldtrk)
 				printf(" +tsxldtrk");
 		}
-		if (info.tech.smx) printf(" intel-txt/smx");
-		if (info.sgx.supported) {
+		if (cpu.smx) printf(" intel-txt/smx");
+		if (cpu.sgx) {
 			// NOTE: SGX system configuration
 			//       "enabled" in BIOS: only CPUID.7h.EBX[2]
 			//       "user controlled" in BIOS: SGX1/SGX2/size bits
-			if (info.sgx.sgx1 || info.sgx.sgx2) {
-				if (info.sgx.sgx1) printf(" sgx1");
-				if (info.sgx.sgx2) printf(" sgx2");
+			if (cpu.sgx1 || cpu.sgx2) {
+				if (cpu.sgx1) printf(" sgx1");
+				if (cpu.sgx2) printf(" sgx2");
 			} else printf(" sgx"); // Fallback per-say
-			if (info.sgx.maxSize) {
+			if (cpu.sgxMaxSize) {
 				uint s32 = void, s64 = void;
-				const(char) *m32 = adjustBits(s32, info.sgx.maxSize);
-				const(char) *m64 = adjustBits(s64, info.sgx.maxSize64);
+				const(char) *m32 = adjustBits(s32, cpu.sgxMaxSize);
+				const(char) *m64 = adjustBits(s64, cpu.sgxMaxSize64);
 				printf(" +maxsize=%u%s +maxsize64=%u%s", s32, m32, s64, m64);
 			}
 		}
 		break;
 	case AMD:
-		if (info.tech.turboboost) printf(" core-performance-boost");
+		if (cpu.turboboost) printf(" core-performance-boost");
 		break;
 	default:
 	}
-	if (info.tech.htt) printf(" htt");
+	if (cpu.htt) printf(" htt");
 }
-void printSSE(ref CPUINFO info) {
+void printSSE(ref CPUINFO cpu) {
 	printf(" sse");
-	if (info.sse.sse2) printf(" sse2");
-	if (info.sse.sse3) printf(" sse3");
-	if (info.sse.ssse3) printf(" ssse3");
-	if (info.sse.sse41) printf(" sse4.1");
-	if (info.sse.sse42) printf(" sse4.2");
-	if (info.sse.sse4a) printf(" sse4a");
+	if (cpu.sse2) printf(" sse2");
+	if (cpu.sse3) printf(" sse3");
+	if (cpu.ssse3) printf(" ssse3");
+	if (cpu.sse41) printf(" sse4.1");
+	if (cpu.sse42) printf(" sse4.2");
+	if (cpu.sse4a) printf(" sse4a");
 }
-void printAVX(ref CPUINFO info) {
+void printAVX(ref CPUINFO cpu) {
 	printf(" avx");
-	if (info.avx.avx2) printf(" avx2");
-	if (info.avx.avx512f) {
+	if (cpu.avx2) printf(" avx2");
+	if (cpu.avx512f) {
 		printf(" avx512f");
-		if (info.avx.avx512er) printf(" +er");
-		if (info.avx.avx512pf) printf(" +pf");
-		if (info.avx.avx512cd) printf(" +cd");
-		if (info.avx.avx512dq) printf(" +dq");
-		if (info.avx.avx512bw) printf(" +bw");
-		if (info.avx.avx512vl) printf(" +vl");
-		if (info.avx.avx512_ifma) printf(" +ifma");
-		if (info.avx.avx512_vbmi) printf(" +vbmi");
-		if (info.avx.avx512_4vnniw) printf(" +4vnniw");
-		if (info.avx.avx512_4fmaps) printf(" +4fmaps");
-		if (info.avx.avx512_vbmi2) printf(" +vbmi2");
-		if (info.avx.avx512_gfni) printf(" +gfni");
-		if (info.avx.avx512_vaes) printf(" +vaes");
-		if (info.avx.avx512_vnni) printf(" +vnni");
-		if (info.avx.avx512_bitalg) printf(" +bitalg");
-		if (info.avx.avx512_bf16) printf(" +bf16");
-		if (info.avx.avx512_vp2intersect) printf(" +vp2intersect");
+		if (cpu.avx512er) printf(" +er");
+		if (cpu.avx512pf) printf(" +pf");
+		if (cpu.avx512cd) printf(" +cd");
+		if (cpu.avx512dq) printf(" +dq");
+		if (cpu.avx512bw) printf(" +bw");
+		if (cpu.avx512vl) printf(" +vl");
+		if (cpu.avx512_ifma) printf(" +ifma");
+		if (cpu.avx512_vbmi) printf(" +vbmi");
+		if (cpu.avx512_4vnniw) printf(" +4vnniw");
+		if (cpu.avx512_4fmaps) printf(" +4fmaps");
+		if (cpu.avx512_vbmi2) printf(" +vbmi2");
+		if (cpu.avx512_gfni) printf(" +gfni");
+		if (cpu.avx512_vaes) printf(" +vaes");
+		if (cpu.avx512_vnni) printf(" +vnni");
+		if (cpu.avx512_bitalg) printf(" +bitalg");
+		if (cpu.avx512_bf16) printf(" +bf16");
+		if (cpu.avx512_vp2intersect) printf(" +vp2intersect");
 	}
-	if (info.extensions.xop) printf(" xop");
+	if (cpu.xop) printf(" xop");
 }
-void printFMA(ref CPUINFO info) {
-	if (info.extensions.fma3) printf(" fma3");
-	if (info.extensions.fma4) printf(" fma4");
+void printFMA(ref CPUINFO cpu) {
+	if (cpu.fma)  printf(" fma");
+	if (cpu.fma4) printf(" fma4");
 }
-void printAMX(ref CPUINFO info) {
+void printAMX(ref CPUINFO cpu) {
 	printf(" amx");
-	if (info.amx.bf16) printf(" +bf16");
-	if (info.amx.int8) printf(" +int8");
-	if (info.amx.xtilecfg) printf(" +xtilecfg");
-	if (info.amx.xtiledata) printf(" +xtiledata");
-	if (info.amx.xfd) printf(" +xfd");
+	if (cpu.amx_bf16) printf(" +bf16");
+	if (cpu.amx_int8) printf(" +int8");
+	if (cpu.amx_xtilecfg) printf(" +xtilecfg");
+	if (cpu.amx_xtiledata) printf(" +xtiledata");
+	if (cpu.amx_xfd) printf(" +xfd");
 }
-void printOthers(ref CPUINFO info) {
+void printOthers(ref CPUINFO cpu) {
 	const(char) *tstr = void;
-	if (info.extensions.x86_64) {
-		switch (info.vendor.id) with (Vendor) {
+	if (cpu.x86_64) {
+		switch (cpu.vendor.id) with (Vendor) {
 		case Intel:	tstr = " intel64/x86-64"; break;
 		case AMD:	tstr = " amd64/x86-64"; break;
 		default:	tstr = " x86-64";
 		}
 		printf(tstr);
-		if (info.extensions.lahf64)
+		if (cpu.lahf64)
 			printf(" +lahf64");
 	}
-	if (info.virt.available)
-		switch (info.vendor.id) with (Vendor) {
+	if (cpu.virtualization)
+		switch (cpu.vendor.id) with (Vendor) {
 		case Intel: printf(" vt-x/vmx"); break;
 		case AMD: // SVM
 			printf(" amd-v/vmx");
-			if (info.virt.version_)
-				printf(" +svm=v%u", info.virt.version_);
+			if (cpu.virtVersion)
+				printf(" +svm=v%u", cpu.virtVersion);
 			break;
 		case VIA: printf(" via-vt/vmx"); break;
-		default: printf(" vmx");
+		default:  printf(" vmx");
 		}
-	if (info.extensions.aes_ni) printf(" aes-ni");
-	if (info.extensions.adx) printf(" adx");
-	if (info.extensions.sha) printf(" sha");
-	if (info.extensions.tbm) printf(" tbm");
-	if (info.extensions.bmi1) printf(" bmi1");
-	if (info.extensions.bmi2) printf(" bmi2");
-	if (info.extensions.waitpkg) printf(" waitpkg");
+	if (cpu.aes_ni)	printf(" aes-ni");
+	if (cpu.adx)	printf(" adx");
+	if (cpu.sha)	printf(" sha");
+	if (cpu.tbm)	printf(" tbm");
+	if (cpu.bmi1)	printf(" bmi1");
+	if (cpu.bmi2)	printf(" bmi2");
+	if (cpu.waitpkg)	printf(" waitpkg");
 }
-void printSecurity(ref CPUINFO info) {
-	if (info.security.ibpb) printf(" ibpb");
-	if (info.security.ibrs) printf(" ibrs");
-	if (info.security.ibrsAlwaysOn) printf(" ibrs_on");	// AMD
-	if (info.security.ibrsPreferred) printf(" ibrs_pref");	// AMD
-	if (info.security.stibp) printf(" stibp");
-	if (info.security.stibpAlwaysOn) printf(" stibp_on");	// AMD
-	if (info.security.ssbd) printf(" ssbd");
-	if (info.security.l1dFlush) printf(" l1d_flush");	// Intel
-	if (info.security.md_clear) printf(" md_clear");	// Intel
-	if (info.security.cetIbt) printf(" cet_ibt");	// Intel
-	if (info.security.cetSs) printf(" cet_ss");	// Intel
+void printSecurity(ref CPUINFO cpu) {
+	if (cpu.ibpb)	printf(" ibpb");
+	if (cpu.ibrs)	printf(" ibrs");
+	if (cpu.ibrsAlwaysOn)	printf(" ibrs_on");	// AMD
+	if (cpu.ibrsPreferred)	printf(" ibrs_pref");	// AMD
+	if (cpu.stibp)	printf(" stibp");
+	if (cpu.stibpAlwaysOn)	printf(" stibp_on");	// AMD
+	if (cpu.ssbd)	printf(" ssbd");
+	if (cpu.l1dFlush)	printf(" l1d_flush");	// Intel
+	if (cpu.md_clear)	printf(" md_clear");	// Intel
+	if (cpu.cetIbt)	printf(" cet_ibt");	// Intel
+	if (cpu.cetSs)	printf(" cet_ss");	// Intel
 }
 void printCacheFeats(ushort feats) {
 	if (feats == 0) return;
 	putchar(',');
-	if (feats & BIT!(0)) printf(" si"); // Self Initiative
-	if (feats & BIT!(1)) printf(" fa"); // Fully Associative
+	if (feats & BIT!(0)) printf(" si");   // Self Initiative
+	if (feats & BIT!(1)) printf(" fa");   // Fully Associative
 	if (feats & BIT!(2)) printf(" nwbv"); // No Write-Back Validation
-	if (feats & BIT!(3)) printf(" ci"); // Cache Inclusive
-	if (feats & BIT!(4)) printf(" cci"); // Complex Cache Indexing
+	if (feats & BIT!(3)) printf(" ci");   // Cache Inclusive
+	if (feats & BIT!(4)) printf(" cci");  // Complex Cache Indexing
 }
 
 int optionRaw(ref options_t options, const(char) *arg) {
@@ -476,14 +477,14 @@ int main(int argc, const(char) **argv) {
 		} // else if
 	} // for
 	
-	CPUINFO info;
+	CPUINFO cpu;
 	
 	if (options.override_) {
-		info.maxLeaf = MAX_LEAF;
-		info.maxLeafVirt = MAX_VLEAF;
-		info.maxLeafExtended = MAX_ELEAF;
+		cpu.maxLeaf = MAX_LEAF;
+		cpu.maxLeafVirt = MAX_VLEAF;
+		cpu.maxLeafExtended = MAX_ELEAF;
 	} else if (options.rawInput == false) {
-		ddcpuid_leaves(info);
+		ddcpuid_leaves(cpu);
 	}
 	
 	if (options.raw || options.table) {
@@ -500,34 +501,34 @@ int main(int argc, const(char) **argv) {
 		}
 		
 		// Normal
-		for (l = 0; l <= info.maxLeaf; ++l)
+		for (l = 0; l <= cpu.maxLeaf; ++l)
 			for (s = 0; s <= options.maxSubLevel; ++s)
 				outcpuid(l, s);
 		
 		// Paravirtualization
-		if (info.maxLeafVirt > 0x4000_0000)
-		for (l = 0x4000_0000; l <= info.maxLeafVirt; ++l)
+		if (cpu.maxLeafVirt > 0x4000_0000)
+		for (l = 0x4000_0000; l <= cpu.maxLeafVirt; ++l)
 			for (s = 0; s <= options.maxSubLevel; ++s)
 				outcpuid(l, s);
 		
 		// Extended
-		for (l = 0x8000_0000; l <= info.maxLeafExtended; ++l)
+		for (l = 0x8000_0000; l <= cpu.maxLeafExtended; ++l)
 			for (s = 0; s <= options.maxSubLevel; ++s)
 				outcpuid(l, s);
 		return 0;
 	}
 	
-	ddcpuid_cpuinfo(info);
+	ddcpuid_cpuinfo(cpu);
 	
 	if (options.baseline) {
-		puts(ddcpuid_baseline(info));
+		puts(ddcpuid_baseline(cpu));
 		return 0;
 	}
 	
 	// NOTE: .ptr crash with GDC -O3
 	//       glibc!__strlen_sse2 (in printf)
-	char *vendorstr = cast(char*)info.vendor.string_;
-	char *brandstr  = cast(char*)info.brandString;
+	char *vendorstr = cast(char*)cpu.vendor.string_;
+	char *brandstr  = cast(char*)cpu.brandString;
 	
 	// Brand string left space trimming
 	// While very common in Intel, let's also do it for others (in case of)
@@ -540,74 +541,74 @@ int main(int argc, const(char) **argv) {
 	//
 	
 	if (options.all == false) {
-		const(char) *s_cores = info.cores.physical == 1 ? "core" : "cores";
-		const(char) *s_threads = info.cores.logical == 1 ? "thread" : "threads";
-		with (info) printf(
+		const(char) *s_cores = cpu.physicalCores == 1 ? "core" : "cores";
+		const(char) *s_threads = cpu.logicalCores == 1 ? "thread" : "threads";
+		with (cpu) printf(
 		"Name:        %.12s %.48s\n"~
 		"Identifier:  Family 0x%x Model 0x%x Stepping 0x%x\n"~
 		"Cores:       %u %s, %u %s\n",
 		vendorstr, brandstr,
 		family, model, stepping,
-		cores.physical, s_cores, cores.logical, s_threads
+		physicalCores, s_cores, logicalCores, s_threads
 		);
 		
-		if (info.memory.physBits || info.memory.lineBits) {
+		if (cpu.physicalBits || cpu.linearBits) {
 			uint maxPhys = void, maxLine = void;
-			const(char) *cphys = adjustBits(maxPhys, info.memory.physBits);
-			const(char) *cline = adjustBits(maxLine, info.memory.lineBits);
-			with (info) printf(
+			const(char) *cphys = adjustBits(maxPhys, cpu.physicalBits);
+			const(char) *cline = adjustBits(maxLine, cpu.linearBits);
+			with (cpu) printf(
 			"Max. Memory: %u %s physical, %u %s virtual\n",
 			maxPhys, cphys, maxLine, cline,
 			);
 		}
 		
-		with (info) printf(
+		with (cpu) printf(
 		"Baseline:    %s\n"~
 		"Techs:      ",
-		ddcpuid_baseline(info)
+			ddcpuid_baseline(cpu)
 		);
 		
-		printTechs(info);
+		printTechs(cpu);
 		
 		printf("\nExtensions: ");
-		printLegacy(info);
-		printOthers(info);
+		printLegacy(cpu);
+		printOthers(cpu);
 		
 		printf("\nSSE:        ");
-		if (info.sse.sse)
-			printSSE(info);
-		printFMA(info);
+		if (cpu.sse)
+			printSSE(cpu);
+		printFMA(cpu);
 		putchar('\n');
 		
 		printf("AVX:        ");
-		if (info.avx.avx)
-			printAVX(info);
+		if (cpu.avx)
+			printAVX(cpu);
 		putchar('\n');
 		
 		printf("AMX:        ");
-		if (info.amx.enabled)
-			printAMX(info);
+		if (cpu.amx)
+			printAMX(cpu);
 		putchar('\n');
 		
 		printf("Mitigations:");
-		printSecurity(info);
+		printSecurity(cpu);
 		putchar('\n');
 		
 		// NOTE: id=0 would be vboxmin, so using this is more reliable
-		if (info.maxLeafVirt) {
-			const(char) *virtVendor = void;
-			switch (info.virt.vendor.id) with (VirtVendor) {
-			case KVM:        virtVendor = "KVM"; break;
-			case HyperV:     virtVendor = "Hyper-V"; break;
-			case VBoxHyperV: virtVendor = "VirtualBox Hyper-V"; break;
-			case VBoxMin:    virtVendor = "VirtualBox Minimal"; break;
-			default:         virtVendor = "Unknown";
+		if (cpu.maxLeafVirt) {
+			const(char) *vv = void;
+			switch (cpu.virtVendor.id) with (VirtVendor) {
+			case KVM:        vv = "KVM"; break;
+			case HyperV:     vv = "Hyper-V"; break;
+			case VBoxHyperV: vv = "VirtualBox Hyper-V"; break;
+			case VBoxMin:    vv = "VirtualBox Minimal"; break;
+			default:         vv = "Unknown";
 			}
-			printf("ParaVirt.:   %s\n", virtVendor);
+			printf("ParaVirt.:   %s\n", vv);
 		}
 		
-		for (size_t i; i < info.cache.levels; ++i) {
-			cache = &info.cache.level[i];
+		for (size_t i; i < cpu.cacheLevels; ++i) {
+			cache = &cpu.cache[i];
 			float csize = cache.size;
 			float tsize = csize * cache.sharedCores;
 			char cc = adjust(csize);
@@ -626,7 +627,7 @@ int main(int argc, const(char) **argv) {
 	// ANCHOR Detailed view
 	//
 	
-	with (info) printf(
+	with (cpu) printf(
 	"Vendor      : %.12s\n"~
 	"Brand       : %.48s\n"~
 	"Identifier  : 0x%x\n"~
@@ -645,89 +646,89 @@ int main(int argc, const(char) **argv) {
 	family, familyBase, familyExtended,
 	model, modelBase, modelExtended,
 	stepping,
-	cores.physical, cores.logical
+	physicalCores, logicalCores
 	);
 	
 	// Extensions
 	
 	const(char) *tstr = void;
-	printLegacy(info);
-	if (info.sse.sse) printSSE(info);
-	if (info.avx.avx) printAVX(info);
-	printFMA(info);
-	printOthers(info);
-	if (info.amx.enabled) printAMX(info);
+	printLegacy(cpu);
+	if (cpu.sse) printSSE(cpu);
+	if (cpu.avx) printAVX(cpu);
+	printFMA(cpu);
+	printOthers(cpu);
+	if (cpu.amx) printAMX(cpu);
 	
 	//
 	// ANCHOR Extra/lone instructions
 	//
 	
 	printf("\nExtra       :");
-	if (info.extras.monitor) {
+	if (cpu.monitor) {
 		printf(" monitor+mwait");
-		if (info.extras.mwaitMin)
+		if (cpu.mwaitMin)
 			printf(" +min=%u +max=%u",
-				info.extras.mwaitMin, info.extras.mwaitMax);
-		if (info.extras.monitorx) printf(" monitorx+mwaitx");
+				cpu.mwaitMin, cpu.mwaitMax);
+		if (cpu.monitorx) printf(" monitorx+mwaitx");
 	}
-	if (info.extras.pclmulqdq) printf(" pclmulqdq");
-	if (info.extras.cmpxchg8b) printf(" cmpxchg8b");
-	if (info.extras.cmpxchg16b) printf(" cmpxchg16b");
-	if (info.extras.movbe) printf(" movbe");
-	if (info.extras.rdrand) printf(" rdrand");
-	if (info.extras.rdseed) printf(" rdseed");
-	if (info.extras.rdmsr) printf(" rdmsr+wrmsr");
-	if (info.extras.sysenter) printf(" sysenter+sysexit");
-	if (info.extras.syscall) printf(" syscall+sysret");
-	if (info.extras.rdtsc) {
+	if (cpu.pclmulqdq) printf(" pclmulqdq");
+	if (cpu.cmpxchg8b) printf(" cmpxchg8b");
+	if (cpu.cmpxchg16b) printf(" cmpxchg16b");
+	if (cpu.movbe) printf(" movbe");
+	if (cpu.rdrand) printf(" rdrand");
+	if (cpu.rdseed) printf(" rdseed");
+	if (cpu.rdmsr) printf(" rdmsr+wrmsr");
+	if (cpu.sysenter) printf(" sysenter+sysexit");
+	if (cpu.syscall) printf(" syscall+sysret");
+	if (cpu.rdtsc) {
 		printf(" rdtsc");
-		if (info.extras.rdtscDeadline)
+		if (cpu.rdtscDeadline)
 			printf(" +tsc-deadline");
-		if (info.extras.rdtscInvariant)
+		if (cpu.rdtscInvariant)
 			printf(" +tsc-invariant");
 	}
-	if (info.extras.rdtscp) printf(" rdtscp");
-	if (info.extras.rdpid) printf(" rdpid");
-	if (info.extras.cmov) {
+	if (cpu.rdtscp) printf(" rdtscp");
+	if (cpu.rdpid) printf(" rdpid");
+	if (cpu.cmov) {
 		printf(" cmov");
-		if (info.extensions.fpu) printf(" fcomi+fcmov");
+		if (cpu.fpu) printf(" fcomi+fcmov");
 	}
-	if (info.extras.lzcnt) printf(" lzcnt");
-	if (info.extras.popcnt) printf(" popcnt");
-	if (info.extras.xsave) printf(" xsave+xrstor");
-	if (info.extras.osxsave) printf(" xsetbv+xgetbv");
-	if (info.extras.fxsr) printf(" fxsave+fxrstor");
-	if (info.extras.pconfig) printf(" pconfig");
-	if (info.extras.cldemote) printf(" cldemote");
-	if (info.extras.movdiri) printf(" movdiri");
-	if (info.extras.movdir64b) printf(" movdir64b");
-	if (info.extras.enqcmd) printf(" enqcmd");
-	if (info.extras.skinit) printf(" skinit+stgi");
-	if (info.extras.serialize) printf(" serialize");
+	if (cpu.lzcnt) printf(" lzcnt");
+	if (cpu.popcnt) printf(" popcnt");
+	if (cpu.xsave) printf(" xsave+xrstor");
+	if (cpu.osxsave) printf(" xsetbv+xgetbv");
+	if (cpu.fxsr) printf(" fxsave+fxrstor");
+	if (cpu.pconfig) printf(" pconfig");
+	if (cpu.cldemote) printf(" cldemote");
+	if (cpu.movdiri) printf(" movdiri");
+	if (cpu.movdir64b) printf(" movdir64b");
+	if (cpu.enqcmd) printf(" enqcmd");
+	if (cpu.skinit) printf(" skinit+stgi");
+	if (cpu.serialize) printf(" serialize");
 	
 	//
 	// ANCHOR Vendor specific technologies
 	//
 	
 	printf("\nTechnologies:");
-	printTechs(info);
+	printTechs(cpu);
 	
 	//
 	// ANCHOR Cache information
 	//
 	
 	printf("\nCache       :");
-	if (info.cache.clflush)
-		printf(" clflush=%uB", info.cache.clflushLinesize << 3);
-	if (info.cache.clflushopt) printf(" clflushopt");
-	if (info.cache.cnxtId) printf(" cnxt-id");
-	if (info.cache.ss) printf(" ss");
-	if (info.cache.prefetchw) printf(" prefetchw");
-	if (info.cache.invpcid) printf(" invpcid");
-	if (info.cache.wbnoinvd) printf(" wbnoinvd");
+	if (cpu.clflush)
+		printf(" clflush=%uB", cpu.clflushLinesize << 3);
+	if (cpu.clflushopt) printf(" clflushopt");
+	if (cpu.cnxtId) printf(" cnxt-id");
+	if (cpu.ss) printf(" ss");
+	if (cpu.prefetchw) printf(" prefetchw");
+	if (cpu.invpcid) printf(" invpcid");
+	if (cpu.wbnoinvd) printf(" wbnoinvd");
 	
-	for (uint i; i < info.cache.levels; ++i) {
-		cache = &info.cache.level[i];
+	for (uint i; i < cpu.cacheLevels; ++i) {
+		cache = &cpu.cache[i];
 		printf("\nLevel %u-%c   : %2ux %6u KiB, %u ways, %u parts, %u B, %u sets",
 			cache.level, cache.type, cache.sharedCores, cache.size,
 			cache.ways, cache.partitions, cache.lineSize, cache.sets
@@ -736,187 +737,185 @@ int main(int argc, const(char) **argv) {
 	}
 	
 	printf("\nSystem      :");
-	if (info.sys.available) printf(" acpi");
-	if (info.sys.apic) printf(" apic");
-	if (info.sys.x2apic) printf(" x2apic");
-	if (info.sys.arat) printf(" arat");
-	if (info.sys.tm) printf(" tm");
-	if (info.sys.tm2) printf(" tm2");
-	printf(" apic-id=%u", info.sys.apicId);
-	if (info.sys.maxApicId) printf(" max-id=%u", info.sys.maxApicId);
+	if (cpu.apci) printf(" acpi");
+	if (cpu.apic) printf(" apic");
+	if (cpu.x2apic) printf(" x2apic");
+	if (cpu.arat) printf(" arat");
+	if (cpu.tm) printf(" tm");
+	if (cpu.tm2) printf(" tm2");
+	printf(" apic-id=%u", cpu.apicId);
+	if (cpu.apicMaxId) printf(" max-id=%u", cpu.apicMaxId);
 	
 	printf("\nVirtual     :");
-	if (info.virt.vme) printf(" vme");
-	if (info.virt.apicv) printf(" apicv");
+	if (cpu.vme) printf(" vme");
+	if (cpu.apicv) printf(" apicv");
 	
 	// Paravirtualization
-	if (info.virt.vendor.id) {
+	if (cpu.virtVendor.id) {
 		// See vendor string case
-		char *virtvendor = cast(char*)info.virt.vendor.string_;
-		printf(" host=%.12s", virtvendor);
+		printf(" host=%.12s", cast(char*)cpu.virtVendor.string_);
 	}
-	switch (info.virt.vendor.id) with (VirtVendor) {
+	switch (cpu.virtVendor.id) with (VirtVendor) {
 	case VBoxMin:
-		if (info.virt.vbox.tsc_freq_khz)
-			printf(" tsc_freq_khz=%u", info.virt.vbox.tsc_freq_khz);
-		if (info.virt.vbox.apic_freq_khz)
-			printf(" apic_freq_khz=%u", info.virt.vbox.apic_freq_khz);
+		if (cpu.vbox.tsc_freq_khz)
+			printf(" tsc_freq_khz=%u", cpu.vbox.tsc_freq_khz);
+		if (cpu.vbox.apic_freq_khz)
+			printf(" apic_freq_khz=%u", cpu.vbox.apic_freq_khz);
 		break;
 	case HyperV:
 		printf(" opensource=%d vendor_id=%d os=%d major=%d minor=%d service=%d build=%d",
-			info.virt.hv.guest_opensource,
-			info.virt.hv.guest_vendor_id,
-			info.virt.hv.guest_os,
-			info.virt.hv.guest_major,
-			info.virt.hv.guest_minor,
-			info.virt.hv.guest_service,
-			info.virt.hv.guest_build);
-		if (info.virt.hv.base_feat_vp_runtime_msr) printf(" hv_base_feat_vp_runtime_msr");
-		if (info.virt.hv.base_feat_part_time_ref_count_msr) printf(" hv_base_feat_part_time_ref_count_msr");
-		if (info.virt.hv.base_feat_basic_synic_msrs) printf(" hv_base_feat_basic_synic_msrs");
-		if (info.virt.hv.base_feat_stimer_msrs) printf(" hv_base_feat_stimer_msrs");
-		if (info.virt.hv.base_feat_apic_access_msrs) printf(" hv_base_feat_apic_access_msrs");
-		if (info.virt.hv.base_feat_hypercall_msrs) printf(" hv_base_feat_hypercall_msrs");
-		if (info.virt.hv.base_feat_vp_id_msr) printf(" hv_base_feat_vp_id_msr");
-		if (info.virt.hv.base_feat_virt_sys_reset_msr) printf(" hv_base_feat_virt_sys_reset_msr");
-		if (info.virt.hv.base_feat_stat_pages_msr) printf(" hv_base_feat_stat_pages_msr");
-		if (info.virt.hv.base_feat_part_ref_tsc_msr) printf(" hv_base_feat_part_ref_tsc_msr");
-		if (info.virt.hv.base_feat_guest_idle_state_msr) printf(" hv_base_feat_guest_idle_state_msr");
-		if (info.virt.hv.base_feat_timer_freq_msrs) printf(" hv_base_feat_timer_freq_msrs");
-		if (info.virt.hv.base_feat_debug_msrs) printf(" hv_base_feat_debug_msrs");
-		if (info.virt.hv.part_flags_create_part) printf(" hv_part_flags_create_part");
-		if (info.virt.hv.part_flags_access_part_id) printf(" hv_part_flags_access_part_id");
-		if (info.virt.hv.part_flags_access_memory_pool) printf(" hv_part_flags_access_memory_pool");
-		if (info.virt.hv.part_flags_adjust_msg_buffers) printf(" hv_part_flags_adjust_msg_buffers");
-		if (info.virt.hv.part_flags_post_msgs) printf(" hv_part_flags_post_msgs");
-		if (info.virt.hv.part_flags_signal_events) printf(" hv_part_flags_signal_events");
-		if (info.virt.hv.part_flags_create_port) printf(" hv_part_flags_create_port");
-		if (info.virt.hv.part_flags_connect_port) printf(" hv_part_flags_connect_port");
-		if (info.virt.hv.part_flags_access_stats) printf(" hv_part_flags_access_stats");
-		if (info.virt.hv.part_flags_debugging) printf(" hv_part_flags_debugging");
-		if (info.virt.hv.part_flags_cpu_mgmt) printf(" hv_part_flags_cpu_mgmt");
-		if (info.virt.hv.part_flags_cpu_profiler) printf(" hv_part_flags_cpu_profiler");
-		if (info.virt.hv.part_flags_expanded_stack_walk) printf(" hv_part_flags_expanded_stack_walk");
-		if (info.virt.hv.part_flags_access_vsm) printf(" hv_part_flags_access_vsm");
-		if (info.virt.hv.part_flags_access_vp_regs) printf(" hv_part_flags_access_vp_regs");
-		if (info.virt.hv.part_flags_extended_hypercalls) printf(" hv_part_flags_extended_hypercalls");
-		if (info.virt.hv.part_flags_start_vp) printf(" hv_part_flags_start_vp");
-		if (info.virt.hv.pm_max_cpu_power_state_c0) printf(" hv_pm_max_cpu_power_state_c0");
-		if (info.virt.hv.pm_max_cpu_power_state_c1) printf(" hv_pm_max_cpu_power_state_c1");
-		if (info.virt.hv.pm_max_cpu_power_state_c2) printf(" hv_pm_max_cpu_power_state_c2");
-		if (info.virt.hv.pm_max_cpu_power_state_c3) printf(" hv_pm_max_cpu_power_state_c3");
-		if (info.virt.hv.pm_hpet_reqd_for_c3) printf(" hv_pm_hpet_reqd_for_c3");
-		if (info.virt.hv.misc_feat_mwait) printf(" hv_misc_feat_mwait");
-		if (info.virt.hv.misc_feat_guest_debugging) printf(" hv_misc_feat_guest_debugging");
-		if (info.virt.hv.misc_feat_perf_mon) printf(" hv_misc_feat_perf_mon");
-		if (info.virt.hv.misc_feat_pcpu_dyn_part_event) printf(" hv_misc_feat_pcpu_dyn_part_event");
-		if (info.virt.hv.misc_feat_xmm_hypercall_input) printf(" hv_misc_feat_xmm_hypercall_input");
-		if (info.virt.hv.misc_feat_guest_idle_state) printf(" hv_misc_feat_guest_idle_state");
-		if (info.virt.hv.misc_feat_hypervisor_sleep_state) printf(" hv_misc_feat_hypervisor_sleep_state");
-		if (info.virt.hv.misc_feat_query_numa_distance) printf(" hv_misc_feat_query_numa_distance");
-		if (info.virt.hv.misc_feat_timer_freq) printf(" hv_misc_feat_timer_freq");
-		if (info.virt.hv.misc_feat_inject_synmc_xcpt) printf(" hv_misc_feat_inject_synmc_xcpt");
-		if (info.virt.hv.misc_feat_guest_crash_msrs) printf(" hv_misc_feat_guest_crash_msrs");
-		if (info.virt.hv.misc_feat_debug_msrs) printf(" hv_misc_feat_debug_msrs");
-		if (info.virt.hv.misc_feat_npiep1) printf(" hv_misc_feat_npiep1");
-		if (info.virt.hv.misc_feat_disable_hypervisor) printf(" hv_misc_feat_disable_hypervisor");
-		if (info.virt.hv.misc_feat_ext_gva_range_for_flush_va_list) printf(" hv_misc_feat_ext_gva_range_for_flush_va_list");
-		if (info.virt.hv.misc_feat_hypercall_output_xmm) printf(" hv_misc_feat_hypercall_output_xmm");
-		if (info.virt.hv.misc_feat_sint_polling_mode) printf(" hv_misc_feat_sint_polling_mode");
-		if (info.virt.hv.misc_feat_hypercall_msr_lock) printf(" hv_misc_feat_hypercall_msr_lock");
-		if (info.virt.hv.misc_feat_use_direct_synth_msrs) printf(" hv_misc_feat_use_direct_synth_msrs");
-		if (info.virt.hv.hint_hypercall_for_process_switch) printf(" hv_hint_hypercall_for_process_switch");
-		if (info.virt.hv.hint_hypercall_for_tlb_flush) printf(" hv_hint_hypercall_for_tlb_flush");
-		if (info.virt.hv.hint_hypercall_for_tlb_shootdown) printf(" hv_hint_hypercall_for_tlb_shootdown");
-		if (info.virt.hv.hint_msr_for_apic_access) printf(" hv_hint_msr_for_apic_access");
-		if (info.virt.hv.hint_msr_for_sys_reset) printf(" hv_hint_msr_for_sys_reset");
-		if (info.virt.hv.hint_relax_time_checks) printf(" hv_hint_relax_time_checks");
-		if (info.virt.hv.hint_dma_remapping) printf(" hv_hint_dma_remapping");
-		if (info.virt.hv.hint_interrupt_remapping) printf(" hv_hint_interrupt_remapping");
-		if (info.virt.hv.hint_x2apic_msrs) printf(" hv_hint_x2apic_msrs");
-		if (info.virt.hv.hint_deprecate_auto_eoi) printf(" hv_hint_deprecate_auto_eoi");
-		if (info.virt.hv.hint_synth_cluster_ipi_hypercall) printf(" hv_hint_synth_cluster_ipi_hypercall");
-		if (info.virt.hv.hint_ex_proc_masks_interface) printf(" hv_hint_ex_proc_masks_interface");
-		if (info.virt.hv.hint_nested_hyperv) printf(" hv_hint_nested_hyperv");
-		if (info.virt.hv.hint_int_for_mbec_syscalls) printf(" hv_hint_int_for_mbec_syscalls");
-		if (info.virt.hv.hint_nested_enlightened_vmcs_interface) printf(" hv_hint_nested_enlightened_vmcs_interface");
-		if (info.virt.hv.host_feat_avic) printf(" hv_host_feat_avic");
-		if (info.virt.hv.host_feat_msr_bitmap) printf(" hv_host_feat_msr_bitmap");
-		if (info.virt.hv.host_feat_perf_counter) printf(" hv_host_feat_perf_counter");
-		if (info.virt.hv.host_feat_nested_paging) printf(" hv_host_feat_nested_paging");
-		if (info.virt.hv.host_feat_dma_remapping) printf(" hv_host_feat_dma_remapping");
-		if (info.virt.hv.host_feat_interrupt_remapping) printf(" hv_host_feat_interrupt_remapping");
-		if (info.virt.hv.host_feat_mem_patrol_scrubber) printf(" hv_host_feat_mem_patrol_scrubber");
-		if (info.virt.hv.host_feat_dma_prot_in_use) printf(" hv_host_feat_dma_prot_in_use");
-		if (info.virt.hv.host_feat_hpet_requested) printf(" hv_host_feat_hpet_requested");
-		if (info.virt.hv.host_feat_stimer_volatile) printf(" hv_host_feat_stimer_volatile");
+			cpu.hv.guest_opensource,
+			cpu.hv.guest_vendor_id,
+			cpu.hv.guest_os,
+			cpu.hv.guest_major,
+			cpu.hv.guest_minor,
+			cpu.hv.guest_service,
+			cpu.hv.guest_build);
+		if (cpu.hv.base_feat_vp_runtime_msr) printf(" hv_base_feat_vp_runtime_msr");
+		if (cpu.hv.base_feat_part_time_ref_count_msr) printf(" hv_base_feat_part_time_ref_count_msr");
+		if (cpu.hv.base_feat_basic_synic_msrs) printf(" hv_base_feat_basic_synic_msrs");
+		if (cpu.hv.base_feat_stimer_msrs) printf(" hv_base_feat_stimer_msrs");
+		if (cpu.hv.base_feat_apic_access_msrs) printf(" hv_base_feat_apic_access_msrs");
+		if (cpu.hv.base_feat_hypercall_msrs) printf(" hv_base_feat_hypercall_msrs");
+		if (cpu.hv.base_feat_vp_id_msr) printf(" hv_base_feat_vp_id_msr");
+		if (cpu.hv.base_feat_virt_sys_reset_msr) printf(" hv_base_feat_virt_sys_reset_msr");
+		if (cpu.hv.base_feat_stat_pages_msr) printf(" hv_base_feat_stat_pages_msr");
+		if (cpu.hv.base_feat_part_ref_tsc_msr) printf(" hv_base_feat_part_ref_tsc_msr");
+		if (cpu.hv.base_feat_guest_idle_state_msr) printf(" hv_base_feat_guest_idle_state_msr");
+		if (cpu.hv.base_feat_timer_freq_msrs) printf(" hv_base_feat_timer_freq_msrs");
+		if (cpu.hv.base_feat_debug_msrs) printf(" hv_base_feat_debug_msrs");
+		if (cpu.hv.part_flags_create_part) printf(" hv_part_flags_create_part");
+		if (cpu.hv.part_flags_access_part_id) printf(" hv_part_flags_access_part_id");
+		if (cpu.hv.part_flags_access_memory_pool) printf(" hv_part_flags_access_memory_pool");
+		if (cpu.hv.part_flags_adjust_msg_buffers) printf(" hv_part_flags_adjust_msg_buffers");
+		if (cpu.hv.part_flags_post_msgs) printf(" hv_part_flags_post_msgs");
+		if (cpu.hv.part_flags_signal_events) printf(" hv_part_flags_signal_events");
+		if (cpu.hv.part_flags_create_port) printf(" hv_part_flags_create_port");
+		if (cpu.hv.part_flags_connect_port) printf(" hv_part_flags_connect_port");
+		if (cpu.hv.part_flags_access_stats) printf(" hv_part_flags_access_stats");
+		if (cpu.hv.part_flags_debugging) printf(" hv_part_flags_debugging");
+		if (cpu.hv.part_flags_cpu_mgmt) printf(" hv_part_flags_cpu_mgmt");
+		if (cpu.hv.part_flags_cpu_profiler) printf(" hv_part_flags_cpu_profiler");
+		if (cpu.hv.part_flags_expanded_stack_walk) printf(" hv_part_flags_expanded_stack_walk");
+		if (cpu.hv.part_flags_access_vsm) printf(" hv_part_flags_access_vsm");
+		if (cpu.hv.part_flags_access_vp_regs) printf(" hv_part_flags_access_vp_regs");
+		if (cpu.hv.part_flags_extended_hypercalls) printf(" hv_part_flags_extended_hypercalls");
+		if (cpu.hv.part_flags_start_vp) printf(" hv_part_flags_start_vp");
+		if (cpu.hv.pm_max_cpu_power_state_c0) printf(" hv_pm_max_cpu_power_state_c0");
+		if (cpu.hv.pm_max_cpu_power_state_c1) printf(" hv_pm_max_cpu_power_state_c1");
+		if (cpu.hv.pm_max_cpu_power_state_c2) printf(" hv_pm_max_cpu_power_state_c2");
+		if (cpu.hv.pm_max_cpu_power_state_c3) printf(" hv_pm_max_cpu_power_state_c3");
+		if (cpu.hv.pm_hpet_reqd_for_c3) printf(" hv_pm_hpet_reqd_for_c3");
+		if (cpu.hv.misc_feat_mwait) printf(" hv_misc_feat_mwait");
+		if (cpu.hv.misc_feat_guest_debugging) printf(" hv_misc_feat_guest_debugging");
+		if (cpu.hv.misc_feat_perf_mon) printf(" hv_misc_feat_perf_mon");
+		if (cpu.hv.misc_feat_pcpu_dyn_part_event) printf(" hv_misc_feat_pcpu_dyn_part_event");
+		if (cpu.hv.misc_feat_xmm_hypercall_input) printf(" hv_misc_feat_xmm_hypercall_input");
+		if (cpu.hv.misc_feat_guest_idle_state) printf(" hv_misc_feat_guest_idle_state");
+		if (cpu.hv.misc_feat_hypervisor_sleep_state) printf(" hv_misc_feat_hypervisor_sleep_state");
+		if (cpu.hv.misc_feat_query_numa_distance) printf(" hv_misc_feat_query_numa_distance");
+		if (cpu.hv.misc_feat_timer_freq) printf(" hv_misc_feat_timer_freq");
+		if (cpu.hv.misc_feat_inject_synmc_xcpt) printf(" hv_misc_feat_inject_synmc_xcpt");
+		if (cpu.hv.misc_feat_guest_crash_msrs) printf(" hv_misc_feat_guest_crash_msrs");
+		if (cpu.hv.misc_feat_debug_msrs) printf(" hv_misc_feat_debug_msrs");
+		if (cpu.hv.misc_feat_npiep1) printf(" hv_misc_feat_npiep1");
+		if (cpu.hv.misc_feat_disable_hypervisor) printf(" hv_misc_feat_disable_hypervisor");
+		if (cpu.hv.misc_feat_ext_gva_range_for_flush_va_list) printf(" hv_misc_feat_ext_gva_range_for_flush_va_list");
+		if (cpu.hv.misc_feat_hypercall_output_xmm) printf(" hv_misc_feat_hypercall_output_xmm");
+		if (cpu.hv.misc_feat_sint_polling_mode) printf(" hv_misc_feat_sint_polling_mode");
+		if (cpu.hv.misc_feat_hypercall_msr_lock) printf(" hv_misc_feat_hypercall_msr_lock");
+		if (cpu.hv.misc_feat_use_direct_synth_msrs) printf(" hv_misc_feat_use_direct_synth_msrs");
+		if (cpu.hv.hint_hypercall_for_process_switch) printf(" hv_hint_hypercall_for_process_switch");
+		if (cpu.hv.hint_hypercall_for_tlb_flush) printf(" hv_hint_hypercall_for_tlb_flush");
+		if (cpu.hv.hint_hypercall_for_tlb_shootdown) printf(" hv_hint_hypercall_for_tlb_shootdown");
+		if (cpu.hv.hint_msr_for_apic_access) printf(" hv_hint_msr_for_apic_access");
+		if (cpu.hv.hint_msr_for_sys_reset) printf(" hv_hint_msr_for_sys_reset");
+		if (cpu.hv.hint_relax_time_checks) printf(" hv_hint_relax_time_checks");
+		if (cpu.hv.hint_dma_remapping) printf(" hv_hint_dma_remapping");
+		if (cpu.hv.hint_interrupt_remapping) printf(" hv_hint_interrupt_remapping");
+		if (cpu.hv.hint_x2apic_msrs) printf(" hv_hint_x2apic_msrs");
+		if (cpu.hv.hint_deprecate_auto_eoi) printf(" hv_hint_deprecate_auto_eoi");
+		if (cpu.hv.hint_synth_cluster_ipi_hypercall) printf(" hv_hint_synth_cluster_ipi_hypercall");
+		if (cpu.hv.hint_ex_proc_masks_interface) printf(" hv_hint_ex_proc_masks_interface");
+		if (cpu.hv.hint_nested_hyperv) printf(" hv_hint_nested_hyperv");
+		if (cpu.hv.hint_int_for_mbec_syscalls) printf(" hv_hint_int_for_mbec_syscalls");
+		if (cpu.hv.hint_nested_enlightened_vmcs_interface) printf(" hv_hint_nested_enlightened_vmcs_interface");
+		if (cpu.hv.host_feat_avic) printf(" hv_host_feat_avic");
+		if (cpu.hv.host_feat_msr_bitmap) printf(" hv_host_feat_msr_bitmap");
+		if (cpu.hv.host_feat_perf_counter) printf(" hv_host_feat_perf_counter");
+		if (cpu.hv.host_feat_nested_paging) printf(" hv_host_feat_nested_paging");
+		if (cpu.hv.host_feat_dma_remapping) printf(" hv_host_feat_dma_remapping");
+		if (cpu.hv.host_feat_interrupt_remapping) printf(" hv_host_feat_interrupt_remapping");
+		if (cpu.hv.host_feat_mem_patrol_scrubber) printf(" hv_host_feat_mem_patrol_scrubber");
+		if (cpu.hv.host_feat_dma_prot_in_use) printf(" hv_host_feat_dma_prot_in_use");
+		if (cpu.hv.host_feat_hpet_requested) printf(" hv_host_feat_hpet_requested");
+		if (cpu.hv.host_feat_stimer_volatile) printf(" hv_host_feat_stimer_volatile");
 		break;
 	case VirtVendor.KVM:
-		if (info.virt.kvm.feature_clocksource) printf(" kvm_feature_clocksource");
-		if (info.virt.kvm.feature_nop_io_delay) printf(" kvm_feature_nop_io_delay");
-		if (info.virt.kvm.feature_mmu_op) printf(" kvm_feature_mmu_op");
-		if (info.virt.kvm.feature_clocksource2) printf(" kvm_feature_clocksource2");
-		if (info.virt.kvm.feature_async_pf) printf(" kvm_feature_async_pf");
-		if (info.virt.kvm.feature_steal_time) printf(" kvm_feature_steal_time");
-		if (info.virt.kvm.feature_pv_eoi) printf(" kvm_feature_pv_eoi");
-		if (info.virt.kvm.feature_pv_unhault) printf(" kvm_feature_pv_unhault");
-		if (info.virt.kvm.feature_pv_tlb_flush) printf(" kvm_feature_pv_tlb_flush");
-		if (info.virt.kvm.feature_async_pf_vmexit) printf(" kvm_feature_async_pf_vmexit");
-		if (info.virt.kvm.feature_pv_send_ipi) printf(" kvm_feature_pv_send_ipi");
-		if (info.virt.kvm.feature_pv_poll_control) printf(" kvm_feature_pv_poll_control");
-		if (info.virt.kvm.feature_pv_sched_yield) printf(" kvm_feature_pv_sched_yield");
-		if (info.virt.kvm.feature_clocsource_stable_bit) printf(" kvm_feature_clocsource_stable_bit");
-		if (info.virt.kvm.hint_realtime) printf(" kvm_hints_realtime");
+		if (cpu.kvm.feature_clocksource) printf(" kvm_feature_clocksource");
+		if (cpu.kvm.feature_nop_io_delay) printf(" kvm_feature_nop_io_delay");
+		if (cpu.kvm.feature_mmu_op) printf(" kvm_feature_mmu_op");
+		if (cpu.kvm.feature_clocksource2) printf(" kvm_feature_clocksource2");
+		if (cpu.kvm.feature_async_pf) printf(" kvm_feature_async_pf");
+		if (cpu.kvm.feature_steal_time) printf(" kvm_feature_steal_time");
+		if (cpu.kvm.feature_pv_eoi) printf(" kvm_feature_pv_eoi");
+		if (cpu.kvm.feature_pv_unhault) printf(" kvm_feature_pv_unhault");
+		if (cpu.kvm.feature_pv_tlb_flush) printf(" kvm_feature_pv_tlb_flush");
+		if (cpu.kvm.feature_async_pf_vmexit) printf(" kvm_feature_async_pf_vmexit");
+		if (cpu.kvm.feature_pv_send_ipi) printf(" kvm_feature_pv_send_ipi");
+		if (cpu.kvm.feature_pv_poll_control) printf(" kvm_feature_pv_poll_control");
+		if (cpu.kvm.feature_pv_sched_yield) printf(" kvm_feature_pv_sched_yield");
+		if (cpu.kvm.feature_clocsource_stable_bit) printf(" kvm_feature_clocsource_stable_bit");
+		if (cpu.kvm.hint_realtime) printf(" kvm_hints_realtime");
 		break;
 	default:
 	}
 	
 	printf("\nMemory      :");
 	
-	if (info.memory.pae) printf(" pae");
-	if (info.memory.pse) printf(" pse");
-	if (info.memory.pse36) printf(" pse-36");
-	if (info.memory.page1gb) printf(" page1gb");
-	if (info.memory.nx) {
-		switch (info.vendor.id) with (Vendor) {
+	if (cpu.pae) printf(" pae");
+	if (cpu.pse) printf(" pse");
+	if (cpu.pse36) printf(" pse-36");
+	if (cpu.page1gb) printf(" page1gb");
+	if (cpu.nx) {
+		switch (cpu.vendor.id) with (Vendor) {
 		case Intel:	tstr = " intel-xd/nx"; break;
 		case AMD:	tstr = " amd-evp/nx"; break;
 		default:	tstr = " nx";
 		}
 		printf(tstr);
 	}
-	if (info.memory.dca) printf(" dca");
-	if (info.memory.pat) printf(" pat");
-	if (info.memory.mtrr) printf(" mtrr");
-	if (info.memory.pge) printf(" pge");
-	if (info.memory.smep) printf(" smep");
-	if (info.memory.smap) printf(" smap");
-	if (info.memory.pku) printf(" pku");
-	if (info.memory._5pl) printf(" 5pl");
-	if (info.memory.fsrepmov) printf(" fsrm");
-	if (info.memory.lam) printf(" lam");
+	if (cpu.dca) printf(" dca");
+	if (cpu.pat) printf(" pat");
+	if (cpu.mtrr) printf(" mtrr");
+	if (cpu.pge) printf(" pge");
+	if (cpu.smep) printf(" smep");
+	if (cpu.smap) printf(" smap");
+	if (cpu.pku) printf(" pku");
+	if (cpu._5pl) printf(" 5pl");
+	if (cpu.fsrepmov) printf(" fsrm");
+	if (cpu.lam) printf(" lam");
 	
-	with (info.memory)
 	printf("\nPhysicalBits: %u\nLinearBits  : %u\nDebugging   :",
-		physBits, lineBits);
+		cpu.physicalBits, cpu.linearBits);
 	
-	if (info.debugging.mca) printf(" mca");
-	if (info.debugging.mce) printf(" mce");
-	if (info.debugging.de) printf(" de");
-	if (info.debugging.ds) printf(" ds");
-	if (info.debugging.ds_cpl) printf(" ds-cpl");
-	if (info.debugging.dtes64) printf(" dtes64");
-	if (info.debugging.pdcm) printf(" pdcm");
-	if (info.debugging.sdbg) printf(" sdbg");
-	if (info.debugging.pbe) printf(" pbe");
+	if (cpu.mca) printf(" mca");
+	if (cpu.mce) printf(" mce");
+	if (cpu.de) printf(" de");
+	if (cpu.ds) printf(" ds");
+	if (cpu.ds_cpl) printf(" ds-cpl");
+	if (cpu.dtes64) printf(" dtes64");
+	if (cpu.pdcm) printf(" pdcm");
+	if (cpu.sdbg) printf(" sdbg");
+	if (cpu.pbe) printf(" pbe");
 	
 	printf("\nSecurity    :");
-	if (info.security.ia32_arch_capabilities) printf(" ia32_arch_capabilities");
-	printSecurity(info);
+	if (cpu.ia32_arch_capabilities) printf(" ia32_arch_capabilities");
+	printSecurity(cpu);
 	
-	with (info)
-	printf(
-	"\nMax. Leaf   : 0x%x\n"~
+	with (cpu) printf(
+	"\n"~
+	"Max. Leaf   : 0x%x\n"~
 	"Max. V-Leaf : 0x%x\n"~
 	"Max. E-Leaf : 0x%x\n"~
 	"Type        : %s\n"~
@@ -924,11 +923,11 @@ int main(int argc, const(char) **argv) {
 	"Misc.       :",
 		maxLeaf, maxLeafVirt, maxLeafExtended, typeString, brandIndex);
 	
-	if (info.misc.xtpr) printf(" xtpr");
-	if (info.misc.psn) printf(" psn");
-	if (info.misc.pcid) printf(" pcid");
-	if (info.misc.fsgsbase) printf(" fsgsbase");
-	if (info.misc.uintr) printf(" uintr");
+	if (cpu.xtpr) printf(" xtpr");
+	if (cpu.psn) printf(" psn");
+	if (cpu.pcid) printf(" pcid");
+	if (cpu.fsgsbase) printf(" fsgsbase");
+	if (cpu.uintr) printf(" uintr");
 	
 	putchar('\n');
 	

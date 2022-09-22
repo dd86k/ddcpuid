@@ -50,17 +50,15 @@ enum : uint {
 }
 
 /// Command-line options
-struct options_t { align(1):
+struct options_t {
 	int maxLevel;	/// Maximum leaf for -r (-S)
 	int maxSubLevel;	/// Maximum subleaf for -r (-s)
 	bool hasLevel;	/// If -S has been used
-	bool table;	/// To be deprecated
 	bool override_;	/// Override leaves (-o)
 	bool baseline;	/// Get x86-64 optimization feature level or baseline
 	bool all;	/// Get all processor details
 	bool raw;	/// Raw CPUID value table (-r/--raw)
 	bool rawInput;	/// Raw values were supplied, avoid fetching
-	bool[1] reserved;	/// 
 }
 
 // One day I'll make this italics.
@@ -351,7 +349,7 @@ void printCacheFeats(ushort feats) {
 }
 
 int optionRaw(ref options_t options, const(char) *arg) {
-	enum MAX = 512;
+	enum MAX = 64;
 	
 	version (Trace) trace("arg=%s", arg);
 	
@@ -399,15 +397,11 @@ int main(int argc, const(char) **argv) {
 				if (error) return error;
 				continue;
 			}
-			if (strcmp(arg, "table") == 0) {
-				options.table = true;
-				continue;
-			}
-			if (strcmp(arg, "level") == 0 || strcmp(arg, "baseline") == 0) {
+			if (strcmp(arg, "baseline") == 0) {
 				options.baseline = true;
 				continue;
 			}
-			if (strcmp(arg, "details") == 0 || strcmp(arg, "all") == 0) {
+			if (strcmp(arg, "all") == 0) {
 				options.all = true;
 				continue;
 			}
@@ -435,37 +429,14 @@ int main(int argc, const(char) **argv) {
 			while ((o = *arg) != 0) {
 				++arg;
 				switch (o) {
-				case 'a', 'd': options.all = true; continue;
-				case 'b', 'l': options.baseline = true; continue;
+				case 'a': options.all = true; continue;
+				case 'b': options.baseline = true; continue;
 				case 'o': options.override_ = true; continue;
 				case 'r':
 					val = argi + 1 >= argc ? null : argv[argi + 1];
 					if (val && val[0] == '-') val = null;
 					error = optionRaw(options, val);
 					if (error) return error;
-					continue;
-				case 'S':
-					if (++argi >= argc) {
-						puts("Missing parameter: leaf");
-						return 1;
-					}
-					options.hasLevel = sscanf(argv[argi], "%i", &options.maxLevel) == 1;
-					options.rawInput = true;
-					if (options.hasLevel == false) {
-						puts("Could not parse level (-S)");
-						return 2;
-					}
-					continue;
-				case 's':
-					if (++argi >= argc) {
-						puts("Missing parameter: sub-leaf (-s)");
-						return 1;
-					}
-					if (sscanf(argv[argi], "%i", &options.maxSubLevel) != 1) {
-						puts("Could not parse sub-level (-s)");
-						return 2;
-					}
-					options.rawInput = true;
 					continue;
 				case 'h': clih; return 0;
 				case 'V': cliv; return 0;
@@ -477,17 +448,7 @@ int main(int argc, const(char) **argv) {
 		} // else if
 	} // for
 	
-	CPUINFO cpu;
-	
-	if (options.override_) {
-		cpu.maxLeaf = MAX_LEAF;
-		cpu.maxLeafVirt = MAX_VLEAF;
-		cpu.maxLeafExtended = MAX_ELEAF;
-	} else if (options.rawInput == false) {
-		ddcpuid_leaves(cpu);
-	}
-	
-	if (options.raw || options.table) {
+	if (options.raw) {
 		uint l = void, s = void;
 		
 		puts(
@@ -514,6 +475,16 @@ int main(int argc, const(char) **argv) {
 		}
 		
 		return 0;
+	}
+	
+	CPUINFO cpu;
+	
+	if (options.override_) {
+		cpu.maxLeaf = MAX_LEAF;
+		cpu.maxLeafVirt = MAX_VLEAF;
+		cpu.maxLeafExtended = MAX_ELEAF;
+	} else {
+		ddcpuid_leaves(cpu);
 	}
 	
 	ddcpuid_cpuinfo(cpu);
@@ -593,7 +564,7 @@ int main(int argc, const(char) **argv) {
 		putchar('\n');
 		
 		// NOTE: id=0 would be vboxmin, so using this is more reliable
-		if (cpu.maxLeafVirt) {
+		if (cpu.maxLeafVirt && cpu.virtVendor.id) {
 			const(char) *vv = void;
 			switch (cpu.virtVendor.id) with (VirtVendor) {
 			case KVM:        vv = "KVM"; break;

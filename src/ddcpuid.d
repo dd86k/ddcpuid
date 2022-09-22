@@ -227,6 +227,8 @@ struct CPUINFO { align(1):
 	
 	VendorString vendor;	/// Vendor string and id
 	
+//	const(char) *microArchitecture;	/// Microarchitecture name string
+	
 	union {
 		private uint[12] brand32;	// For init only
 		char[48] brandString;	/// Processor Brand String
@@ -245,7 +247,6 @@ struct CPUINFO { align(1):
 	uint identifier;	/// Raw identifier (CPUID.01h.EAX)
 	ushort family;	/// Effective family identifier
 	ushort model;	/// Effective model identifier
-//	const(char) *microArchitecture;	/// Microarchitecture name string
 	ubyte familyBase;	/// Base family identifier
 	ubyte familyExtended;	/// Extended family identifier
 	ubyte modelBase;	/// Base model identifier
@@ -288,6 +289,7 @@ struct CPUINFO { align(1):
 	bool sse4a;	/// SSE4a
 	bool fma;	/// Fused Multiply-Add (FMA)
 	bool fma4;	/// FMA4
+	private bool res__2;
 	
 	//
 	// AVX
@@ -314,6 +316,7 @@ struct CPUINFO { align(1):
 	bool avx512_4fmaps;	/// AVX512_4FMAPS
 	bool avx512_bf16;	/// AVX512_BF16
 	bool avx512_vp2intersect;	/// AVX512_VP2INTERSECT
+	private bool res__3;
 	
 	//
 	// AMX
@@ -335,6 +338,7 @@ struct CPUINFO { align(1):
 	bool sgx2;	/// SGX2
 	ubyte sgxMaxSize;	/// 2^n maximum enclave size in non-64-bit
 	ubyte sgxMaxSize64;	/// 2^n maximum enclave size in 64-bit
+	private bool res__4;
 	
 	//
 	// Additional instructions.
@@ -371,6 +375,7 @@ struct CPUINFO { align(1):
 	bool monitorx;	/// MONITORX and MWAITX instructions
 	bool skinit;	/// SKINIT instruction
 	bool serialize;	/// SERIALIZE instruction
+	private bool res__5;
 	
 	// Features.
 	
@@ -379,6 +384,7 @@ struct CPUINFO { align(1):
 	bool turboboost30;	/// Intel TurboBoost 3.0
 	bool smx;	/// Intel TXT
 	bool htt;	/// (HTT) HyperThreading Technology, or just SMT available
+	private bool res__6;
 	
 	/// Cache-related.
 	
@@ -410,15 +416,16 @@ struct CPUINFO { align(1):
 	ubyte virtVersion;	/// (AMD) Virtualization platform version
 	bool vme;	/// Enhanced vm8086
 	bool apicv;	/// (AMD) APICv. Intel's is available via a MSR.
+	
 	VirtVendorString virtVendor;
 	
-	struct VBox {
+	struct VBox { align(1):
 		uint tsc_freq_khz;	/// (VBox) Timestamp counter frequency in KHz
 		uint apic_freq_khz;	/// (VBox) Paravirtualization API KHz frequency
 	}
 	VBox vbox;
 	
-	struct KVM {
+	struct KVM { align(1):
 		bool feature_clocksource;	/// (KVM) kvmclock interface
 		bool feature_nop_io_delay;	/// (KVM) No delays required on I/O operations
 		bool feature_mmu_op;	/// (KVM) Deprecated
@@ -434,10 +441,11 @@ struct CPUINFO { align(1):
 		bool feature_pv_sched_yield;	/// (KVM) paravirtualized scheduler yield
 		bool feature_clocsource_stable_bit;	/// (KVM) kvmclock warning
 		bool hint_realtime;	/// (KVM) vCPUs are never preempted for an unlimited amount of time
+		private bool res2;
 	}
 	KVM kvm;
 	
-	struct HyperV {
+	struct HyperV { align(1):
 		ushort guest_vendor_id;	/// (Hyper-V) Paravirtualization Guest Vendor ID
 		ushort guest_build;	/// (Hyper-V) Paravirtualization Guest Build number
 		ubyte guest_os;	/// (Hyper-V) Paravirtualization Guest OS ID
@@ -539,7 +547,6 @@ struct CPUINFO { align(1):
 	bool pat;	/// Page Attribute Table
 	bool pge;	/// Page Global Bit
 	bool dca;	/// Direct Cache Access
-	bool nx;	/// Intel XD (No eXecute bit)
 	union {
 		uint tsx;	/// Intel TSX. If set, has one of HLE, RTM, or TSXLDTRK.
 		struct {
@@ -548,6 +555,7 @@ struct CPUINFO { align(1):
 			bool tsxldtrk;	/// (TSX) Suspend Load Address Tracking
 		}
 	}
+	bool nx;	/// Intel XD (No eXecute bit)
 	bool smep;	/// Supervisor Mode Execution Protection
 	bool smap;	/// Supervisor Mode Access Protection
 	bool pku;	/// Protection Key Units
@@ -556,6 +564,7 @@ struct CPUINFO { align(1):
 	bool lam;	/// Linear Address Masking
 	ubyte physicalBits;	/// Memory physical bits
 	ubyte linearBits;	/// Memory linear bits
+	private bool res__8;
 	
 	//
 	// Debugging features.
@@ -570,11 +579,12 @@ struct CPUINFO { align(1):
 	bool pdcm;	/// Perfmon And Debug Capability
 	bool sdbg;	/// Silicon Debug
 	bool pbe;	/// Pending Break Enable
+	private bool res__9;
 	
 	/// Security features and mitigations.
+	// NOTE: IA32_CORE_CAPABILITIES is currently empty
 	
 	bool ia32_arch_capabilities;	/// IA32_ARCH_CAPABILITIES MSR
-	// NOTE: IA32_CORE_CAPABILITIES is currently empty
 	bool ibpb;	/// Indirect Branch Predictor Barrier
 	bool ibrs;	/// Indirect Branch Restricted Speculation
 	bool ibrsAlwaysOn;	/// IBRS always enabled
@@ -594,6 +604,7 @@ struct CPUINFO { align(1):
 	bool xtpr;	/// xTPR
 	bool fsgsbase;	/// FS and GS register base
 	bool uintr;	/// User Interrupts
+	private bool res__10;
 }
 
 // EAX[4:0], 0-31, but there aren't that many

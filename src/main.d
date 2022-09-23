@@ -467,7 +467,7 @@ int main(int argc, const(char) **argv) {
 			
 			if (regs.eax < leaf) continue;
 			
-			uint maxleaf = options.override_ ? leaf + MAX_LEAF : regs.eax;
+			const uint maxleaf = options.override_ ? leaf + MAX_LEAF : regs.eax;
 			
 			for (l = leaf; l <= maxleaf; ++l)
 				for (s = 0; s <= options.maxSubLevel; ++s)
@@ -496,8 +496,13 @@ int main(int argc, const(char) **argv) {
 	
 	// NOTE: .ptr crash with GDC -O3
 	//       glibc!__strlen_sse2 (in printf)
-	char *vendorstr = cast(char*)cpu.vendor.string_;
-	char *brandstr  = cast(char*)cpu.brandString;
+	version (GNU) {
+		char *vendorstr = cast(char*)cpu.vendor.string_;
+		char *brandstr  = cast(char*)cpu.brandString;
+	} else {
+		char *vendorstr = cpu.vendor.string_.ptr;
+		char *brandstr  = cpu.brandString.ptr;
+	}
 	
 	// Brand string left space trimming
 	// While very common in Intel, let's also do it for others (in case of)
@@ -563,7 +568,6 @@ int main(int argc, const(char) **argv) {
 		printSecurity(cpu);
 		putchar('\n');
 		
-		// NOTE: id=0 would be vboxmin, so using this is more reliable
 		if (cpu.maxLeafVirt && cpu.virtVendor.id) {
 			const(char) *vv = void;
 			switch (cpu.virtVendor.id) with (VirtVendor) {

@@ -5,17 +5,15 @@
  *
  * The best way to use this module would be:
  * ---
- * CPUINFO cpu;     // Important to let the struct init to zero!
- * getLeaves(cpu);  // Get maximum CPUID leaves (mandatory step before info)
- * getInfo(cpu);    // Fill CPUINFO structure (optional)
+ * CPUINFO cpu;          // CPUINFO.init or memset
+ * ddcpuid_leaves(cpu);  // Get maximum CPUID leaves (mandatory step before info)
+ * ddcpuid_cpuinfo(cpu); // Fill CPUINFO structure (optional)
  * ---
  *
  * Then checking the corresponding field:
  * ---
- * if (cpu.extensions.amx.xfd) {
+ * if (cpu.amx_xfd) {
  *   // Intel AMX with AMX_XFD is available
- * } else {
- *   // Feature unavailable
  * }
  * ---
  *
@@ -50,8 +48,6 @@ module ddcpuid;
 @system:
 extern (C):
 
-//TODO: Consider ddcpuid_* function prefix since we extern to C
-
 version (X86)
 	enum DDCPUID_PLATFORM = "i686"; /// Target platform
 else version (X86_64)
@@ -72,8 +68,8 @@ private enum CACHE_LEVELS = 6;	/// For buffer
 private enum CACHE_MAX_LEVEL = CACHE_LEVELS - 1;
 
 version (PrintInfo) {
-	pragma(msg, "CPUcpu.sizeof\t", CPUcpu.sizeof);
-	pragma(msg, "CACHE.sizeof\t", CACHEcpu.sizeof);
+	pragma(msg, "CPUINFO.sizeof\t", CPUINFO.sizeof);
+	pragma(msg, "CACHE.sizeof\t", CACHEINFO.sizeof);
 }
 
 /// Make a bit mask of one bit at n position
@@ -88,9 +84,6 @@ template ID(char[4] c) {
 }
 
 /// Vendor ID.
-///
-/// The CPUcpu.vendor_id field is set according to the Vendor String.
-/// They are validated in the getVendor function, so they are safe to use.
 enum Vendor {
 	Other = 0,
 	Intel = ID!"Genu",	/// `"GenuineIntel"`: Intel
@@ -99,11 +92,6 @@ enum Vendor {
 }
 
 /// Virtual Vendor ID, used as the interface type.
-///
-/// The CPUcpu.virt.vendor_id field is set according to the Vendor String.
-/// They are validated in the getVendor function, so they are safe to use.
-/// The VBoxHyperV ID will be adjusted for HyperV since it's the same interface,
-/// but simply a different implementation.
 // NOTE: bhyve doesn't not emit cpuid bits within 0x40000000, so not supported
 enum VirtVendor {
 	Other = 0,
@@ -146,7 +134,7 @@ struct REGISTERS {
 	assert(regs.ah  == 0xcc);
 }
 
-/// CPU cache entry
+/// Cache entry.
 struct CACHEINFO { align(1):
 	this(ubyte level_, char type_, uint kbsize_, ushort shared_,
 		ushort ways_, ushort parts_, ushort lineSize_, uint sets_) {
@@ -185,6 +173,7 @@ struct CACHEINFO { align(1):
 	char type = 0;	/// Type entry character: 'D'=Data, 'I'=Instructions, 'U'=Unified
 }
 
+/// Vendor string structure.
 struct VendorString { align(1):
 	union {
 		struct { uint ebx, edx, ecx; }
@@ -201,6 +190,7 @@ struct VendorString { align(1):
 	assert(s.ecx == ID!"cAMD");
 }
 
+/// Virtualization vendor string structure.
 struct VirtVendorString { align(1):
 	union {
 		struct { uint ebx, ecx, edx; }
@@ -234,7 +224,7 @@ struct CPUINFO { align(1):
 		char[48] brandString;	/// Processor Brand String
 	}
 	ubyte brandIndex;	/// Brand string index
-	private ubyte res_;
+	private ubyte __pad;
 	
 	uint cacheLevels;
 	CACHEINFO[CACHE_LEVELS] cache;
@@ -289,7 +279,7 @@ struct CPUINFO { align(1):
 	bool sse4a;	/// SSE4a
 	bool fma;	/// Fused Multiply-Add (FMA)
 	bool fma4;	/// FMA4
-	private bool res__2;
+	private bool __pad_2;
 	
 	//
 	// AVX
@@ -316,7 +306,7 @@ struct CPUINFO { align(1):
 	bool avx512_4fmaps;	/// AVX512_4FMAPS
 	bool avx512_bf16;	/// AVX512_BF16
 	bool avx512_vp2intersect;	/// AVX512_VP2INTERSECT
-	private bool res__3;
+	private bool __pad_3;
 	
 	//
 	// AMX
@@ -338,7 +328,7 @@ struct CPUINFO { align(1):
 	bool sgx2;	/// SGX2
 	ubyte sgxMaxSize;	/// 2^n maximum enclave size in non-64-bit
 	ubyte sgxMaxSize64;	/// 2^n maximum enclave size in 64-bit
-	private bool res__4;
+	private bool __pad_4;
 	
 	//
 	// Additional instructions.
@@ -375,7 +365,7 @@ struct CPUINFO { align(1):
 	bool monitorx;	/// MONITORX and MWAITX instructions
 	bool skinit;	/// SKINIT instruction
 	bool serialize;	/// SERIALIZE instruction
-	private bool res__5;
+	private bool __pad_5;
 	
 	// Features.
 	
@@ -384,7 +374,7 @@ struct CPUINFO { align(1):
 	bool turboboost30;	/// Intel TurboBoost 3.0
 	bool smx;	/// Intel TXT
 	bool htt;	/// (HTT) HyperThreading Technology, or just SMT available
-	private bool res__6;
+	private bool __pad_6;
 	
 	/// Cache-related.
 	
@@ -564,7 +554,7 @@ struct CPUINFO { align(1):
 	bool lam;	/// Linear Address Masking
 	ubyte physicalBits;	/// Memory physical bits
 	ubyte linearBits;	/// Memory linear bits
-	private bool res__8;
+	private bool __pad_8;
 	
 	//
 	// Debugging features.
@@ -579,7 +569,7 @@ struct CPUINFO { align(1):
 	bool pdcm;	/// Perfmon And Debug Capability
 	bool sdbg;	/// Silicon Debug
 	bool pbe;	/// Pending Break Enable
-	private bool res__9;
+	private bool __pad_9;
 	
 	/// Security features and mitigations.
 	// NOTE: IA32_CORE_CAPABILITIES is currently empty
@@ -604,7 +594,7 @@ struct CPUINFO { align(1):
 	bool xtpr;	/// xTPR
 	bool fsgsbase;	/// FS and GS register base
 	bool uintr;	/// User Interrupts
-	private bool res__10;
+	private bool __pad_10;
 }
 
 // EAX[4:0], 0-31, but there aren't that many
@@ -1013,71 +1003,48 @@ private alias strcpy48 = ddcpuid_strcpy48;
 /// 	cpu = CPUINFO structure.
 /// 	index = CPUID.01h.BL value.
 private
-void ddcpuid_intel_brand_index(ref CPUINFO cpu, ubyte index) {
+const(char)* ddcpuid_intel_brand_index(uint identifier, ubyte index) {
 	switch (index) {
-	case 1, 0xA, 0xF, 0x14:
-		strcpy48(cpu.brandString, "Intel(R) Celeron(R)");
-		return;
-	case 2, 4:
-		strcpy48(cpu.brandString, "Intel(R) Pentium(R) III");
-		return;
+	case 1, 0xA, 0xF, 0x14: return "Intel(R) Celeron(R)";
+	case 2, 4: return "Intel(R) Pentium(R) III";
 	case 3:
-		if (cpu.identifier == 0x6b1) goto case 1;
-		strcpy48(cpu.brandString, "Intel(R) Pentium(R) III Xeon(R)");
-		return;
+		if (identifier == 0x6b1) goto case 1;
+		return "Intel(R) Pentium(R) III Xeon(R)";
 	case 6:
-		strcpy48(cpu.brandString, "Mobile Intel(R) Pentium(R) III");
-		return;
+		return "Mobile Intel(R) Pentium(R) III";
 	case 7, 0x13, 0x17: // Same as Intel(R) Celeron(R) M?
-		strcpy48(cpu.brandString, "Mobile Intel(R) Celeron(R)");
-		return;
+		return "Mobile Intel(R) Celeron(R)";
 	case 8, 9:
-		strcpy48(cpu.brandString, "Intel(R) Pentium(R) 4");
-		return;
+		return "Intel(R) Pentium(R) 4";
 	case 0xB:
-		if (cpu.identifier == 0xf13) goto case 0xC;
-	L_XEON: // Needed to avoid loop
-		strcpy48(cpu.brandString, "Intel(R) Xeon(R)");
-		return;
-	case 0xC:
-		strcpy48(cpu.brandString, "Intel(R) Xeon(R) MP");
-		return;
+		if (identifier == 0xf13) goto case 0xC;
+	L_XEON: // Needed to avoid loop with case 0xe
+		return "Intel(R) Xeon(R)";
+	case 0xC: return "Intel(R) Xeon(R) MP";
 	case 0xE:
-		if (cpu.identifier == 0xf13) goto L_XEON;
-		strcpy48(cpu.brandString, "Mobile Intel(R) Pentium(R) 4");
-		return;
+		if (identifier == 0xf13) goto L_XEON;
+		return "Mobile Intel(R) Pentium(R) 4";
 	case 0x11, 0x15: // Yes, really.
-		strcpy48(cpu.brandString, "Mobile Genuine Intel(R)");
-		return;
-	case 0x12: strcpy48(cpu.brandString, "Intel(R) Celeron(R) M"); return;
-	case 0x16: strcpy48(cpu.brandString, "Intel(R) Pentium(R) M"); return;
-	default:   strcpy48(cpu.brandString, "Unknown"); return;
+		return "Mobile Genuine Intel(R)";
+	case 0x12: return "Intel(R) Celeron(R) M";
+	case 0x16: return "Intel(R) Pentium(R) M";
+	default:   return "Unknown";
 	}
 }
 
 private
-void ddcpuid_intel_brand_family(ref CPUINFO cpu) {
+const(char)* ddcpuid_intel_brand_family(ref CPUINFO cpu) {
 	// This function exist for processors that does not support the
 	// brand name table.
 	// At least do from Pentium to late Pentium II processors.
 	switch (cpu.family) {
 	case 5: // i586, Pentium
-		if (cpu.model >= 4) {
-			strcpy48(cpu.brandString, "Intel(R) Pentium(R) MMX");
-			return;
-		}
-		strcpy48(cpu.brandString, "Intel(R) Pentium(R)");
-		return;
+		if (cpu.model >= 4) return "Intel(R) Pentium(R) MMX";
+		return "Intel(R) Pentium(R)";
 	case 6: // i686, Pentium Pro
-		if (cpu.model >= 3) {
-			strcpy48(cpu.brandString, "Intel(R) Pentium(R) II");
-			return;
-		}
-		strcpy48(cpu.brandString, "Intel(R) Pentium(R) Pro");
-		return;
-	default:
-		strcpy48(cpu.brandString, "Unknown");
-		return;
+		if (cpu.model >= 3) return "Intel(R) Pentium(R) II";
+		return "Intel(R) Pentium(R) Pro";
+	default: return "Unknown";
 	}
 }
 
@@ -1189,9 +1156,10 @@ void ddcpuid_model_string(ref CPUINFO cpu) {
 		if (cpu.maxLeafExtended >= 0x8000_0004)
 			ddcpuid_extended_brand(cpu.brandString);
 		else if (cpu.brandIndex)
-			ddcpuid_intel_brand_index(cpu, cpu.brandIndex);
+			strcpy48(cpu.brandString,
+				ddcpuid_intel_brand_index(cpu.identifier, cpu.brandIndex));
 		else
-			ddcpuid_intel_brand_family(cpu);
+			strcpy48(cpu.brandString, ddcpuid_intel_brand_family(cpu));
 		return;
 	case AMD, VIA:
 		// Brand string

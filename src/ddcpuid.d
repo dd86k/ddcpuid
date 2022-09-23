@@ -723,7 +723,7 @@ private uint ddcpuid_max_leaf() {
 		}
 	} else version (GDC) {
 		asm {
-			"xor %eax,%eax\t\n"~
+			"xor %eax,%eax\n\t"~
 			"cpuid";
 		}
 	}
@@ -737,7 +737,7 @@ private uint ddcpuid_max_leaf_virt() {
 		}
 	} else version (GDC) {
 		asm {
-			"mov $0x40000000,%eax\t\n"~
+			"mov $0x40000000,%eax\n\t"~
 			"cpuid";
 		}
 	}
@@ -751,7 +751,7 @@ private uint ddcpuid_max_leaf_ext() {
 		}
 	} else version (GDC) {
 		asm {
-			"mov $0x80000000,%eax\t\n"~
+			"mov $0x80000000,%eax\n\t"~
 			"cpuid";
 		}
 	}

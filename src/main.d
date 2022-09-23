@@ -44,7 +44,7 @@ template CVER(int v) {
 template BIT(int n) if (n <= 31) { enum uint BIT = 1 << n; }
 
 enum : uint {
-	MAX_LEAF	= 0x30, /// Maximum leaf override
+	MAX_LEAF	= 0x40, /// Maximum leaf override
 	MAX_VLEAF	= 0x4000_0000 + MAX_LEAF, /// Maximum virt leaf override
 	MAX_ELEAF	= 0x8000_0000 + MAX_LEAF, /// Maximum extended leaf override
 }
@@ -56,7 +56,7 @@ struct options_t {
 	bool hasLevel;	/// If -S has been used
 	bool override_;	/// Override leaves (-o)
 	bool baseline;	/// Get x86-64 optimization feature level or baseline
-	bool all;	/// Get all processor details
+	bool list;	/// Get processor details in a list
 	bool raw;	/// Raw CPUID value table (-r/--raw)
 	bool rawInput;	/// Raw values were supplied, avoid fetching
 }
@@ -97,15 +97,10 @@ void clih() {
 	" ddcpuid [OPTIONS...]\n"~
 	"\n"~
 	"OPTIONS\n"~
-	" -a, --all        Show all processor information\n"~
+	" -l, --list       Show all processor information\n"~
 	" -b, --baseline   Print the processor's feature level\n"~
-	" -d, --details    (Deprecated) Alias of --all\n"~
-	" -l, --level      (Deprecated) Alias of --baseline\n"~
 	" -o               Override maximum leaves to 0x20, 0x4000_0020, and 0x8000_0020\n"~
 	" -r, --raw        Display raw CPUID values. Takes optional leaf,subleaf values.\n"~
-	" -S               (Deprecated) Alias of --raw eax, requires --table\n"~
-	" -s               (Deprecated) Alias of --raw eax,ecx, requires --table\n"~
-	"     --table      (Deprecated) Alias of --raw\n"~
 	"\n"~
 	"PAGES\n"~
 	" -h, --help   Print this help screen and quit\n"~
@@ -401,8 +396,8 @@ int main(int argc, const(char) **argv) {
 				options.baseline = true;
 				continue;
 			}
-			if (strcmp(arg, "all") == 0) {
-				options.all = true;
+			if (strcmp(arg, "list") == 0) {
+				options.list = true;
 				continue;
 			}
 			if (strcmp(arg, "version") == 0) {
@@ -429,7 +424,7 @@ int main(int argc, const(char) **argv) {
 			while ((o = *arg) != 0) {
 				++arg;
 				switch (o) {
-				case 'a': options.all = true; continue;
+				case 'l': options.list = true; continue;
 				case 'b': options.baseline = true; continue;
 				case 'o': options.override_ = true; continue;
 				case 'r':
@@ -514,7 +509,7 @@ int main(int argc, const(char) **argv) {
 	// ANCHOR Summary
 	//
 	
-	if (options.all == false) {
+	if (options.list == false) {
 		const(char) *s_cores = cpu.physicalCores == 1 ? "core" : "cores";
 		const(char) *s_threads = cpu.logicalCores == 1 ? "thread" : "threads";
 		with (cpu) printf(

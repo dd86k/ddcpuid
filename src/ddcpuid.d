@@ -2278,9 +2278,9 @@ const(char) *ddcpuid_baseline(ref CPUINFO cpu) {
 	// NOTE: K7 is still family 5 and didn't have SSE2.
 	// NOTE: Whoever manages to run this on an i486 has my respect.
 	switch (cpu.family) {
-	case 6:  return "i686"; // Pentium Pro / II
-	case 5:  return "i586"; // Pentium / MMX
+	case 3:  return "i386"; // 80386
 	case 4:  return "i486"; // 80486
-	default: return "i386"; // 80386
+	case 5:  return "i586"; // Pentium / MMX
+	default: return "i686"; // Pentium Pro / II
 	}
 }

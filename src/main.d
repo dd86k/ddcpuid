@@ -53,7 +53,8 @@ struct options_t {
 	int maxSubLevel;	/// Maximum subleaf for -r (-s)
 	bool hasLevel;	/// If -S has been used
 	bool override_;	/// Override leaves (-o)
-	bool baseline;	/// Get x86-64 optimization feature level or baseline
+	bool baseline;	/// Get x86-64 optimization feature level or baseline for processor
+	bool platform;	/// Get x86-64 optimization feature level or baseline for platform
 	bool list;	/// Get processor details in a list
 	bool raw;	/// Raw CPUID value table (-r/--raw)
 	bool rawInput;	/// Raw values were supplied, avoid fetching
@@ -95,9 +96,10 @@ void clih() {
 	" ddcpuid [OPTIONS...]\n"~
 	"\n"~
 	"OPTIONS\n"~
-	" -l, --list               Show all processor information in a list\n"~
 	" -b, --baseline           Print the processor's feature level\n"~
+	" -l, --list               Show all processor information in a list\n"~
 	" -o                       Override max leaves to 0x40 for each sections\n"~
+	" -p, --platform           Print the processor's feature level, context-aware\n"~
 	" -r, --raw [leaf,[sub]]   Display CPUID values\n"~
 	"\n"~
 	"PAGES\n"~
@@ -184,6 +186,16 @@ const(char)* adjustBits(ref uint size, int bitpos) {
 	assert(size == 64);
 	assert(adjustBits(size, 48) == "TiB");
 	assert(size == 256);
+}
+
+const(char)* platform(ref CPUINFO cpu) {
+	if (cpu.x86_64) return "x86-64";
+	switch (cpu.family) {
+	case 3:  return "i386"; // 80386
+	case 4:  return "i486"; // 80486
+	case 5:  return "i586"; // Pentium / MMX
+	default: return "i686"; // Pentium Pro / II
+	}
 }
 
 void printLegacy(ref CPUINFO cpu) {
@@ -383,6 +395,10 @@ int main(int argc, const(char) **argv) {
 				if (error) return error;
 				continue;
 			}
+			if (strcmp(arg, "platform") == 0) {
+				options.platform = true;
+				continue;
+			}
 			if (strcmp(arg, "baseline") == 0) {
 				options.baseline = true;
 				continue;
@@ -416,6 +432,7 @@ int main(int argc, const(char) **argv) {
 				++arg;
 				switch (o) {
 				case 'l': options.list = true; continue;
+				case 'p': options.platform = true; continue;
 				case 'b': options.baseline = true; continue;
 				case 'o': options.override_ = true; continue;
 				case 'r':
@@ -479,6 +496,10 @@ int main(int argc, const(char) **argv) {
 		puts(ddcpuid_baseline(cpu));
 		return 0;
 	}
+	if (options.platform) {
+		puts(platform(cpu));
+		return 0;
+	}
 	
 	// NOTE: .ptr crash with GDC -O3
 	//       glibc!__strlen_sse2 (in printf)
@@ -523,8 +544,10 @@ int main(int argc, const(char) **argv) {
 		}
 		
 		with (cpu) printf(
+		"Platform:    %s\n"~
 		"Baseline:    %s\n"~
 		"Features:   ",
+			platform(cpu),
 			ddcpuid_baseline(cpu)
 		);
 		

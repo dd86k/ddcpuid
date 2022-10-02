@@ -8,9 +8,7 @@
 module main;
 
 import core.stdc.stdio : printf; // sscanf
-import core.stdc.errno : errno;
-import core.stdc.stdlib : malloc, free;
-import core.stdc.string : strcmp, strtok, strncpy, strerror;
+import core.stdc.string : strcmp, strtok, strncpy;
 import ddcpuid;
 
 // NOTE: printf is used for a few reasons:
@@ -97,10 +95,10 @@ void clih() {
 	" ddcpuid [OPTIONS...]\n"~
 	"\n"~
 	"OPTIONS\n"~
-	" -l, --list       Show all processor information\n"~
-	" -b, --baseline   Print the processor's feature level\n"~
-	" -o               Override maximum leaves to 0x20, 0x4000_0020, and 0x8000_0020\n"~
-	" -r, --raw        Display raw CPUID values. Takes optional leaf,subleaf values.\n"~
+	" -l, --list               Show all processor information in a list\n"~
+	" -b, --baseline           Print the processor's feature level\n"~
+	" -o                       Override max leaves to 0x40 for each sections\n"~
+	" -r, --raw [leaf,[sub]]   Display CPUID values\n"~
 	"\n"~
 	"PAGES\n"~
 	" -h, --help   Print this help screen and quit\n"~
@@ -344,22 +342,17 @@ void printCacheFeats(ushort feats) {
 }
 
 int optionRaw(ref options_t options, const(char) *arg) {
-	enum MAX = 64;
+	enum MAX = 16;
+	char[MAX] buf = void;
 	
 	version (Trace) trace("arg=%s", arg);
 	
 	options.raw = true;
 	if (arg == null) return 0;
 	
-	char *s = cast(char*)malloc(MAX);
-	if (s == null) {
-		puts(strerror(errno));
-		return 1;
-	}
-	
 	options.rawInput = true;
-	strncpy(s, arg, MAX);
-	arg = strtok(s, ",");
+	strncpy(buf.ptr, arg, MAX);
+	arg = strtok(buf.ptr, ",");
 	version (Trace) trace("token=%s", arg);
 	if (arg == null) {
 		puts("Empty value for leaf");
@@ -370,11 +363,9 @@ int optionRaw(ref options_t options, const(char) *arg) {
 	version (Trace) trace("token=%s", arg);
 	if (arg)
 		sscanf(arg, "%i", &options.maxSubLevel);
-	free(s);
 	return 0;
 }
 
-//TODO: --no-header for -c/--cpuid
 version (unittest) {} else
 int main(int argc, const(char) **argv) {
 	options_t options; /// Command-line options

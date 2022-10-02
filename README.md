@@ -9,9 +9,9 @@ Identifier:  Family 0x19 Model 0x21 Stepping 0x0
 Cores:       16 cores, 32 threads
 Max. Memory: 256 TiB physical, 256 TiB virtual
 Baseline:    x86-64-v3
-Techs:       htt
+Features:    core-performance-boost htt
 Extensions:  x87/fpu +f16c mmx extmmx amd64/x86-64 +lahf64 amd-v/vmx +svm=v1 aes-ni adx sha bmi1 bmi2
-SSE:         sse sse2 sse3 ssse3 sse4.2 sse4a fma3
+SSE:         sse sse2 sse3 ssse3 sse4.2 sse4a fma
 AVX:         avx avx2
 AMX:        
 Mitigations: ibpb ibrs ibrs_pref stibp stibp_on ssbd
@@ -43,25 +43,25 @@ NOTE: Features may be influenced by the virtual environment.
 
 # 1. Usage Examples
 
-## 1.1. In a Virtual Guest with 2 Cores Allocated
+## 1.1. In a VirtualBox Virtual Guest with 4 Cores Allocated
 
 ```shell
 $ ddcpuid
-Name:        AuthenticAMD AMD Ryzen 9 5950X 16-Core Processor            
+Name:        AuthenticAMD AMD Ryzen 9 5950X 16-Core Processor
 Identifier:  Family 0x19 Model 0x21 Stepping 0x0
-Cores:       1 core, 2 threads
+Cores:       4 cores, 4 threads
 Max. Memory: 256 TiB physical, 256 TiB virtual
 Baseline:    x86-64
-Techs:       htt
+Features:    htt
 Extensions:  x87/fpu mmx extmmx amd64/x86-64 +lahf64 amd-v/vmx +svm=v1 aes-ni
 SSE:         sse sse2 sse3 ssse3 sse4.2 sse4a
 AVX:         avx avx2
-AMX:         None
+AMX:
 Mitigations:
-ParaVirt.:   KVM
-Cache L1-D:    1x   32 KiB,   32 KiB total, si
-Cache L1-I:    1x   32 KiB,   32 KiB total, si
-Cache L2-U:    1x  512 KiB,  512 KiB total, si ci
+ParaVirt.:   Hyper-V
+Cache L1-D:    2x   32 KiB,   64 KiB total, si
+Cache L1-I:    2x   32 KiB,   64 KiB total, si
+Cache L2-U:    2x  512 KiB,    1 MiB total, si ci
 Cache L3-U:    1x   32 MiB,   32 MiB total, si nwbv
 ```
 
@@ -87,7 +87,7 @@ x86-64-v3
 
 | Machine | Values |
 |---|---|
-| 32-bit | `i486`, `i586`, or `i686` |
+| 32-bit | `i386`, `i486`, `i586`, or `i686` |
 | 64-bit | `x86-64`, `x86-64-v2`, `x86-64-v3`, or `x86-64-v4` |
 
 ## 1.3. Raw CPUID Table on Host Computer
@@ -151,10 +151,10 @@ $ ddcpuid --raw
 | 80000023 |        0 |        0 |        0 |        0 |        0 |
 ```
 
-## 1.4. All Information Output
+## 1.4. List Information Output
 
 For more information in the fashion of Linux's `/proc/cpuinfo`,
-use the `-a` or `--all` switches. Warning, this really outputs a lot of
+use the `-l` or `--list` switches. Warning, this really outputs a lot of
 information!
 
 This mode really includes all processor information, including paravirtualization
@@ -165,11 +165,11 @@ features and Hyper-V's extremely long list of feature bits, if detected.
 The best way to compile ddcpuid is by using DUB.
 
 Compilers supported:
-- DMD >= 2.068.0 (best supported)
+- DMD >= 2.068.0 (best supported).
   - For earlier versions (tested on dmd 2.067.1), see [manual compilation](#23-manually).
-- LDC >= 1.0.0 (best optimizations, see [LDC Issues](#25-ldc-issues))
+- GDC >= 7.0.0 (good optimizations, see [GDC Issues](#24-gdc-issues)).
+- LDC >= 1.0.0 (best optimizations, see [LDC Issues](#25-ldc-issues)).
   - For 0.17.1, see how to perform a [manual compilation](#23-manually).
-- GDC >= 7.0.0 (good optimizations, see [GDC Issues](#24-gdc-issues))
 
 ## 2.1. DUB
 

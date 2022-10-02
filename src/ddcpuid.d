@@ -636,7 +636,7 @@ private bool bit(uint val, int pos) pure @safe {
 	assert(!bit(   0, 1));
 }
 
-// Both LDC and GDC are affected by inlining way too much
+// GDC and LDC may inline the assembler code.
 pragma(inline, false):
 
 /// Query processor with CPUID.
@@ -706,44 +706,32 @@ void ddcpuid_id(ref REGISTERS regs, uint level, uint sublevel = 0) {
 }
 
 private uint ddcpuid_max_leaf() {
-	version (DMDLDC) {
-		asm {
-			xor EAX,EAX;
-			cpuid;
-		}
-	} else version (GDC) {
-		asm {
-			"xor %eax,%eax\n\t"~
-			"cpuid";
-		}
+	version (DMDLDC) asm {
+		xor EAX,EAX;
+		cpuid;
+	} else version (GDC) asm {
+		"xor %eax,%eax\n\t"~
+		"cpuid";
 	}
 }
 
 private uint ddcpuid_max_leaf_virt() {
-	version (DMDLDC) {
-		asm {
-			mov EAX,0x4000_0000;
-			cpuid;
-		}
-	} else version (GDC) {
-		asm {
-			"mov $0x40000000,%eax\n\t"~
-			"cpuid";
-		}
+	version (DMDLDC) asm {
+		mov EAX,0x4000_0000;
+		cpuid;
+	} else version (GDC) asm {
+		"mov $0x40000000,%eax\n\t"~
+		"cpuid";
 	}
 }
 
 private uint ddcpuid_max_leaf_ext() {
-	version (DMDLDC) {
-		asm {
-			mov EAX,0x8000_0000;
-			cpuid;
-		}
-	} else version (GDC) {
-		asm {
-			"mov $0x80000000,%eax\n\t"~
-			"cpuid";
-		}
+	version (DMDLDC) asm {
+		mov EAX,0x8000_0000;
+		cpuid;
+	} else version (GDC) asm {
+		"mov $0x80000000,%eax\n\t"~
+		"cpuid";
 	}
 }
 
@@ -1312,7 +1300,6 @@ void ddcpuid_leaf2(ref CPUINFO cpu, ref REGISTERS regs) {
 		// Unless if one day I support looking up TLB data, but AMD does not support this.
 		// continue: Explicitly skip cache, this includes 0x00 (null), 0x40 (no L2 or L3).
 		// break: Valid cache descriptor, increment cache level.
-		//TODO: table + foreach loop
 		switch (value) {
 		case 0x06: // 1st-level instruction cache: 8 KBytes, 4-way set associative, 32 byte line size
 			cache[L1I] = CACHEINFO(1, 'I', 8, 1, 4, 1, 32, 64);
@@ -1549,7 +1536,7 @@ void ddcpuid_leaf2(ref CPUINFO cpu, ref REGISTERS regs) {
 		
 		++cacheLevels;
 	}
-	with (cpu) { // Some do not have L1I
+	with (cpu) { // Some do not have L1I, so move items down
 		if (cache[0].level == 0) {
 			for (size_t i; i < cacheLevels; ++i) {
 				cache[i] = cache[i+1];

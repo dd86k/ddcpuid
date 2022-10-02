@@ -563,7 +563,7 @@ int main(int argc, const(char) **argv) {
 		printSecurity(cpu);
 		putchar('\n');
 		
-		if (cpu.maxLeafVirt && cpu.virtVendor.id) {
+		if (cpu.maxLeafVirt >= 0x4000_0000) {
 			const(char) *vv = void;
 			switch (cpu.virtVendor.id) with (VirtVendor) {
 			case KVM:        vv = "KVM"; break;
@@ -719,124 +719,128 @@ int main(int argc, const(char) **argv) {
 	if (cpu.apicv) printf(" apicv");
 	
 	// Paravirtualization
-	if (cpu.virtVendor.id) {
-		// See vendor string case
-		printf(" host=%.12s", cast(char*)cpu.virtVendor.string_);
-	}
-	switch (cpu.virtVendor.id) with (VirtVendor) {
-	case VBoxMin:
-		if (cpu.vbox.tsc_freq_khz)
-			printf(" tsc_freq_khz=%u", cpu.vbox.tsc_freq_khz);
-		if (cpu.vbox.apic_freq_khz)
-			printf(" apic_freq_khz=%u", cpu.vbox.apic_freq_khz);
-		break;
-	case HyperV:
-		printf(" opensource=%d vendor_id=%d os=%d major=%d minor=%d service=%d build=%d",
-			cpu.hv.guest_opensource,
-			cpu.hv.guest_vendor_id,
-			cpu.hv.guest_os,
-			cpu.hv.guest_major,
-			cpu.hv.guest_minor,
-			cpu.hv.guest_service,
-			cpu.hv.guest_build);
-		if (cpu.hv.base_feat_vp_runtime_msr) printf(" hv_base_feat_vp_runtime_msr");
-		if (cpu.hv.base_feat_part_time_ref_count_msr) printf(" hv_base_feat_part_time_ref_count_msr");
-		if (cpu.hv.base_feat_basic_synic_msrs) printf(" hv_base_feat_basic_synic_msrs");
-		if (cpu.hv.base_feat_stimer_msrs) printf(" hv_base_feat_stimer_msrs");
-		if (cpu.hv.base_feat_apic_access_msrs) printf(" hv_base_feat_apic_access_msrs");
-		if (cpu.hv.base_feat_hypercall_msrs) printf(" hv_base_feat_hypercall_msrs");
-		if (cpu.hv.base_feat_vp_id_msr) printf(" hv_base_feat_vp_id_msr");
-		if (cpu.hv.base_feat_virt_sys_reset_msr) printf(" hv_base_feat_virt_sys_reset_msr");
-		if (cpu.hv.base_feat_stat_pages_msr) printf(" hv_base_feat_stat_pages_msr");
-		if (cpu.hv.base_feat_part_ref_tsc_msr) printf(" hv_base_feat_part_ref_tsc_msr");
-		if (cpu.hv.base_feat_guest_idle_state_msr) printf(" hv_base_feat_guest_idle_state_msr");
-		if (cpu.hv.base_feat_timer_freq_msrs) printf(" hv_base_feat_timer_freq_msrs");
-		if (cpu.hv.base_feat_debug_msrs) printf(" hv_base_feat_debug_msrs");
-		if (cpu.hv.part_flags_create_part) printf(" hv_part_flags_create_part");
-		if (cpu.hv.part_flags_access_part_id) printf(" hv_part_flags_access_part_id");
-		if (cpu.hv.part_flags_access_memory_pool) printf(" hv_part_flags_access_memory_pool");
-		if (cpu.hv.part_flags_adjust_msg_buffers) printf(" hv_part_flags_adjust_msg_buffers");
-		if (cpu.hv.part_flags_post_msgs) printf(" hv_part_flags_post_msgs");
-		if (cpu.hv.part_flags_signal_events) printf(" hv_part_flags_signal_events");
-		if (cpu.hv.part_flags_create_port) printf(" hv_part_flags_create_port");
-		if (cpu.hv.part_flags_connect_port) printf(" hv_part_flags_connect_port");
-		if (cpu.hv.part_flags_access_stats) printf(" hv_part_flags_access_stats");
-		if (cpu.hv.part_flags_debugging) printf(" hv_part_flags_debugging");
-		if (cpu.hv.part_flags_cpu_mgmt) printf(" hv_part_flags_cpu_mgmt");
-		if (cpu.hv.part_flags_cpu_profiler) printf(" hv_part_flags_cpu_profiler");
-		if (cpu.hv.part_flags_expanded_stack_walk) printf(" hv_part_flags_expanded_stack_walk");
-		if (cpu.hv.part_flags_access_vsm) printf(" hv_part_flags_access_vsm");
-		if (cpu.hv.part_flags_access_vp_regs) printf(" hv_part_flags_access_vp_regs");
-		if (cpu.hv.part_flags_extended_hypercalls) printf(" hv_part_flags_extended_hypercalls");
-		if (cpu.hv.part_flags_start_vp) printf(" hv_part_flags_start_vp");
-		if (cpu.hv.pm_max_cpu_power_state_c0) printf(" hv_pm_max_cpu_power_state_c0");
-		if (cpu.hv.pm_max_cpu_power_state_c1) printf(" hv_pm_max_cpu_power_state_c1");
-		if (cpu.hv.pm_max_cpu_power_state_c2) printf(" hv_pm_max_cpu_power_state_c2");
-		if (cpu.hv.pm_max_cpu_power_state_c3) printf(" hv_pm_max_cpu_power_state_c3");
-		if (cpu.hv.pm_hpet_reqd_for_c3) printf(" hv_pm_hpet_reqd_for_c3");
-		if (cpu.hv.misc_feat_mwait) printf(" hv_misc_feat_mwait");
-		if (cpu.hv.misc_feat_guest_debugging) printf(" hv_misc_feat_guest_debugging");
-		if (cpu.hv.misc_feat_perf_mon) printf(" hv_misc_feat_perf_mon");
-		if (cpu.hv.misc_feat_pcpu_dyn_part_event) printf(" hv_misc_feat_pcpu_dyn_part_event");
-		if (cpu.hv.misc_feat_xmm_hypercall_input) printf(" hv_misc_feat_xmm_hypercall_input");
-		if (cpu.hv.misc_feat_guest_idle_state) printf(" hv_misc_feat_guest_idle_state");
-		if (cpu.hv.misc_feat_hypervisor_sleep_state) printf(" hv_misc_feat_hypervisor_sleep_state");
-		if (cpu.hv.misc_feat_query_numa_distance) printf(" hv_misc_feat_query_numa_distance");
-		if (cpu.hv.misc_feat_timer_freq) printf(" hv_misc_feat_timer_freq");
-		if (cpu.hv.misc_feat_inject_synmc_xcpt) printf(" hv_misc_feat_inject_synmc_xcpt");
-		if (cpu.hv.misc_feat_guest_crash_msrs) printf(" hv_misc_feat_guest_crash_msrs");
-		if (cpu.hv.misc_feat_debug_msrs) printf(" hv_misc_feat_debug_msrs");
-		if (cpu.hv.misc_feat_npiep1) printf(" hv_misc_feat_npiep1");
-		if (cpu.hv.misc_feat_disable_hypervisor) printf(" hv_misc_feat_disable_hypervisor");
-		if (cpu.hv.misc_feat_ext_gva_range_for_flush_va_list) printf(" hv_misc_feat_ext_gva_range_for_flush_va_list");
-		if (cpu.hv.misc_feat_hypercall_output_xmm) printf(" hv_misc_feat_hypercall_output_xmm");
-		if (cpu.hv.misc_feat_sint_polling_mode) printf(" hv_misc_feat_sint_polling_mode");
-		if (cpu.hv.misc_feat_hypercall_msr_lock) printf(" hv_misc_feat_hypercall_msr_lock");
-		if (cpu.hv.misc_feat_use_direct_synth_msrs) printf(" hv_misc_feat_use_direct_synth_msrs");
-		if (cpu.hv.hint_hypercall_for_process_switch) printf(" hv_hint_hypercall_for_process_switch");
-		if (cpu.hv.hint_hypercall_for_tlb_flush) printf(" hv_hint_hypercall_for_tlb_flush");
-		if (cpu.hv.hint_hypercall_for_tlb_shootdown) printf(" hv_hint_hypercall_for_tlb_shootdown");
-		if (cpu.hv.hint_msr_for_apic_access) printf(" hv_hint_msr_for_apic_access");
-		if (cpu.hv.hint_msr_for_sys_reset) printf(" hv_hint_msr_for_sys_reset");
-		if (cpu.hv.hint_relax_time_checks) printf(" hv_hint_relax_time_checks");
-		if (cpu.hv.hint_dma_remapping) printf(" hv_hint_dma_remapping");
-		if (cpu.hv.hint_interrupt_remapping) printf(" hv_hint_interrupt_remapping");
-		if (cpu.hv.hint_x2apic_msrs) printf(" hv_hint_x2apic_msrs");
-		if (cpu.hv.hint_deprecate_auto_eoi) printf(" hv_hint_deprecate_auto_eoi");
-		if (cpu.hv.hint_synth_cluster_ipi_hypercall) printf(" hv_hint_synth_cluster_ipi_hypercall");
-		if (cpu.hv.hint_ex_proc_masks_interface) printf(" hv_hint_ex_proc_masks_interface");
-		if (cpu.hv.hint_nested_hyperv) printf(" hv_hint_nested_hyperv");
-		if (cpu.hv.hint_int_for_mbec_syscalls) printf(" hv_hint_int_for_mbec_syscalls");
-		if (cpu.hv.hint_nested_enlightened_vmcs_interface) printf(" hv_hint_nested_enlightened_vmcs_interface");
-		if (cpu.hv.host_feat_avic) printf(" hv_host_feat_avic");
-		if (cpu.hv.host_feat_msr_bitmap) printf(" hv_host_feat_msr_bitmap");
-		if (cpu.hv.host_feat_perf_counter) printf(" hv_host_feat_perf_counter");
-		if (cpu.hv.host_feat_nested_paging) printf(" hv_host_feat_nested_paging");
-		if (cpu.hv.host_feat_dma_remapping) printf(" hv_host_feat_dma_remapping");
-		if (cpu.hv.host_feat_interrupt_remapping) printf(" hv_host_feat_interrupt_remapping");
-		if (cpu.hv.host_feat_mem_patrol_scrubber) printf(" hv_host_feat_mem_patrol_scrubber");
-		if (cpu.hv.host_feat_dma_prot_in_use) printf(" hv_host_feat_dma_prot_in_use");
-		if (cpu.hv.host_feat_hpet_requested) printf(" hv_host_feat_hpet_requested");
-		if (cpu.hv.host_feat_stimer_volatile) printf(" hv_host_feat_stimer_volatile");
-		break;
-	case VirtVendor.KVM:
-		if (cpu.kvm.feature_clocksource) printf(" kvm_feature_clocksource");
-		if (cpu.kvm.feature_nop_io_delay) printf(" kvm_feature_nop_io_delay");
-		if (cpu.kvm.feature_mmu_op) printf(" kvm_feature_mmu_op");
-		if (cpu.kvm.feature_clocksource2) printf(" kvm_feature_clocksource2");
-		if (cpu.kvm.feature_async_pf) printf(" kvm_feature_async_pf");
-		if (cpu.kvm.feature_steal_time) printf(" kvm_feature_steal_time");
-		if (cpu.kvm.feature_pv_eoi) printf(" kvm_feature_pv_eoi");
-		if (cpu.kvm.feature_pv_unhault) printf(" kvm_feature_pv_unhault");
-		if (cpu.kvm.feature_pv_tlb_flush) printf(" kvm_feature_pv_tlb_flush");
-		if (cpu.kvm.feature_async_pf_vmexit) printf(" kvm_feature_async_pf_vmexit");
-		if (cpu.kvm.feature_pv_send_ipi) printf(" kvm_feature_pv_send_ipi");
-		if (cpu.kvm.feature_pv_poll_control) printf(" kvm_feature_pv_poll_control");
-		if (cpu.kvm.feature_pv_sched_yield) printf(" kvm_feature_pv_sched_yield");
-		if (cpu.kvm.feature_clocsource_stable_bit) printf(" kvm_feature_clocsource_stable_bit");
-		if (cpu.kvm.hint_realtime) printf(" kvm_hints_realtime");
-		break;
-	default:
+	if (cpu.maxLeafVirt >= 0x4000_0000) {
+		if (cpu.virtVendor.id) {
+			// See vendor string case
+			printf(" host=%.12s", cast(char*)cpu.virtVendor.string_);
+		} else {
+			printf(" host=(null)");
+		}
+		switch (cpu.virtVendor.id) with (VirtVendor) {
+		case VBoxMin:
+			if (cpu.vbox.tsc_freq_khz)
+				printf(" tsc_freq_khz=%u", cpu.vbox.tsc_freq_khz);
+			if (cpu.vbox.apic_freq_khz)
+				printf(" apic_freq_khz=%u", cpu.vbox.apic_freq_khz);
+			break;
+		case HyperV:
+			printf(" opensource=%d vendor_id=%d os=%d major=%d minor=%d service=%d build=%d",
+				cpu.hv.guest_opensource,
+				cpu.hv.guest_vendor_id,
+				cpu.hv.guest_os,
+				cpu.hv.guest_major,
+				cpu.hv.guest_minor,
+				cpu.hv.guest_service,
+				cpu.hv.guest_build);
+			if (cpu.hv.base_feat_vp_runtime_msr) printf(" hv_base_feat_vp_runtime_msr");
+			if (cpu.hv.base_feat_part_time_ref_count_msr) printf(" hv_base_feat_part_time_ref_count_msr");
+			if (cpu.hv.base_feat_basic_synic_msrs) printf(" hv_base_feat_basic_synic_msrs");
+			if (cpu.hv.base_feat_stimer_msrs) printf(" hv_base_feat_stimer_msrs");
+			if (cpu.hv.base_feat_apic_access_msrs) printf(" hv_base_feat_apic_access_msrs");
+			if (cpu.hv.base_feat_hypercall_msrs) printf(" hv_base_feat_hypercall_msrs");
+			if (cpu.hv.base_feat_vp_id_msr) printf(" hv_base_feat_vp_id_msr");
+			if (cpu.hv.base_feat_virt_sys_reset_msr) printf(" hv_base_feat_virt_sys_reset_msr");
+			if (cpu.hv.base_feat_stat_pages_msr) printf(" hv_base_feat_stat_pages_msr");
+			if (cpu.hv.base_feat_part_ref_tsc_msr) printf(" hv_base_feat_part_ref_tsc_msr");
+			if (cpu.hv.base_feat_guest_idle_state_msr) printf(" hv_base_feat_guest_idle_state_msr");
+			if (cpu.hv.base_feat_timer_freq_msrs) printf(" hv_base_feat_timer_freq_msrs");
+			if (cpu.hv.base_feat_debug_msrs) printf(" hv_base_feat_debug_msrs");
+			if (cpu.hv.part_flags_create_part) printf(" hv_part_flags_create_part");
+			if (cpu.hv.part_flags_access_part_id) printf(" hv_part_flags_access_part_id");
+			if (cpu.hv.part_flags_access_memory_pool) printf(" hv_part_flags_access_memory_pool");
+			if (cpu.hv.part_flags_adjust_msg_buffers) printf(" hv_part_flags_adjust_msg_buffers");
+			if (cpu.hv.part_flags_post_msgs) printf(" hv_part_flags_post_msgs");
+			if (cpu.hv.part_flags_signal_events) printf(" hv_part_flags_signal_events");
+			if (cpu.hv.part_flags_create_port) printf(" hv_part_flags_create_port");
+			if (cpu.hv.part_flags_connect_port) printf(" hv_part_flags_connect_port");
+			if (cpu.hv.part_flags_access_stats) printf(" hv_part_flags_access_stats");
+			if (cpu.hv.part_flags_debugging) printf(" hv_part_flags_debugging");
+			if (cpu.hv.part_flags_cpu_mgmt) printf(" hv_part_flags_cpu_mgmt");
+			if (cpu.hv.part_flags_cpu_profiler) printf(" hv_part_flags_cpu_profiler");
+			if (cpu.hv.part_flags_expanded_stack_walk) printf(" hv_part_flags_expanded_stack_walk");
+			if (cpu.hv.part_flags_access_vsm) printf(" hv_part_flags_access_vsm");
+			if (cpu.hv.part_flags_access_vp_regs) printf(" hv_part_flags_access_vp_regs");
+			if (cpu.hv.part_flags_extended_hypercalls) printf(" hv_part_flags_extended_hypercalls");
+			if (cpu.hv.part_flags_start_vp) printf(" hv_part_flags_start_vp");
+			if (cpu.hv.pm_max_cpu_power_state_c0) printf(" hv_pm_max_cpu_power_state_c0");
+			if (cpu.hv.pm_max_cpu_power_state_c1) printf(" hv_pm_max_cpu_power_state_c1");
+			if (cpu.hv.pm_max_cpu_power_state_c2) printf(" hv_pm_max_cpu_power_state_c2");
+			if (cpu.hv.pm_max_cpu_power_state_c3) printf(" hv_pm_max_cpu_power_state_c3");
+			if (cpu.hv.pm_hpet_reqd_for_c3) printf(" hv_pm_hpet_reqd_for_c3");
+			if (cpu.hv.misc_feat_mwait) printf(" hv_misc_feat_mwait");
+			if (cpu.hv.misc_feat_guest_debugging) printf(" hv_misc_feat_guest_debugging");
+			if (cpu.hv.misc_feat_perf_mon) printf(" hv_misc_feat_perf_mon");
+			if (cpu.hv.misc_feat_pcpu_dyn_part_event) printf(" hv_misc_feat_pcpu_dyn_part_event");
+			if (cpu.hv.misc_feat_xmm_hypercall_input) printf(" hv_misc_feat_xmm_hypercall_input");
+			if (cpu.hv.misc_feat_guest_idle_state) printf(" hv_misc_feat_guest_idle_state");
+			if (cpu.hv.misc_feat_hypervisor_sleep_state) printf(" hv_misc_feat_hypervisor_sleep_state");
+			if (cpu.hv.misc_feat_query_numa_distance) printf(" hv_misc_feat_query_numa_distance");
+			if (cpu.hv.misc_feat_timer_freq) printf(" hv_misc_feat_timer_freq");
+			if (cpu.hv.misc_feat_inject_synmc_xcpt) printf(" hv_misc_feat_inject_synmc_xcpt");
+			if (cpu.hv.misc_feat_guest_crash_msrs) printf(" hv_misc_feat_guest_crash_msrs");
+			if (cpu.hv.misc_feat_debug_msrs) printf(" hv_misc_feat_debug_msrs");
+			if (cpu.hv.misc_feat_npiep1) printf(" hv_misc_feat_npiep1");
+			if (cpu.hv.misc_feat_disable_hypervisor) printf(" hv_misc_feat_disable_hypervisor");
+			if (cpu.hv.misc_feat_ext_gva_range_for_flush_va_list) printf(" hv_misc_feat_ext_gva_range_for_flush_va_list");
+			if (cpu.hv.misc_feat_hypercall_output_xmm) printf(" hv_misc_feat_hypercall_output_xmm");
+			if (cpu.hv.misc_feat_sint_polling_mode) printf(" hv_misc_feat_sint_polling_mode");
+			if (cpu.hv.misc_feat_hypercall_msr_lock) printf(" hv_misc_feat_hypercall_msr_lock");
+			if (cpu.hv.misc_feat_use_direct_synth_msrs) printf(" hv_misc_feat_use_direct_synth_msrs");
+			if (cpu.hv.hint_hypercall_for_process_switch) printf(" hv_hint_hypercall_for_process_switch");
+			if (cpu.hv.hint_hypercall_for_tlb_flush) printf(" hv_hint_hypercall_for_tlb_flush");
+			if (cpu.hv.hint_hypercall_for_tlb_shootdown) printf(" hv_hint_hypercall_for_tlb_shootdown");
+			if (cpu.hv.hint_msr_for_apic_access) printf(" hv_hint_msr_for_apic_access");
+			if (cpu.hv.hint_msr_for_sys_reset) printf(" hv_hint_msr_for_sys_reset");
+			if (cpu.hv.hint_relax_time_checks) printf(" hv_hint_relax_time_checks");
+			if (cpu.hv.hint_dma_remapping) printf(" hv_hint_dma_remapping");
+			if (cpu.hv.hint_interrupt_remapping) printf(" hv_hint_interrupt_remapping");
+			if (cpu.hv.hint_x2apic_msrs) printf(" hv_hint_x2apic_msrs");
+			if (cpu.hv.hint_deprecate_auto_eoi) printf(" hv_hint_deprecate_auto_eoi");
+			if (cpu.hv.hint_synth_cluster_ipi_hypercall) printf(" hv_hint_synth_cluster_ipi_hypercall");
+			if (cpu.hv.hint_ex_proc_masks_interface) printf(" hv_hint_ex_proc_masks_interface");
+			if (cpu.hv.hint_nested_hyperv) printf(" hv_hint_nested_hyperv");
+			if (cpu.hv.hint_int_for_mbec_syscalls) printf(" hv_hint_int_for_mbec_syscalls");
+			if (cpu.hv.hint_nested_enlightened_vmcs_interface) printf(" hv_hint_nested_enlightened_vmcs_interface");
+			if (cpu.hv.host_feat_avic) printf(" hv_host_feat_avic");
+			if (cpu.hv.host_feat_msr_bitmap) printf(" hv_host_feat_msr_bitmap");
+			if (cpu.hv.host_feat_perf_counter) printf(" hv_host_feat_perf_counter");
+			if (cpu.hv.host_feat_nested_paging) printf(" hv_host_feat_nested_paging");
+			if (cpu.hv.host_feat_dma_remapping) printf(" hv_host_feat_dma_remapping");
+			if (cpu.hv.host_feat_interrupt_remapping) printf(" hv_host_feat_interrupt_remapping");
+			if (cpu.hv.host_feat_mem_patrol_scrubber) printf(" hv_host_feat_mem_patrol_scrubber");
+			if (cpu.hv.host_feat_dma_prot_in_use) printf(" hv_host_feat_dma_prot_in_use");
+			if (cpu.hv.host_feat_hpet_requested) printf(" hv_host_feat_hpet_requested");
+			if (cpu.hv.host_feat_stimer_volatile) printf(" hv_host_feat_stimer_volatile");
+			break;
+		case VirtVendor.KVM:
+			if (cpu.kvm.feature_clocksource) printf(" kvm_feature_clocksource");
+			if (cpu.kvm.feature_nop_io_delay) printf(" kvm_feature_nop_io_delay");
+			if (cpu.kvm.feature_mmu_op) printf(" kvm_feature_mmu_op");
+			if (cpu.kvm.feature_clocksource2) printf(" kvm_feature_clocksource2");
+			if (cpu.kvm.feature_async_pf) printf(" kvm_feature_async_pf");
+			if (cpu.kvm.feature_steal_time) printf(" kvm_feature_steal_time");
+			if (cpu.kvm.feature_pv_eoi) printf(" kvm_feature_pv_eoi");
+			if (cpu.kvm.feature_pv_unhault) printf(" kvm_feature_pv_unhault");
+			if (cpu.kvm.feature_pv_tlb_flush) printf(" kvm_feature_pv_tlb_flush");
+			if (cpu.kvm.feature_async_pf_vmexit) printf(" kvm_feature_async_pf_vmexit");
+			if (cpu.kvm.feature_pv_send_ipi) printf(" kvm_feature_pv_send_ipi");
+			if (cpu.kvm.feature_pv_poll_control) printf(" kvm_feature_pv_poll_control");
+			if (cpu.kvm.feature_pv_sched_yield) printf(" kvm_feature_pv_sched_yield");
+			if (cpu.kvm.feature_clocsource_stable_bit) printf(" kvm_feature_clocsource_stable_bit");
+			if (cpu.kvm.hint_realtime) printf(" kvm_hints_realtime");
+			break;
+		default:
+		}
 	}
 	
 	printf("\nMemory      :");

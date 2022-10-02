@@ -2,7 +2,7 @@
 ." Please read man-pages(7) and groff_man(7) about the manual page format.
 ." Don't forget to respect the format of this document!
 ."
-.TH ddcpuid 1 "March 2022" dd86k "User manual"
+.TH ddcpuid 1 "October 2022" dd86k "User manual"
 .SH NAME
 ddcpuid - x86/AMD64 CPUID information tool
 
@@ -12,11 +12,11 @@ ddcpuid - x86/AMD64 CPUID information tool
 .OP \-r [LEVEL[,SUBLEVEL]]
 .OP \-o
 .OP \-b
-.OP \--all
+.OP \--list
 .OP \--baseline
 .OP \--raw [LEVEL[,SUBLEVEL]]
-.OP \--version
 .OP \--ver
+.OP \--version
 .OP \--help
 .YS
 
@@ -32,19 +32,19 @@ and the VBox Minimal interfaces).
 By default, the following is reported:
 
 .EX
-- Vendor and Brand strings
-- Identification numbers
-- Core/thread information
-- Maximum amount of memory supported
-- Baseline
-- Technologies
-- Legacy and generic extensions
-- SSE extensions
-- AVX extensions
-- AMX extensions
-- Security mitigations
-- Paravirtualization interface, if detected
-- Cache topology
+- Vendor and Brand strings;
+- Identification numbers;
+- Core/thread information;
+- Maximum amount of memory supported;
+- Baseline;
+- Technologies;
+- Legacy and generic extensions;
+- SSE extensions;
+- AVX extensions;
+- AMX extensions;
+- Security mitigations;
+- Paravirtualization interface, if detected;
+- And cache topology.
 .EE
 
 ." TODO: Sort options alphabetically
@@ -59,7 +59,7 @@ Show version screen and exit.
 .IP --ver
 Show version only and exit.
 
-.IP -a,--all
+.IP -l,\ \-\-list
 Print all available processor information.
 
 This is best suited for software developers.
@@ -68,21 +68,35 @@ This is best suited for software developers.
 Overrides leaves to 0x40h, 0x4000_0040, and 0x8000_0040. Affects feature
 scanning and -r/--raw.
 
-.IP -r,--raw
+.IP -r,\ \-\-raw
 Print a raw table of CPUID data. The table is Markdown-compatible.
 
 Also accepts optional leaf/subleaf inputs.
 
 Note: Default, the sub-leaf input (ECX) is cleared.
 
-.IP -b,--baseline
+.IP -b,\ \-\-baseline
 
 Show which baseline the processor fits in.
 
 No error codes are set.
 
+.SH EXAMPLES
+
+.IP ddcpuid
+
+Shows a summary of processor specifications.
+
+.IP ddcpuid\ \-\-list
+
+Shows a detailed list of processor details.
+
+.IP ddcpuid\ \-\-raw\ 4,1
+
+Shows a raw CPUID table given input leaf 0x4 and input subleaf 0x1.
+
 .SH NOTES
-This man-page was written for ddcpuid 0.20. The full technical manual contains
+This man-page was written for ddcpuid 0.21. The full technical manual contains
 more details, such as explanations to intel and amd technologies, as well as
 various extensions in detail.
 

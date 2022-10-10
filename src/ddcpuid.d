@@ -716,23 +716,35 @@ private uint ddcpuid_max_leaf() {
 }
 
 private uint ddcpuid_max_leaf_virt() {
+	uint eax = void;
 	version (DMDLDC) asm {
 		mov EAX,0x4000_0000;
 		cpuid;
+		mov eax,EAX;
 	} else version (GDC) asm {
-		"mov $0x40000000,%eax\n\t"~
-		"cpuid";
+		"mov $0x40000000,%%eax\n\t"~
+		"cpuid"
+		: "=a" (eax);
 	}
+	if (eax <  0x4000_0000) return 0;
+	if (eax >= 0x5000_0000) return 0;
+	return eax;
 }
 
 private uint ddcpuid_max_leaf_ext() {
+	uint eax = void;
 	version (DMDLDC) asm {
 		mov EAX,0x8000_0000;
 		cpuid;
+		mov eax,EAX;
 	} else version (GDC) asm {
-		"mov $0x80000000,%eax\n\t"~
-		"cpuid";
+		"mov $0x80000000,%%eax\n\t"~
+		"cpuid"
+		: "=a" (eax);
 	}
+	if (eax <  0x8000_0000) return 0;
+	if (eax >= 0x9000_0000) return 0;
+	return eax;
 }
 
 /// Get CPU leaf levels.

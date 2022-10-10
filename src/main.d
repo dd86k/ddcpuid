@@ -464,14 +464,16 @@ int main(int argc, const(char) **argv) {
 			return 0;
 		}
 		
-		for (uint leaf; leaf != 0xf000_0000; leaf += 0x1000_0000) {
-			REGISTERS regs = void;
+		REGISTERS regs = void;
+		for (uint base; base <= 0xf; ++base) {
+			uint leaf = base << 28;
 			ddcpuid_id(regs, leaf, 0);
 			
+			// Check bounds (e.g. eax >= 0x4000_0000 && eax < 0x5000_0000)
 			if (regs.eax < leaf) continue;
+			if (base < 0xf && regs.eax >= leaf + 0x1000_0000) continue;
 			
-			const uint maxleaf = options.override_ ? leaf + MAX_LEAF : regs.eax;
-			
+			uint maxleaf = options.override_ ? leaf + MAX_LEAF : regs.eax;
 			for (l = leaf; l <= maxleaf; ++l)
 				for (s = 0; s <= options.maxSubLevel; ++s)
 					outcpuid(l, s);

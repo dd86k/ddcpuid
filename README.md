@@ -11,7 +11,7 @@ Max. Memory: 256 TiB physical, 256 TiB virtual
 Baseline:    x86-64-v3
 Features:    core-performance-boost htt
 Extensions:  x87/fpu +f16c mmx extmmx amd64/x86-64 +lahf64 amd-v/vmx +svm=v1 aes-ni adx sha bmi1 bmi2
-SSE:         sse sse2 sse3 ssse3 sse4.2 sse4a fma
+SSE:         sse sse2 sse3 ssse3 sse4.1 sse4.2 sse4a fma
 AVX:         avx avx2
 AMX:        
 Mitigations: ibpb ibrs ibrs_pref stibp stibp_on ssbd
@@ -54,7 +54,7 @@ Max. Memory: 256 TiB physical, 256 TiB virtual
 Baseline:    x86-64
 Features:    htt
 Extensions:  x87/fpu mmx extmmx amd64/x86-64 +lahf64 amd-v/vmx +svm=v1 aes-ni
-SSE:         sse sse2 sse3 ssse3 sse4.2 sse4a
+SSE:         sse sse2 sse3 ssse3 sse4.1 sse4.2 sse4a
 AVX:         avx avx2
 AMX:
 Mitigations:

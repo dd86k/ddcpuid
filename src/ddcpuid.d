@@ -1249,7 +1249,7 @@ void ddcpuid_leaf1(ref CPUINFO cpu, ref REGISTERS regs) {
 	cpu.ssse3	= bit(regs.ecx, 9);
 	cpu.fma	= bit(regs.ecx, 12);
 	cpu.cmpxchg16b	= bit(regs.ecx, 13);
-	cpu.sse41	= bit(regs.ecx, 15);
+	cpu.sse41	= bit(regs.ecx, 19);
 	cpu.sse42	= bit(regs.ecx, 20);
 	cpu.movbe	= bit(regs.ecx, 22);
 	cpu.popcnt	= bit(regs.ecx, 23);

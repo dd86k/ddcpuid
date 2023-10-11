@@ -1617,36 +1617,18 @@ void ddcpuid_leaf7(ref CPUINFO cpu, ref REGISTERS regs) {
 		cpu.hle	= bit(regs.ebx, 4);
 		cpu.invpcid	= bit(regs.ebx, 10);
 		cpu.rtm	= bit(regs.ebx, 11);
-		cpu.avx512f	= bit(regs.ebx, 16);
 		cpu.smap	= bit(regs.ebx, 20);
-		cpu.avx512er	= bit(regs.ebx, 27);
-		cpu.avx512pf	= bit(regs.ebx, 26);
-		cpu.avx512cd	= bit(regs.ebx, 28);
-		cpu.avx512dq	= bit(regs.ebx, 17);
-		cpu.avx512bw	= bit(regs.ebx, 30);
-		cpu.avx512_ifma	= bit(regs.ebx, 21);
-		cpu.avx512_vbmi	= regs.ebx >= BIT!(31);
 		// ECX
-		cpu.avx512vl	= bit(regs.ecx, 1);
 		cpu.pku	= bit(regs.ecx, 3);
 		cpu.fsrepmov	= bit(regs.ecx, 4);
 		cpu.waitpkg	= bit(regs.ecx, 5);
-		cpu.avx512_vbmi2	= bit(regs.ecx, 6);
 		cpu.cetSs	= bit(regs.ecx, 7);
-		cpu.avx512_gfni	= bit(regs.ecx, 8);
-		cpu.avx512_vaes	= bit(regs.ecx, 9);
-		cpu.avx512_vnni	= bit(regs.ecx, 11);
-		cpu.avx512_bitalg	= bit(regs.ecx, 12);
-		cpu.avx512_vpopcntdq	= bit(regs.ecx, 14);
 		cpu.cldemote	= bit(regs.ecx, 25);
 		cpu.movdiri	= bit(regs.ecx, 27);
 		cpu.movdir64b	= bit(regs.ecx, 28);
 		cpu.enqcmd	= bit(regs.ecx, 29);
 		// EDX
-		cpu.avx512_4vnniw	= bit(regs.edx, 2);
-		cpu.avx512_4fmaps	= bit(regs.edx, 3);
 		cpu.uintr	= bit(regs.edx, 5);
-		cpu.avx512_vp2intersect	= bit(regs.edx, 8);
 		cpu.md_clear	= bit(regs.edx, 10);
 		cpu.serialize	= bit(regs.edx, 14);
 		cpu.tsxldtrk	= bit(regs.edx, 16);
@@ -1674,6 +1656,25 @@ void ddcpuid_leaf7(ref CPUINFO cpu, ref REGISTERS regs) {
 	cpu.adx	= bit(regs.ebx, 19);
 	cpu.clflushopt	= bit(regs.ebx, 23);
 	cpu.sha	= bit(regs.ebx, 29);
+	// abx512
+	cpu.avx512f	= bit(regs.ebx, 16);
+	cpu.avx512er	= bit(regs.ebx, 27);
+	cpu.avx512pf	= bit(regs.ebx, 26);
+	cpu.avx512cd	= bit(regs.ebx, 28);
+	cpu.avx512dq	= bit(regs.ebx, 17);
+	cpu.avx512bw	= bit(regs.ebx, 30);
+	cpu.avx512_ifma	= bit(regs.ebx, 21);
+	cpu.avx512_vbmi	= regs.ebx >= BIT!(31);
+	cpu.avx512vl	= bit(regs.ecx, 1);
+	cpu.avx512_vbmi2	= bit(regs.ecx, 6);
+	cpu.avx512_gfni	= bit(regs.ecx, 8);
+	cpu.avx512_vaes	= bit(regs.ecx, 9);
+	cpu.avx512_vnni	= bit(regs.ecx, 11);
+	cpu.avx512_bitalg	= bit(regs.ecx, 12);
+	cpu.avx512_vpopcntdq	= bit(regs.ecx, 14);
+	cpu.avx512_4vnniw	= bit(regs.edx, 2);
+	cpu.avx512_4fmaps	= bit(regs.edx, 3);
+	cpu.avx512_vp2intersect	= bit(regs.edx, 8);
 	// ecx
 	cpu._5pl	= bit(regs.ecx, 16);
 	cpu.rdpid	= bit(regs.ecx, 22);

@@ -1638,7 +1638,6 @@ void ddcpuid_leaf7(ref CPUINFO cpu, ref REGISTERS regs) {
 		cpu.avx512_vnni	= bit(regs.ecx, 11);
 		cpu.avx512_bitalg	= bit(regs.ecx, 12);
 		cpu.avx512_vpopcntdq	= bit(regs.ecx, 14);
-		cpu._5pl	= bit(regs.ecx, 16);
 		cpu.cldemote	= bit(regs.ecx, 25);
 		cpu.movdiri	= bit(regs.ecx, 27);
 		cpu.movdir64b	= bit(regs.ecx, 28);
@@ -1676,6 +1675,7 @@ void ddcpuid_leaf7(ref CPUINFO cpu, ref REGISTERS regs) {
 	cpu.clflushopt	= bit(regs.ebx, 23);
 	cpu.sha	= bit(regs.ebx, 29);
 	// ecx
+	cpu._5pl	= bit(regs.ecx, 16);
 	cpu.rdpid	= bit(regs.ecx, 22);
 }
 

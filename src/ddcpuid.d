@@ -1685,11 +1685,12 @@ void ddcpuid_leaf7sub1(ref CPUINFO cpu, ref REGISTERS regs) {
 	switch (cpu.vendor.id) with (Vendor) {
 	case Intel:
 		// a
-		cpu.avx512_bf16	= bit(regs.eax, 5);
 		cpu.lam	= bit(regs.eax, 26);
 		break;
 	default:
 	}
+	
+	cpu.avx512_bf16	= bit(regs.eax, 5);
 }
 
 private

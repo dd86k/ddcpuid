@@ -22,7 +22,7 @@
  * To further understand these fields, it's encouraged to consult the technical manual.
  *
  * Authors: dd86k (dd@dax.moe)
- * Copyright: © 2016-2022 dd86k
+ * Copyright: © 2016-2023 dd86k
  * License: MIT
  */
 module ddcpuid;

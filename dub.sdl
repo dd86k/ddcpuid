@@ -1,7 +1,7 @@
 name "ddcpuid"
 description "x86 processor information library and application"
 authors "dd86k <dd@dax.moe>"
-copyright "Copyright © 2016-2022, dd86k"
+copyright "Copyright © 2016-2023, dd86k"
 license "MIT"
 
 #

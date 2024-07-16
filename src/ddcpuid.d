@@ -1,31 +1,34 @@
-/**
- * x86 CPU Identification tool
- *
- * This was initially used internally, so it's pretty unfriendly.
- *
- * The best way to use this module would be:
- * ---
- * CPUINFO cpu;          // CPUINFO.init or memset
- * ddcpuid_leaves(cpu);  // Get maximum CPUID leaves (mandatory step before info)
- * ddcpuid_cpuinfo(cpu); // Fill CPUINFO structure (optional)
- * ---
- *
- * Then checking the corresponding field:
- * ---
- * if (cpu.amx_xfd) {
- *   // Intel AMX with AMX_XFD is available
- * }
- * ---
- *
- * See the CPUINFO structure for available fields.
- *
- * To further understand these fields, it's encouraged to consult the technical manual.
- *
- * Authors: dd86k (dd@dax.moe)
- * Copyright: © 2016-2023 dd86k
- * License: MIT
- */
+/// x86 CPU Identification tool
+///
+/// This was initially used internally, so it's pretty unfriendly.
+///
+/// The best way to use this module would be:
+/// ---
+/// CPUINFO cpu;          // CPUINFO.init or memset
+/// ddcpuid_leaves(cpu);  // Get maximum CPUID leaves (mandatory step before info)
+/// ddcpuid_cpuinfo(cpu); // Fill CPUINFO structure (optional)
+/// ---
+///
+/// Then checking the corresponding field:
+/// ---
+/// if (cpu.amx_xfd) {
+///   // Intel AMX with AMX_XFD is available
+/// }
+/// ---
+///
+/// See the CPUINFO structure for available fields.
+///
+/// To further understand these fields, it's encouraged to consult the technical manual.
+///
+/// Authors: dd86k (dd@dax.moe)
+/// Copyright: © 2016-2023 dd86k
+/// License: MIT
 module ddcpuid;
+
+// TODO: Reconsider bitflags, but with functions.
+//       Having functions like "bool SGX(CPUINFO)" and "CACHE* caches(CPUINFO)"
+//       would be more compact with bitflags internally than hundreds of bools.
+//       But for the purpose of this project, to be considered only.
 
 // NOTE: GAS syntax crash course
 //       While ';' and '\n\t' are accepted, GNU typically recommends the
@@ -48,11 +51,9 @@ module ddcpuid;
 @system:
 extern (C):
 
-version (X86)
-	enum DDCPUID_PLATFORM = "i686"; /// Target platform
-else version (X86_64)
-	enum DDCPUID_PLATFORM = "amd64"; /// Target platform
-else static assert(0, "Unsupported platform");
+version (X86)         enum DDCPUID_PLATFORM = "i686"; /// Target platform
+else version (X86_64) enum DDCPUID_PLATFORM = "amd64"; /// Target platform
+else                  static assert(0, "Unsupported platform");
 
 version (DigitalMars) {
 	version = DMD;	// DMD compiler
@@ -61,7 +62,8 @@ version (DigitalMars) {
 	version = GDC;	// GDC compiler
 } else version (LDC) {
 	version = DMDLDC;	// DMD or LDC compilers
-} else static assert(0, "Unsupported compiler");
+} else
+	static assert(0, "Unsupported compiler");
 
 enum DDCPUID_VERSION   = "0.21.1";	/// Library version
 private enum CACHE_LEVELS = 6;	/// For buffer
@@ -103,26 +105,10 @@ enum VirtVendor {
 
 /// Registers structure used with the ddcpuid function.
 struct REGISTERS {
-	union {
-		uint eax;
-		ushort ax;
-		struct { ubyte al, ah; }
-	}
-	union {
-		uint ebx;
-		ushort bx;
-		struct { ubyte bl, bh; }
-	}
-	union {
-		uint ecx;
-		ushort cx;
-		struct { ubyte cl, ch; }
-	}
-	union {
-		uint edx;
-		ushort dx;
-		struct { ubyte dl, dh; }
-	}
+	union { uint eax; ushort ax; struct { ubyte al, ah; } }
+	union { uint ebx; ushort bx; struct { ubyte bl, bh; } }
+	union { uint ecx; ushort cx; struct { ubyte cl, ch; } }
+	union { uint edx; ushort dx; struct { ubyte dl, dh; } }
 }
 ///
 @system unittest {
@@ -181,7 +167,6 @@ struct VendorString { align(1):
 	}
 	Vendor id;	/// Validated vendor ID
 }
-
 @system unittest {
 	VendorString s;
 	s.string_ = "AuthenticAMD";
@@ -198,7 +183,6 @@ struct VirtVendorString { align(1):
 	}
 	VirtVendor id;	/// Validated vendor ID
 }
-
 @system unittest {
 	VirtVendorString s;
 	s.string_ = "AuthenticAMD";
@@ -597,9 +581,8 @@ struct CPUINFO { align(1):
 	private bool __pad_10;
 }
 
-// EAX[4:0], 0-31, but there aren't that many
-// So we limit it to 0-7
-private enum CACHE_MASK = 7; // Max 31
+// EAX[4:0], 0-31, but there aren't that many, so we limit up to 7
+private enum CACHE_MASK = 7; // Usually max 31, but only seem 3 possible values
 private immutable const(char)* CACHE_TYPE = "?DIU????";
 
 private
@@ -987,7 +970,6 @@ void ddcpuid_strcpy48(ref char[48] dst, const(char) *src) {
 	}
 }
 private alias strcpy48 = ddcpuid_strcpy48;
-
 @system unittest {
 	char[48] buffer = void;
 	strcpy48(buffer, "ea");

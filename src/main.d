@@ -169,7 +169,12 @@ cachesize_t cacheSize(uint base) {
 	return s;
 }
 unittest {
-	cachesize_t c = cacheSize(16);
+	cachesize_t c = cacheSize(0);
+	assert(c.prefix == 'K');
+	assert(c.dec == 0);
+	assert(c.rem == 0);
+	
+	c = cacheSize(16);
 	assert(c.prefix == 'K');
 	assert(c.dec == 16);
 	assert(c.rem == 0);
@@ -182,41 +187,61 @@ unittest {
 	c = cacheSize(1024 + 512);
 	assert(c.prefix == 'M');
 	assert(c.dec == 1);
-	assert(c.rem == 5);
+	assert(c.rem == 5); // 1.5
 }
 
-// Adjust binary size (IEC)
-const(char)* adjustBits(ref uint size, int bitpos) {
-	version (Trace) trace("size=%u bit=%d", size, bitpos);
-	static immutable const(char)*[8] SIZES = [
+struct binsize_t {
+	const(char) *suffix;
+	uint size; // adjusted
+}
+// Turn amount of bits (bit position) into a binary size
+// e.g., 16 bits (of address space) gets you 64 KiB, etc.
+//        1 << n bits = Size
+binsize_t binbitsize(int bitpos) {
+	static immutable const(char)*[8] suffixes = [
 		"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB"
 	];
-	size_t s;
-	while (bitpos >= 10) { bitpos -= 10; ++s; }
-	size = 1 << bitpos;
-	return SIZES[s];
+	
+	assert(bitpos <= 64);
+	
+	if (bitpos <= 0)
+		return binsize_t(suffixes[0], 0);
+	
+	return binsize_t(suffixes[bitpos / 10], 1 << (bitpos % 10));
 }
-//TODO: Make DUB to include this main, somehow
-/// adjustBits
-/*
-@system unittest {
-	float size;
-	assert(adjustBits(size, 0) == "B");
-	assert(size == 1);
-	assert(adjustBits(size, 1) == "B");
-	assert(size == 2);
-	assert(adjustBits(size, 10) == "KiB");
-	assert(size == 1);
-	assert(adjustBits(size, 11) == "KiB");
-	assert(size == 2);
-	assert(adjustBits(size, 20) == "MiB");
-	assert(size == 1);
-	assert(adjustBits(size, 36) == "GiB");
-	assert(size == 64);
-	assert(adjustBits(size, 48) == "TiB");
-	assert(size == 256);
+unittest {
+	binsize_t b = binbitsize(0); // 1 B
+	assert(b.size == 0);
+	assert(b.suffix[0] == 'B');
+	
+	b = binbitsize(1); // 2 B
+	assert(b.size == 2);
+	assert(b.suffix[0] == 'B');
+	
+	b = binbitsize(10); // 1 K
+	assert(b.size == 1);
+	assert(b.suffix[0] == 'K');
+	
+	b = binbitsize(11); // 2 K
+	assert(b.size == 2);
+	assert(b.suffix[0] == 'K');
+	
+	b = binbitsize(16); // 64 K
+	assert(b.size == 64);
+	assert(b.suffix[0] == 'K');
+	
+	b = binbitsize(20); // 1 M
+	assert(b.size == 1);
+	assert(b.suffix[0] == 'M');
+	
+	b = binbitsize(36); // 64 G
+	assert(b.size == 64);
+	assert(b.suffix[0] == 'G');
+	
+	b = binbitsize(48); // 256 T
+	assert(b.size == 256);
+	assert(b.suffix[0] == 'T');
 }
-*/
 
 const(char)* platform(ref CPUINFO cpu) {
 	if (cpu.x86_64) return "x86-64";
@@ -267,12 +292,13 @@ void printFeatures(ref CPUINFO cpu) {
 			if (cpu.sgx1 || cpu.sgx2) {
 				if (cpu.sgx1) printf(" sgx1");
 				if (cpu.sgx2) printf(" sgx2");
-			} else printf(" sgx"); // Fallback per-say
+			} else printf(" sgx"); // Fallback
+			
 			if (cpu.sgxMaxSize) {
-				uint s32 = void, s64 = void;
-				const(char) *m32 = adjustBits(s32, cpu.sgxMaxSize);
-				const(char) *m64 = adjustBits(s64, cpu.sgxMaxSize64);
-				printf(" +maxsize=%u%s +maxsize64=%u%s", s32, m32, s64, m64);
+				binsize_t sgx32 = binbitsize(cpu.sgxMaxSize);
+				binsize_t sgx64 = binbitsize(cpu.sgxMaxSize64);
+				printf(" +maxsize=%u%s +maxsize64=%u%s",
+					sgx32.size, sgx32.suffix, sgx64.size, sgx64.suffix);
 			}
 		}
 		break;
@@ -566,13 +592,11 @@ int main(int argc, const(char) **argv) {
 		);
 		
 		if (cpu.physicalBits || cpu.linearBits) {
-			uint maxPhys = void, maxLine = void;
-			const(char) *cphys = adjustBits(maxPhys, cpu.physicalBits);
-			const(char) *cline = adjustBits(maxLine, cpu.linearBits);
+			binsize_t phys = binbitsize(cpu.physicalBits);
+			binsize_t line = binbitsize(cpu.linearBits);
 			with (cpu) printf(
 			"Max. Memory: %u %s physical, %u %s virtual\n",
-			maxPhys, cphys, maxLine, cline,
-			);
+				phys.size, phys.suffix, line.size, line.suffix);
 		}
 		
 		with (cpu) printf(
@@ -580,8 +604,7 @@ int main(int argc, const(char) **argv) {
 		"Baseline:    %s\n"~
 		"Features:   ",
 			platform(cpu),
-			ddcpuid_baseline(cpu)
-		);
+			ddcpuid_baseline(cpu));
 		
 		printFeatures(cpu);
 		

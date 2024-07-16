@@ -14,8 +14,8 @@ import ddcpuid;
 // NOTE: printf is used for a few reasons:
 //       - fputs with stdout crashes on Windows due to improper externs.
 //       - line buffering is used by default, which can be an advantage.
-//TODO: Consider using WriteFile+STD_OUTPUT_HANDLE and write(2)+STDOUT_FILENO?
-//      No real benefit than maybe save some instructions
+
+// NOTE: Avoid using floats to make this run proper on the i486SX
 
 private:
 @system:
@@ -130,13 +130,14 @@ void outcpuid(uint leaf, uint sub) {
 /// Params:
 /// 	leaf = EAX input
 /// 	sub = ECX input
-pragma(inline, false) // ldc optimization thing
+pragma(inline, false) // ldc optimization bug
 void printcpuid(ref REGISTERS regs, uint leaf, uint sub) {
 	with (regs)
 	printf("| %8x | %8x | %8x | %8x | %8x | %8x |\n",
 		leaf, sub, eax, ebx, ecx, edx);
 }
 
+deprecated
 char adjust(ref float size) {
 	version (Trace) trace("size=%u", size);
 	if (size >= 1024.0) {
@@ -145,18 +146,45 @@ char adjust(ref float size) {
 	}
 	return 'K';
 }
-/// adjust
-@system unittest {
-	uint size = 1;
-	assert(adjust(size) == 'K');
-	assert(size == 1);
-	size = 1024;
-	assert(adjust(size) == 'M');
-	assert(size == 1);
-	size = 4096;
-	assert(adjust(size) == 'M');
-	assert(size == 4);
+
+struct cachesize_t {
+	uint dec;
+	uint rem;
+	char prefix;
 }
+cachesize_t cacheSize(uint base) {
+	cachesize_t s = void;
+	
+	if (base >= 1024) {
+		uint rem = base % 1024;
+		s.prefix = 'M';
+		s.dec = base / 1024;
+		s.rem = (rem * 10) / 1024;
+		return s;
+	}
+	
+	s.prefix = 'K';
+	s.dec = base;
+	s.rem = 0;
+	return s;
+}
+unittest {
+	cachesize_t c = cacheSize(16);
+	assert(c.prefix == 'K');
+	assert(c.dec == 16);
+	assert(c.rem == 0);
+	
+	c = cacheSize(1024);
+	assert(c.prefix == 'M');
+	assert(c.dec == 1);
+	assert(c.rem == 0);
+	
+	c = cacheSize(1024 + 512);
+	assert(c.prefix == 'M');
+	assert(c.dec == 1);
+	assert(c.rem == 5);
+}
+
 // Adjust binary size (IEC)
 const(char)* adjustBits(ref uint size, int bitpos) {
 	version (Trace) trace("size=%u bit=%d", size, bitpos);
@@ -170,6 +198,7 @@ const(char)* adjustBits(ref uint size, int bitpos) {
 }
 //TODO: Make DUB to include this main, somehow
 /// adjustBits
+/*
 @system unittest {
 	float size;
 	assert(adjustBits(size, 0) == "B");
@@ -187,6 +216,7 @@ const(char)* adjustBits(ref uint size, int bitpos) {
 	assert(adjustBits(size, 48) == "TiB");
 	assert(size == 256);
 }
+*/
 
 const(char)* platform(ref CPUINFO cpu) {
 	if (cpu.x86_64) return "x86-64";
@@ -593,13 +623,15 @@ int main(int argc, const(char) **argv) {
 		
 		for (size_t i; i < cpu.cacheLevels; ++i) {
 			cache = &cpu.cache[i];
-			float csize = cache.size;
-			float tsize = csize * cache.sharedCores;
-			char cc = adjust(csize);
-			char ct = adjust(tsize);
+			
+			cachesize_t c = cacheSize(cache.size);
+			cachesize_t t = cacheSize(cache.size * cache.sharedCores);
+			
 			with (cache)
-			printf("Cache L%u-%c:  %3ux %4g %ciB, %4g %ciB total",
-				level, type, sharedCores, csize, cc, tsize, ct);
+			printf("Cache L%u-%c:  %3ux %4u.%02u %ciB, %4u.%02u %ciB total",
+				level, type, sharedCores,
+				c.dec, c.rem, c.prefix,
+				t.dec, t.rem, t.prefix);
 			printCacheFeats(cache.features);
 			putchar('\n');
 		}

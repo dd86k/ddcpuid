@@ -1999,7 +1999,7 @@ L_CACHE_INTEL_4H:
 		ca.level = regs.al >> 5;
 		ca.lineSize = (regs.bx & 0xfff) + 1; // bits 11-0
 		ca.partitions = ((regs.ebx >> 12) & 0x3ff) + 1; // bits 21-12
-		ca.ways = ((regs.ebx >> 22) + 1); // bits 31-22
+		ca.ways = (regs.ebx >> 22) + 1; // bits 31-22
 		ca.sets = regs.ecx + 1;
 		if (regs.eax & BIT!(8)) ca.features = 1;
 		if (regs.eax & BIT!(9)) ca.features |= BIT!(1);
@@ -2011,8 +2011,17 @@ L_CACHE_INTEL_4H:
 		mids = (regs.eax >> 26) + 1;	// EAX[31:26]
 		
 		if (cpu.logicalCores == 0) with (cpu) { // skip if already populated
-			logicalCores = mids;
-			physicalCores = cpu.htt ? mids >> 1 : mids;
+			// Pentium 4 524 (with HTT=1) will have mids=1
+			// mids >> 1 (/2) = 0 phys cores
+			// so assuming mids=1 is legacy
+			if (mids == 1) {
+				physicalCores = 1;
+				// htt=1+1 -> 2 threads, htt=0+1 -> 1 thread
+				logicalCores = cpu.htt + 1;
+			} else {
+				logicalCores = mids;
+				physicalCores = cpu.htt ? mids >> 1 : mids;
+			}
 		}
 		
 		crshrd = (((regs.eax >> 14) & 2047) + 1);	// EAX[25:14]
